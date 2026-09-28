@@ -162,7 +162,7 @@ class AboutScreen extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Text(
+                const Text(
                   'আমার হিসাব',
                   style: TextStyle(
                     color: AppTheme.gold,
@@ -195,7 +195,7 @@ class AboutScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [
             AppTheme.darkGreen,
             AppTheme.green,
@@ -211,14 +211,14 @@ class AboutScreen extends StatelessWidget {
             width: 76,
             height: 76,
             decoration: BoxDecoration(
-              color: AppTheme.gold.withOpacity(0.16),
+              color: AppTheme.gold.withValues(alpha: 0.16),
               shape: BoxShape.circle,
               border: Border.all(
-                color: AppTheme.gold.withOpacity(0.45),
+                color: AppTheme.gold.withValues(alpha: 0.45),
                 width: 1.5,
               ),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.account_balance_wallet_rounded,
               size: 40,
               color: AppTheme.gold,
@@ -239,7 +239,7 @@ class AboutScreen extends StatelessWidget {
                 ? 'সহজে আপনার হিসাব রাখুন'
                 : 'Manage your money easily',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.82),
+              color: Colors.white.withValues(alpha: 0.82),
               fontSize: 13,
             ),
           ),
@@ -267,10 +267,10 @@ class AboutScreen extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppTheme.green.withOpacity(0.12),
+                    color: AppTheme.green.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     icon,
                     color: AppTheme.green,
                     size: 21,
@@ -343,7 +343,7 @@ class AboutScreen extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppTheme.gold.withOpacity(0.12),
+            color: AppTheme.gold.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(11),
           ),
           child: Icon(
