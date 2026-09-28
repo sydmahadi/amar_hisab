@@ -1,24 +1,12 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
-import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../services/app_settings.dart';
 import '../services/money_db.dart';
 import '../theme/app_theme.dart';
-
-enum ReportPeriod {
-  day,
-  week,
-  month,
-  year,
-}
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -28,10 +16,6 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  DateTime _selectedDate = DateTime.now();
-
-  ReportPeriod _period = ReportPeriod.month;
-
   DateTime _startDate = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -40,29 +24,20 @@ class _ReportScreenState extends State<ReportScreen> {
 
   DateTime _endDate = DateTime.now();
 
+  String _period = 'monthly';
+
   List<Map<String, dynamic>> _transactions = [];
 
-  Map<String, double> _periodTotals = {
-    'income': 0.0,
-    'expense': 0.0,
-    'difference': 0.0,
-  };
-
-  Map<String, double> _incomeByCategory = {};
-  Map<String, double> _expenseByCategory = {};
+  double _income = 0;
+  double _expense = 0;
 
   bool _loading = true;
-  bool _exporting = false;
-
-  final ScreenshotController _screenshotController =
-      ScreenshotController();
 
   AppSettings get settings => AppSettings.instance;
 
   @override
   void initState() {
     super.initState();
-    _updatePeriodDates();
     _loadReportData();
   }
 
@@ -70,123 +45,126 @@ class _ReportScreenState extends State<ReportScreen> {
   // DATE / PERIOD
   // ------------------------------------------------------------
 
-  void _updatePeriodDates() {
-    final date = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
+  void _setPeriod(String period) {
+    final now = DateTime.now();
 
-    switch (_period) {
-      case ReportPeriod.day:
-        _startDate = DateTime(
-          date.year,
-          date.month,
-          date.day,
+    DateTime start;
+    DateTime end;
+
+    switch (period) {
+      case 'weekly':
+        final today = DateTime(
+          now.year,
+          now.month,
+          now.day,
         );
 
-        _endDate = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          23,
-          59,
-          59,
-        );
-        break;
+        final daysFromMonday = today.weekday - 1;
 
-      case ReportPeriod.week:
-        final monday =
-            date.subtract(Duration(days: date.weekday - 1));
-
-        final sunday =
-            monday.add(const Duration(days: 6));
-
-        _startDate = DateTime(
-          monday.year,
-          monday.month,
-          monday.day,
+        start = today.subtract(
+          Duration(days: daysFromMonday),
         );
 
-        _endDate = DateTime(
-          sunday.year,
-          sunday.month,
-          sunday.day,
-          23,
-          59,
-          59,
+        end = start.add(
+          const Duration(
+            days: 6,
+            hours: 23,
+            minutes: 59,
+            seconds: 59,
+            milliseconds: 999,
+          ),
         );
         break;
 
-      case ReportPeriod.month:
-        _startDate = DateTime(
-          date.year,
-          date.month,
-          1,
-        );
-
-        _endDate = DateTime(
-          date.year,
-          date.month + 1,
-          0,
-          23,
-          59,
-          59,
-        );
-        break;
-
-      case ReportPeriod.year:
-        _startDate = DateTime(
-          date.year,
+      case 'yearly':
+        start = DateTime(
+          now.year,
           1,
           1,
         );
 
-        _endDate = DateTime(
-          date.year,
+        end = DateTime(
+          now.year,
           12,
           31,
           23,
           59,
           59,
+          999,
+        );
+        break;
+
+      case 'custom':
+        return;
+
+      case 'monthly':
+      default:
+        start = DateTime(
+          now.year,
+          now.month,
+          1,
+        );
+
+        end = DateTime(
+          now.year,
+          now.month + 1,
+          0,
+          23,
+          59,
+          59,
+          999,
         );
         break;
     }
+
+    setState(() {
+      _period = period;
+      _startDate = start;
+      _endDate = end;
+    });
+
+    _loadReportData();
   }
 
-  Future<void> _selectDate() async {
-    final picked = await showDatePicker(
+  Future<void> _selectDateRange() async {
+    final picked = await showDateRangePicker(
       context: context,
-      initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(
         const Duration(days: 365),
+      ),
+      initialDateRange: DateTimeRange(
+        start: _startDate,
+        end: _endDate,
       ),
     );
 
     if (picked == null) return;
 
     setState(() {
-      _selectedDate = picked;
-      _updatePeriodDates();
-    });
+      _period = 'custom';
+      _startDate = DateTime(
+        picked.start.year,
+        picked.start.month,
+        picked.start.day,
+      );
 
-    await _loadReportData();
-  }
-
-  Future<void> _changePeriod(
-    ReportPeriod period,
-  ) async {
-    setState(() {
-      _period = period;
-      _updatePeriodDates();
+      _endDate = DateTime(
+        picked.end.year,
+        picked.end.month,
+        picked.end.day,
+        23,
+        59,
+        59,
+        999,
+      );
     });
 
     await _loadReportData();
   }
 
   // ------------------------------------------------------------
-  // LOAD REPORT
+  // LOAD DATA
   // ------------------------------------------------------------
 
   Future<void> _loadReportData() async {
@@ -197,37 +175,33 @@ class _ReportScreenState extends State<ReportScreen> {
     }
 
     try {
-      final transactions =
-          await MoneyDb.instance.getTransactions(
+      final transactions = await MoneyDb.instance.getTransactions(
         startDate: _startDate,
         endDate: _endDate,
       );
 
-      final totals =
-          await MoneyDb.instance.getPeriodTotals(
-        startDate: _startDate,
-        endDate: _endDate,
-      );
+      double income = 0;
+      double expense = 0;
 
-      final income =
-          await MoneyDb.instance.getIncomeByCategory(
-        startDate: _startDate,
-        endDate: _endDate,
-      );
+      for (final tx in transactions) {
+        final amount =
+            (tx['amount'] as num?)?.toDouble() ?? 0;
 
-      final expense =
-          await MoneyDb.instance.getExpenseByCategory(
-        startDate: _startDate,
-        endDate: _endDate,
-      );
+        final type = tx['type']?.toString();
+
+        if (type == 'income') {
+          income += amount;
+        } else if (type == 'expense') {
+          expense += amount;
+        }
+      }
 
       if (!mounted) return;
 
       setState(() {
         _transactions = transactions;
-        _periodTotals = totals;
-        _incomeByCategory = _convertCategoryMap(income);
-        _expenseByCategory = _convertCategoryMap(expense);
+        _income = income;
+        _expense = expense;
         _loading = false;
       });
     } catch (e) {
@@ -239,32 +213,29 @@ class _ReportScreenState extends State<ReportScreen> {
 
       _showMessage(
         e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            ),
+          'Exception: ',
+          '',
+        ),
         isError: true,
       );
     }
   }
 
-  Map<String, double> _convertCategoryMap(
-    dynamic data,
-  ) {
-    final result = <String, double>{};
+  // ------------------------------------------------------------
+  // HELPERS
+  // ------------------------------------------------------------
 
-    if (data is Map) {
-      data.forEach((key, value) {
-        result[key.toString()] =
-            (value as num?)?.toDouble() ?? 0;
-      });
+  double get _difference => _income - _expense;
+
+  bool get _isSurplus => _difference >= 0;
+
+  String _formatNumber(double value) {
+    if (value == value.toInt()) {
+      return value.toInt().toString();
     }
 
-    return result;
+    return value.toStringAsFixed(2);
   }
-
-  // ------------------------------------------------------------
-  // FORMATTING
-  // ------------------------------------------------------------
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/'
@@ -272,89 +243,30 @@ class _ReportScreenState extends State<ReportScreen> {
         '${date.year}';
   }
 
-  String _formatAmount(dynamic value) {
-    final amount =
-        (value as num?)?.toDouble() ?? 0;
-
-    if (amount == amount.toInt()) {
-      return amount.toInt().toString();
-    }
-
-    return amount.toStringAsFixed(2);
-  }
-
   String _periodTitle() {
     switch (_period) {
-      case ReportPeriod.day:
+      case 'weekly':
         return settings.isBangla
-            ? 'দৈনিক রিপোর্ট'
-            : 'Daily Report';
+            ? 'এই সপ্তাহ'
+            : 'This Week';
 
-      case ReportPeriod.week:
+      case 'yearly':
         return settings.isBangla
-            ? 'সাপ্তাহিক রিপোর্ট'
-            : 'Weekly Report';
+            ? 'এই বছর'
+            : 'This Year';
 
-      case ReportPeriod.month:
+      case 'custom':
         return settings.isBangla
-            ? 'মাসিক রিপোর্ট'
-            : 'Monthly Report';
+            ? 'নির্বাচিত সময়'
+            : 'Custom Period';
 
-      case ReportPeriod.year:
+      case 'monthly':
+      default:
         return settings.isBangla
-            ? 'বার্ষিক রিপোর্ট'
-            : 'Yearly Report';
+            ? 'এই মাস'
+            : 'This Month';
     }
   }
-
-  String _periodDateText() {
-    if (_period == ReportPeriod.day) {
-      return _formatDate(_startDate);
-    }
-
-    return '${_formatDate(_startDate)} - '
-        '${_formatDate(_endDate)}';
-  }
-
-  String _differenceLabel() {
-    final difference =
-        _periodTotals['difference'] ?? 0;
-
-    if (difference > 0) {
-      return settings.isBangla
-          ? 'উদ্বৃত্ত'
-          : 'Surplus';
-    }
-
-    if (difference < 0) {
-      return settings.isBangla
-          ? 'ঘাটতি'
-          : 'Deficit';
-    }
-
-    return settings.isBangla
-        ? 'সমান'
-        : 'Balanced';
-  }
-
-  Color _differenceColor() {
-    final difference =
-        _periodTotals['difference'] ?? 0;
-
-    if (difference > 0) {
-      return Colors.green.shade600;
-    }
-
-    if (difference < 0) {
-      return Colors.red.shade600;
-    }
-
-    return AppTheme.gold;
-  }
-
-  // ------------------------------------------------------------
-  // MESSAGE
-  // ------------------------------------------------------------
 
   void _showMessage(
     String message, {
@@ -376,108 +288,104 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ------------------------------------------------------------
+  // CATEGORY TOTALS
+  // ------------------------------------------------------------
+
+  Map<String, double> _categoryTotals(
+    String type,
+  ) {
+    final Map<String, double> result = {};
+
+    for (final tx in _transactions) {
+      if (tx['type']?.toString() != type) {
+        continue;
+      }
+
+      final category =
+          tx['category_name']?.toString().trim();
+
+      final name = category == null || category.isEmpty
+          ? (settings.isBangla
+              ? 'অন্যান্য'
+              : 'Other')
+          : category;
+
+      final amount =
+          (tx['amount'] as num?)?.toDouble() ?? 0;
+
+      result[name] = (result[name] ?? 0) + amount;
+    }
+
+    return result;
+  }
+
+  // ------------------------------------------------------------
   // PERIOD SELECTOR
   // ------------------------------------------------------------
 
   Widget _buildPeriodSelector() {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Row(
-          children: [
-            Expanded(
-              child: _periodButton(
-                ReportPeriod.day,
-                settings.isBangla
-                    ? 'দিন'
-                    : 'Day',
-                Icons.today_outlined,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: _periodButton(
-                ReportPeriod.week,
-                settings.isBangla
-                    ? 'সপ্তাহ'
-                    : 'Week',
-                Icons.view_week_outlined,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: _periodButton(
-                ReportPeriod.month,
-                settings.isBangla
-                    ? 'মাস'
-                    : 'Month',
-                Icons.calendar_month_outlined,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: _periodButton(
-                ReportPeriod.year,
-                settings.isBangla
-                    ? 'বছর'
-                    : 'Year',
-                Icons.date_range_outlined,
-              ),
-            ),
-          ],
-        ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _periodChip(
+            value: 'weekly',
+            title: settings.isBangla
+                ? 'সাপ্তাহিক'
+                : 'Weekly',
+          ),
+          const SizedBox(width: 8),
+          _periodChip(
+            value: 'monthly',
+            title: settings.isBangla
+                ? 'মাসিক'
+                : 'Monthly',
+          ),
+          const SizedBox(width: 8),
+          _periodChip(
+            value: 'yearly',
+            title: settings.isBangla
+                ? 'বার্ষিক'
+                : 'Yearly',
+          ),
+          const SizedBox(width: 8),
+          _periodChip(
+            value: 'custom',
+            title: settings.isBangla
+                ? 'তারিখ নির্বাচন'
+                : 'Custom',
+          ),
+        ],
       ),
     );
   }
 
-  Widget _periodButton(
-    ReportPeriod period,
-    String label,
-    IconData icon,
-  ) {
-    final selected = _period == period;
+  Widget _periodChip({
+    required String value,
+    required String title,
+  }) {
+    final selected = _period == value;
 
-    return InkWell(
-      onTap: () => _changePeriod(period),
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(
-          vertical: 10,
-          horizontal: 4,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.green
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: selected
-                  ? Colors.white
-                  : AppTheme.gold,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: selected
-                    ? Colors.white
-                    : Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.color,
-              ),
-            ),
-          ],
-        ),
+    return ChoiceChip(
+      label: Text(title),
+      selected: selected,
+      onSelected: (_) {
+        if (value == 'custom') {
+          _selectDateRange();
+        } else {
+          _setPeriod(value);
+        }
+      },
+      selectedColor: AppTheme.green,
+      labelStyle: TextStyle(
+        color: selected
+            ? Colors.white
+            : Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.color,
+        fontWeight:
+            selected ? FontWeight.bold : FontWeight.normal,
       ),
     );
   }
@@ -488,25 +396,25 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Widget _buildDateCard() {
     return Card(
-      elevation: 0,
       child: InkWell(
-        onTap: _selectDate,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
+        onTap: _selectDateRange,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(15),
           child: Row(
             children: [
               Container(
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color:
-                      AppTheme.gold.withValues(alpha: 0.14),
+                  color: AppTheme.gold.withValues(
+                    alpha: 0.12,
+                  ),
                   borderRadius:
                       BorderRadius.circular(14),
                 ),
                 child: const Icon(
-                  Icons.event_rounded,
+                  Icons.calendar_month_rounded,
                   color: AppTheme.gold,
                 ),
               ),
@@ -518,20 +426,20 @@ class _ReportScreenState extends State<ReportScreen> {
                   children: [
                     Text(
                       _periodTitle(),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _periodDateText(),
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context)
                             .textTheme
                             .bodySmall
                             ?.color,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_formatDate(_startDate)} - ${_formatDate(_endDate)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
                   ],
@@ -549,34 +457,16 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ------------------------------------------------------------
-  // TOTAL SUMMARY
+  // SUMMARY
   // ------------------------------------------------------------
 
   Widget _buildSummary() {
-    final income =
-        _periodTotals['income'] ?? 0;
-
-    final expense =
-        _periodTotals['expense'] ?? 0;
-
-    final difference =
-        _periodTotals['difference'] ?? 0;
+    final differenceColor = _isSurplus
+        ? Colors.green.shade600
+        : Colors.red.shade600;
 
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
       children: [
-        Text(
-          settings.isBangla
-              ? 'সারসংক্ষেপ'
-              : 'Summary',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-
         Row(
           children: [
             Expanded(
@@ -584,7 +474,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 title: settings.isBangla
                     ? 'মোট আয়'
                     : 'Total Income',
-                amount: income,
+                value: _income,
                 icon: Icons.arrow_downward_rounded,
                 color: Colors.green.shade600,
               ),
@@ -595,223 +485,71 @@ class _ReportScreenState extends State<ReportScreen> {
                 title: settings.isBangla
                     ? 'মোট ব্যয়'
                     : 'Total Expense',
-                amount: expense,
+                value: _expense,
                 icon: Icons.arrow_upward_rounded,
                 color: Colors.red.shade600,
               ),
             ),
           ],
         ),
-
         const SizedBox(height: 10),
-
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: _differenceColor()
-                .withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: _differenceColor()
-                  .withValues(alpha: 0.20),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: _differenceColor()
-                      .withValues(alpha: 0.13),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  difference >= 0
-                      ? Icons.trending_up_rounded
-                      : Icons.trending_down_rounded,
-                  color: _differenceColor(),
-                ),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _differenceLabel(),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: _differenceColor(),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _formatAmount(difference.abs()),
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.bold,
-                        color: _differenceColor(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                difference >= 0
-                    ? Icons.account_balance_wallet_outlined
-                    : Icons.warning_amber_rounded,
-                color: _differenceColor(),
-                size: 28,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryCard({
-    required String title,
-    required double amount,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: color.withValues(alpha: 0.14),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 18,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _formatAmount(amount),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ------------------------------------------------------------
-  // CATEGORY REPORT
-  // ------------------------------------------------------------
-
-  Widget _buildCategorySection({
-    required String title,
-    required Map<String, double> categories,
-    required Color color,
-    required IconData icon,
-  }) {
-    final entries = categories.entries
-        .where((entry) => entry.value > 0)
-        .toList();
-
-    entries.sort(
-      (a, b) => b.value.compareTo(a.value),
-    );
-
-    if (entries.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final total = entries.fold<double>(
-      0,
-      (sum, item) => sum + item.value,
-    );
-
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.11),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 12),
-
         Card(
-          elevation: 0,
           child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
+            padding: const EdgeInsets.all(17),
+            child: Row(
               children: [
-                for (int i = 0;
-                    i < entries.length;
-                    i++) ...[
-                  _buildCategoryRow(
-                    name: entries[i].key,
-                    amount: entries[i].value,
-                    total: total,
-                    color: color,
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: differenceColor.withValues(
+                      alpha: 0.12,
+                    ),
+                    shape: BoxShape.circle,
                   ),
-                  if (i != entries.length - 1)
-                    const Divider(height: 20),
-                ],
+                  child: Icon(
+                    _isSurplus
+                        ? Icons.trending_up_rounded
+                        : Icons.trending_down_rounded,
+                    color: differenceColor,
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isSurplus
+                            ? (settings.isBangla
+                                ? 'উদ্বৃত্ত'
+                                : 'Surplus')
+                            : (settings.isBangla
+                                ? 'ঘাটতি'
+                                : 'Deficit'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.color,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatNumber(
+                          _difference.abs(),
+                        ),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: differenceColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -820,76 +558,271 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  Widget _buildCategoryRow({
-    required String name,
-    required double amount,
-    required double total,
+  Widget _summaryCard({
+    required String title,
+    required double value,
+    required IconData icon,
     required Color color,
   }) {
-    final percentage =
-        total == 0 ? 0.0 : amount / total;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius:
+                    BorderRadius.circular(11),
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 20,
+              ),
+            ),
+            const SizedBox(height: 9),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.color,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              _formatNumber(value),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // CATEGORY REPORT
+  // ------------------------------------------------------------
+
+  Widget _buildCategoryReport() {
+    final incomeCategories =
+        _categoryTotals('income');
+
+    final expenseCategories =
+        _categoryTotals('expense');
 
     return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              _formatAmount(amount),
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+        Text(
+          settings.isBangla
+              ? 'খাতভিত্তিক হিসাব'
+              : 'Category-wise Report',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(20),
-                child: LinearProgressIndicator(
-                  value: percentage,
-                  minHeight: 7,
-                  backgroundColor:
-                      color.withValues(alpha: 0.10),
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(
-                    color,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            SizedBox(
-              width: 42,
-              child: Text(
-                '${(percentage * 100).toStringAsFixed(1)}%',
-                textAlign: TextAlign.end,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.color,
-                ),
-              ),
-            ),
-          ],
+        const SizedBox(height: 12),
+
+        _categorySection(
+          title: settings.isBangla
+              ? 'আয়'
+              : 'Income',
+          categories: incomeCategories,
+          total: _income,
+          color: Colors.green.shade600,
+          icon: Icons.arrow_downward_rounded,
+        ),
+
+        const SizedBox(height: 14),
+
+        _categorySection(
+          title: settings.isBangla
+              ? 'ব্যয়'
+              : 'Expense',
+          categories: expenseCategories,
+          total: _expense,
+          color: Colors.red.shade600,
+          icon: Icons.arrow_upward_rounded,
         ),
       ],
+    );
+  }
+
+  Widget _categorySection({
+    required String title,
+    required Map<String, double> categories,
+    required double total,
+    required Color color,
+    required IconData icon,
+  }) {
+    if (categories.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: color,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                settings.isBangla
+                    ? '$title-এর কোনো তথ্য নেই'
+                    : 'No $title data',
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final entries = categories.entries.toList()
+      ..sort(
+        (a, b) => b.value.compareTo(a.value),
+      );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: color.withValues(
+                      alpha: 0.12,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...List.generate(
+              entries.length,
+              (index) {
+                final entry = entries[index];
+
+                final percentage = total > 0
+                    ? entry.value / total
+                    : 0.0;
+
+                return Padding(
+                  padding:
+                      const EdgeInsets.only(
+                    bottom: 12,
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              entry.key,
+                              style:
+                                  const TextStyle(
+                                fontWeight:
+                                    FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _formatNumber(
+                              entry.value,
+                            ),
+                            style: TextStyle(
+                              color: color,
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 48,
+                            child: Text(
+                              '${(percentage * 100).toStringAsFixed(1)}%',
+                              textAlign:
+                                  TextAlign.end,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(
+                                  context,
+                                )
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius:
+                            BorderRadius.circular(
+                          10,
+                        ),
+                        child:
+                            LinearProgressIndicator(
+                          value: percentage,
+                          minHeight: 6,
+                          backgroundColor:
+                              color.withValues(
+                            alpha: 0.10,
+                          ),
+                          valueColor:
+                              AlwaysStoppedAnimation<
+                                  Color>(
+                            color,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -898,663 +831,219 @@ class _ReportScreenState extends State<ReportScreen> {
   // ------------------------------------------------------------
 
   Widget _buildTransactions() {
-    if (_transactions.isEmpty) {
-      return Card(
-        elevation: 0,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Text(
-              settings.isBangla
-                  ? 'এই সময়ের কোনো লেনদেন নেই'
-                  : 'No transactions in this period',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.color,
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Text(
+          settings.isBangla
+              ? 'লেনদেনের তালিকা'
+              : 'Transactions',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (_transactions.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(25),
+              child: Center(
+                child: Text(
+                  settings.t('noTransactions'),
+                ),
               ),
             ),
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      elevation: 0,
-      child: Column(
-        children: [
-          for (int i = 0;
-              i < _transactions.length;
-              i++)
-            _buildTransactionItem(
-              _transactions[i],
-              i,
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTransactionItem(
-    Map<String, dynamic> tx,
-    int index,
-  ) {
-    final type =
-        tx['type']?.toString() ?? '';
-
-    final isIncome = type == 'income';
-    final isTransfer = type == 'transfer';
-
-    final color = isTransfer
-        ? AppTheme.gold
-        : isIncome
-            ? Colors.green.shade600
-            : Colors.red.shade600;
-
-    final category =
-        tx['category_name']?.toString();
-
-    final note =
-        tx['note']?.toString() ?? '';
-
-    final account =
-        tx['account_name']?.toString() ?? '';
-
-    String title;
-
-    if (isTransfer) {
-      final from =
-          tx['from_account_name']?.toString() ?? '';
-
-      final to =
-          tx['to_account_name']?.toString() ?? '';
-
-      if (from.isNotEmpty && to.isNotEmpty) {
-        title = '$from → $to';
-      } else {
-        title = settings.isBangla
-            ? 'ট্রান্সফার'
-            : 'Transfer';
-      }
-    } else if (category != null &&
-        category.isNotEmpty) {
-      title = category;
-    } else {
-      title = isIncome
-          ? settings.t('income')
-          : settings.t('expense');
-    }
-
-    final subtitleParts = <String>[];
-
-    if (account.isNotEmpty) {
-      subtitleParts.add(account);
-    }
-
-    if (note.isNotEmpty) {
-      subtitleParts.add(note);
-    }
-
-    return Column(
-      children: [
-        ListTile(
-          dense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 3,
-          ),
-          leading: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.11),
-              borderRadius:
-                  BorderRadius.circular(12),
-            ),
-            child: Icon(
-              isIncome
-                  ? Icons.arrow_downward_rounded
-                  : isTransfer
-                      ? Icons.swap_horiz_rounded
-                      : Icons.arrow_upward_rounded,
-              color: color,
-              size: 20,
-            ),
-          ),
-          title: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-          subtitle: subtitleParts.isEmpty
-              ? null
-              : Text(
-                  subtitleParts.join(' • '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-          trailing: Text(
-            '${isIncome ? '+ ' : isTransfer ? '' : '- '}${_formatAmount(tx['amount'])}',
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        if (index != _transactions.length - 1)
-          const Divider(
-            height: 1,
-            indent: 68,
+          )
+        else
+          ..._transactions.map(
+            (tx) => _transactionTile(tx),
           ),
       ],
     );
   }
 
-  // ------------------------------------------------------------
-  // EXPORT - JPG
-  // ------------------------------------------------------------
-
-  Future<void> _saveJpg() async {
-    if (_exporting) return;
-
-    setState(() {
-      _exporting = true;
-    });
-
-    try {
-      final Uint8List? image =
-          await _screenshotController.capture(
-        pixelRatio: 2.5,
-      );
-
-      if (image == null) {
-        throw Exception(
-          settings.isBangla
-              ? 'JPG তৈরি করা যায়নি'
-              : 'Could not create JPG',
-        );
-      }
-
-      final directory =
-          await getApplicationDocumentsDirectory();
-
-      final fileName =
-          'amar_hisab_report_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      final file = File(
-        '${directory.path}/$fileName',
-      );
-
-      await file.writeAsBytes(image);
-
-      if (!mounted) return;
-
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [
-            XFile(file.path),
-          ],
-          text: settings.isBangla
-              ? 'আমার হিসাব - রিপোর্ট'
-              : 'Amar Hisab - Report',
-        ),
-      );
-
-      _showMessage(
-        settings.isBangla
-            ? 'JPG রিপোর্ট তৈরি হয়েছে'
-            : 'JPG report created',
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      _showMessage(
-        e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            ),
-        isError: true,
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _exporting = false;
-        });
-      }
-    }
-  }
-
-  // ------------------------------------------------------------
-  // EXPORT - PDF
-  // ------------------------------------------------------------
-
-  Future<void> _savePdf() async {
-    if (_exporting) return;
-
-    setState(() {
-      _exporting = true;
-    });
-
-    try {
-      final pdf = pw.Document();
-
-      final income =
-          _periodTotals['income'] ?? 0;
-
-      final expense =
-          _periodTotals['expense'] ?? 0;
-
-      final difference =
-          _periodTotals['difference'] ?? 0;
-
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(28),
-          build: (context) {
-            return [
-              pw.Text(
-                'Amar Hisab',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight:
-                      pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 6),
-              pw.Text(
-                _periodTitleEnglish(),
-                style: pw.TextStyle(
-                  fontSize: 16,
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                '${_formatDate(_startDate)} - ${_formatDate(_endDate)}',
-              ),
-              pw.SizedBox(height: 20),
-
-              pw.Container(
-                padding:
-                    const pw.EdgeInsets.all(14),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(
-                    color: PdfColors.grey400,
-                  ),
-                  borderRadius:
-                      pw.BorderRadius.circular(8),
-                ),
-                child: pw.Column(
-                  children: [
-                    _pdfSummaryRow(
-                      'Total Income',
-                      _formatAmount(income),
-                    ),
-                    _pdfSummaryRow(
-                      'Total Expense',
-                      _formatAmount(expense),
-                    ),
-                    _pdfSummaryRow(
-                      difference >= 0
-                          ? 'Surplus'
-                          : 'Deficit',
-                      _formatAmount(
-                        difference.abs(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              pw.SizedBox(height: 22),
-
-              pw.Text(
-                'Income by Category',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight:
-                      pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-
-              ..._pdfCategoryRows(
-                _incomeByCategory,
-              ),
-
-              pw.SizedBox(height: 18),
-
-              pw.Text(
-                'Expense by Category',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight:
-                      pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-
-              ..._pdfCategoryRows(
-                _expenseByCategory,
-              ),
-
-              pw.SizedBox(height: 22),
-
-              pw.Text(
-                'Transactions',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight:
-                      pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-
-              ..._transactions.map(
-                (tx) => pw.Padding(
-                  padding:
-                      const pw.EdgeInsets.only(
-                    bottom: 5,
-                  ),
-                  child: pw.Row(
-                    children: [
-                      pw.Expanded(
-                        child: pw.Text(
-                          _pdfTransactionTitle(tx),
-                        ),
-                      ),
-                      pw.SizedBox(width: 10),
-                      pw.Text(
-                        _formatAmount(
-                          tx['amount'],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ];
-          },
-        ),
-      );
-
-      final bytes = await pdf.save();
-
-      final directory =
-          await getApplicationDocumentsDirectory();
-
-      final fileName =
-          'amar_hisab_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-
-      final file = File(
-        '${directory.path}/$fileName',
-      );
-
-      await file.writeAsBytes(bytes);
-
-      if (!mounted) return;
-
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [
-            XFile(file.path),
-          ],
-          text: settings.isBangla
-              ? 'আমার হিসাব - PDF রিপোর্ট'
-              : 'Amar Hisab - PDF Report',
-        ),
-      );
-
-      _showMessage(
-        settings.isBangla
-            ? 'PDF রিপোর্ট তৈরি হয়েছে'
-            : 'PDF report created',
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      _showMessage(
-        e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            ),
-        isError: true,
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _exporting = false;
-        });
-      }
-    }
-  }
-
-  String _periodTitleEnglish() {
-    switch (_period) {
-      case ReportPeriod.day:
-        return 'Daily Report';
-      case ReportPeriod.week:
-        return 'Weekly Report';
-      case ReportPeriod.month:
-        return 'Monthly Report';
-      case ReportPeriod.year:
-        return 'Yearly Report';
-    }
-  }
-
-  pw.Widget _pdfSummaryRow(
-    String title,
-    String value,
-  ) {
-    return pw.Padding(
-      padding:
-          const pw.EdgeInsets.only(bottom: 7),
-      child: pw.Row(
-        mainAxisAlignment:
-            pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(title),
-          pw.Text(
-            value,
-            style: pw.TextStyle(
-              fontWeight:
-                  pw.FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<pw.Widget> _pdfCategoryRows(
-    Map<String, double> categories,
-  ) {
-    final entries = categories.entries.toList();
-
-    entries.sort(
-      (a, b) => b.value.compareTo(a.value),
-    );
-
-    if (entries.isEmpty) {
-      return [
-        pw.Text('No data'),
-      ];
-    }
-
-    return entries.map(
-      (entry) {
-        return pw.Padding(
-          padding:
-              const pw.EdgeInsets.only(
-            bottom: 5,
-          ),
-          child: pw.Row(
-            mainAxisAlignment:
-                pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Expanded(
-                child: pw.Text(entry.key),
-              ),
-              pw.Text(
-                _formatAmount(entry.value),
-              ),
-            ],
-          ),
-        );
-      },
-    ).toList();
-  }
-
-  String _pdfTransactionTitle(
+  Widget _transactionTile(
     Map<String, dynamic> tx,
   ) {
-    final type =
-        tx['type']?.toString() ?? '';
+    final type = tx['type']?.toString() ?? '';
 
-    if (type == 'transfer') {
-      final from =
-          tx['from_account_name']?.toString() ?? '';
+    final amount =
+        (tx['amount'] as num?)?.toDouble() ?? 0;
 
-      final to =
-          tx['to_account_name']?.toString() ?? '';
+    final isIncome = type == 'income';
 
-      if (from.isNotEmpty && to.isNotEmpty) {
-        return '$from -> $to';
-      }
-
-      return 'Transfer';
-    }
+    final color = isIncome
+        ? Colors.green.shade600
+        : Colors.red.shade600;
 
     final category =
         tx['category_name']?.toString() ?? '';
 
-    if (category.isNotEmpty) {
-      return category;
-    }
+    final note =
+        tx['note']?.toString() ?? '';
 
-    return type == 'income'
-        ? 'Income'
-        : 'Expense';
-  }
+    final date =
+        tx['transaction_date']?.toString() ?? '';
 
-  // ------------------------------------------------------------
-  // EXPORT BUTTONS
-  // ------------------------------------------------------------
-
-  Widget _buildExportButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed:
-                _exporting ? null : _saveJpg,
-            icon: const Icon(
-              Icons.image_outlined,
-            ),
-            label: Text(
-              settings.isBangla
-                  ? 'JPG সেভ'
-                  : 'Save JPG',
-            ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(
+          horizontal: 13,
+          vertical: 2,
+        ),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius:
+                BorderRadius.circular(12),
+          ),
+          child: Icon(
+            isIncome
+                ? Icons.arrow_downward_rounded
+                : Icons.arrow_upward_rounded,
+            color: color,
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed:
-                _exporting ? null : _savePdf,
-            icon: const Icon(
-              Icons.picture_as_pdf_outlined,
-            ),
-            label: Text(
-              settings.isBangla
-                  ? 'PDF সেভ'
-                  : 'Save PDF',
-            ),
+        title: Text(
+          category.isEmpty
+              ? (isIncome
+                  ? settings.t('income')
+                  : settings.t('expense'))
+              : category,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
           ),
         ),
-      ],
-    );
-  }
-
-  // ------------------------------------------------------------
-  // BUILD REPORT
-  // ------------------------------------------------------------
-
-  Widget _buildReportContent() {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          _buildDateCard(),
-
-          const SizedBox(height: 10),
-
-          _buildPeriodSelector(),
-
-          const SizedBox(height: 20),
-
-          _buildSummary(),
-
-          const SizedBox(height: 24),
-
-          _buildCategorySection(
-            title: settings.isBangla
-                ? 'খাতভিত্তিক আয়'
-                : 'Income by Category',
-            categories: _incomeByCategory,
-            color: Colors.green.shade600,
-            icon: Icons.arrow_downward_rounded,
+        subtitle: Text(
+          note.isEmpty
+              ? date.split('T').first
+              : note,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Text(
+          '${isIncome ? '+ ' : '- '}${_formatNumber(amount)}',
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
           ),
-
-          if (_incomeByCategory.isNotEmpty)
-            const SizedBox(height: 24),
-
-          _buildCategorySection(
-            title: settings.isBangla
-                ? 'খাতভিত্তিক ব্যয়'
-                : 'Expense by Category',
-            categories: _expenseByCategory,
-            color: Colors.red.shade600,
-            icon: Icons.arrow_upward_rounded,
-          ),
-
-          if (_expenseByCategory.isNotEmpty)
-            const SizedBox(height: 24),
-
-          Text(
-            settings.isBangla
-                ? 'লেনদেনের তালিকা'
-                : 'Transactions',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          _buildTransactions(),
-
-          const SizedBox(height: 24),
-
-          _buildExportButtons(),
-
-          const SizedBox(height: 80),
-        ],
+        ),
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // SHARE
+  // ------------------------------------------------------------
+
+  Future<void> _shareReport() async {
+    try {
+      final incomeCategories =
+          _categoryTotals('income');
+
+      final expenseCategories =
+          _categoryTotals('expense');
+
+      final buffer = StringBuffer();
+
+      buffer.writeln(
+        settings.isBangla
+            ? 'আমার হিসাব - রিপোর্ট'
+            : 'Amar Hisab - Report',
+      );
+
+      buffer.writeln(
+        '${_formatDate(_startDate)} - ${_formatDate(_endDate)}',
+      );
+
+      buffer.writeln();
+
+      buffer.writeln(
+        '${settings.isBangla ? 'মোট আয়' : 'Total Income'}: ${_formatNumber(_income)}',
+      );
+
+      buffer.writeln(
+        '${settings.isBangla ? 'মোট ব্যয়' : 'Total Expense'}: ${_formatNumber(_expense)}',
+      );
+
+      buffer.writeln(
+        '${_isSurplus ? (settings.isBangla ? 'উদ্বৃত্ত' : 'Surplus') : (settings.isBangla ? 'ঘাটতি' : 'Deficit')}: ${_formatNumber(_difference.abs())}',
+      );
+
+      buffer.writeln();
+
+      buffer.writeln(
+        settings.isBangla
+            ? '--- আয় খাতভিত্তিক ---'
+            : '--- Income by Category ---',
+      );
+
+      incomeCategories.forEach(
+        (key, value) {
+          buffer.writeln(
+            '$key: ${_formatNumber(value)}',
+          );
+        },
+      );
+
+      buffer.writeln();
+
+      buffer.writeln(
+        settings.isBangla
+            ? '--- ব্যয় খাতভিত্তিক ---'
+            : '--- Expense by Category ---',
+      );
+
+      expenseCategories.forEach(
+        (key, value) {
+          buffer.writeln(
+            '$key: ${_formatNumber(value)}',
+          );
+        },
+      );
+
+      final tempDir =
+          await getTemporaryDirectory();
+
+      final file = File(
+        '${tempDir.path}/amar_hisab_report.txt',
+      );
+
+      await file.writeAsString(
+        buffer.toString(),
+      );
+
+      if (!mounted) return;
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(file.path),
+          ],
+          text: settings.isBangla
+              ? 'আমার হিসাব রিপোর্ট'
+              : 'Amar Hisab Report',
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _showMessage(
+        e.toString(),
+        isError: true,
+      );
+    }
+  }
+
+  // ------------------------------------------------------------
+  // BUILD
+  // ------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -1566,41 +1055,55 @@ class _ReportScreenState extends State<ReportScreen> {
               : 'Report',
         ),
         actions: [
-          if (_exporting)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                ),
-              ),
+          IconButton(
+            tooltip: settings.isBangla
+                ? 'শেয়ার'
+                : 'Share',
+            onPressed: _shareReport,
+            icon: const Icon(
+              Icons.share_rounded,
             ),
+          ),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadReportData,
-              child: SingleChildScrollView(
+      body: RefreshIndicator(
+        onRefresh: _loadReportData,
+        child: _loading
+            ? const Center(
+                child:
+                    CircularProgressIndicator(),
+              )
+            : ListView(
                 physics:
                     const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
+                padding:
+                    const EdgeInsets.fromLTRB(
                   16,
-                  12,
+                  14,
                   16,
-                  20,
+                  100,
                 ),
-                child: Screenshot(
-                  controller:
-                      _screenshotController,
-                  child: _buildReportContent(),
-                ),
+                children: [
+                  _buildPeriodSelector(),
+
+                  const SizedBox(height: 14),
+
+                  _buildDateCard(),
+
+                  const SizedBox(height: 16),
+
+                  _buildSummary(),
+
+                  const SizedBox(height: 24),
+
+                  _buildCategoryReport(),
+
+                  const SizedBox(height: 24),
+
+                  _buildTransactions(),
+                ],
               ),
-            ),
+      ),
     );
   }
 }
