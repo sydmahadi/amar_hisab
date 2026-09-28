@@ -192,7 +192,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                         color: _colorForType(
                           selectedType,
-                        ).value,
+                        ).toARGB32(),
                       );
 
                       if (!context.mounted) return;
@@ -409,7 +409,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                         color: _colorForType(
                           selectedType,
-                        ).value,
+                        ).toARGB32(),
                       );
 
                       if (!context.mounted) return;
