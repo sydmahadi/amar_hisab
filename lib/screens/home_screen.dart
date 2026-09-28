@@ -4,7 +4,7 @@ import '../services/app_settings.dart';
 import '../services/money_db.dart';
 import '../theme/app_theme.dart';
 import 'about_screen.dart';
-import 'account_screen.dart';
+import 'accounts_screen.dart';
 import 'add_transaction_screen.dart';
 import 'categories_screen.dart';
 import 'report_screen.dart';
