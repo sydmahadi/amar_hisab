@@ -111,9 +111,10 @@ class _HomeScreenState extends State<HomeScreen> {
         SnackBar(
           content: Text(message),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: isError
-              ? Colors.red.shade700
-              : AppTheme.green,
+          backgroundColor:
+              isError
+                  ? Colors.red.shade700
+                  : AppTheme.green,
         ),
       );
   }
@@ -176,6 +177,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const StatisticsScreen(),
       ),
     );
+
+    await _loadData();
   }
 
   Future<void> _openReport() async {
@@ -186,6 +189,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const ReportScreen(),
       ),
     );
+
+    await _loadData();
   }
 
   void _openSettings() {
@@ -291,13 +296,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ------------------------------------------------------------
+  // TOP HEADER
+  // ------------------------------------------------------------
+
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(
         18,
-        18,
-        10,
-        18,
+        17,
+        8,
+        17,
       ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -310,92 +319,97 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         borderRadius:
             BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.green
+                .withValues(alpha: 0.20),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.gold
+                  .withValues(alpha: 0.16),
+              borderRadius:
+                  BorderRadius.circular(16),
+              border: Border.all(
+                color: AppTheme.gold
+                    .withValues(alpha: 0.28),
+              ),
+            ),
+            child: const Icon(
+              Icons.account_balance_wallet_rounded,
+              color: AppTheme.goldLight,
+              size: 25,
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
           Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ',
-                  style: TextStyle(
-                    color: AppTheme.goldLight,
-                    fontSize: 12,
-                    fontWeight:
-                        FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 Text(
                   settings.t('appName'),
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 25,
+                    fontSize: 22,
                     fontWeight:
-                        FontWeight.bold,
+                        FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   settings.t('appTagline'),
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white
-                        .withValues(alpha: 0.78),
-                    fontSize: 12,
+                        .withValues(alpha: 0.72),
+                    fontSize: 11,
                   ),
                 ),
               ],
             ),
           ),
 
-          Material(
-            color: Colors.white
-                .withValues(alpha: 0.10),
-            borderRadius:
-                BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius:
-                  BorderRadius.circular(12),
-              onTap: () {
-                settings.toggleLanguage();
-              },
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                child: Text(
-                  settings.isBangla
-                      ? 'EN'
-                      : 'বাং',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
+          _headerIconButton(
+            icon: settings.isBangla
+                ? Icons.translate_rounded
+                : Icons.translate_rounded,
+            label: settings.isBangla
+                ? 'EN'
+                : 'বাং',
+            onTap: () {
+              settings.setLanguage(
+                settings.isBangla
+                    ? 'en'
+                    : 'bn',
+              );
+            },
           ),
 
-          const SizedBox(width: 4),
+          const SizedBox(width: 2),
 
-          IconButton(
-            tooltip: settings.darkMode
-                ? 'Light Theme'
-                : 'Dark Theme',
-            onPressed: () {
+          _headerIconButton(
+            icon: settings.isDarkMode
+                ? Icons.light_mode_rounded
+                : Icons.dark_mode_rounded,
+            onTap: () {
               settings.toggleTheme();
             },
-            icon: Icon(
-              settings.darkMode
-                  ? Icons.light_mode_rounded
-                  : Icons.dark_mode_rounded,
-              color: AppTheme.goldLight,
-            ),
           ),
 
           PopupMenuButton<String>(
@@ -406,9 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onSelected: (value) {
               if (value == 'settings') {
                 _openSettings();
-              }
-
-              if (value == 'about') {
+              } else if (value == 'about') {
                 _openAbout();
               }
             },
@@ -450,66 +462,257 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBalanceCard() {
-    final positive = _balance >= 0;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: AppTheme.gold
-                        .withValues(alpha: 0.12),
-                    borderRadius:
-                        BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons
-                        .account_balance_wallet_rounded,
-                    color: AppTheme.gold,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    settings.t('totalBalance'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.color,
+  Widget _headerIconButton({
+    required IconData icon,
+    String? label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white.withValues(
+        alpha: 0.10,
+      ),
+      borderRadius:
+          BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius:
+            BorderRadius.circular(12),
+        onTap: onTap,
+        child: SizedBox(
+          width: label == null ? 39 : 43,
+          height: 39,
+          child: Center(
+            child: label != null
+                ? Text(
+                    label,
+                    style:
+                        const TextStyle(
+                      color: Colors.white,
+                      fontWeight:
+                          FontWeight.bold,
+                      fontSize: 12,
                     ),
+                  )
+                : Icon(
+                    icon,
+                    color:
+                        AppTheme.goldLight,
+                    size: 20,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _formatNumber(_balance),
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight:
-                    FontWeight.bold,
-                color: positive
-                    ? AppTheme.gold
-                    : Colors.red.shade600,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // BALANCE HERO
+  // ------------------------------------------------------------
+
+  Widget _buildBalanceCard() {
+    final positive = _balance >= 0;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).cardColor,
+            Theme.of(context)
+                .cardColor
+                .withValues(alpha: 0.88),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius:
+            BorderRadius.circular(22),
+        border: Border.all(
+          color: AppTheme.gold
+              .withValues(alpha: 0.16),
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20,
+            top: -25,
+            child: Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.gold
+                    .withValues(alpha: 0.05),
+              ),
+            ),
+          ),
+
+          Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 43,
+                    height: 43,
+                    decoration:
+                        BoxDecoration(
+                      color: AppTheme.gold
+                          .withValues(
+                        alpha: 0.13,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        14,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons
+                          .account_balance_wallet_rounded,
+                      color:
+                          AppTheme.gold,
+                      size: 22,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          settings.t(
+                            'totalBalance',
+                          ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            )
+                                .textTheme
+                                .bodySmall
+                                ?.color,
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 3,
+                        ),
+                        Text(
+                          settings.isBangla
+                              ? 'বর্তমান মোট ব্যালেন্স'
+                              : 'Current total balance',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(
+                              context,
+                            )
+                                .textTheme
+                                .bodySmall
+                                ?.color
+                                ?.withValues(
+                                  alpha: 0.70,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 6,
+                    ),
+                    decoration:
+                        BoxDecoration(
+                      color: positive
+                          ? Colors.green
+                              .withValues(
+                              alpha: 0.10,
+                            )
+                          : Colors.red
+                              .withValues(
+                              alpha: 0.10,
+                            ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        20,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize:
+                          MainAxisSize.min,
+                      children: [
+                        Icon(
+                          positive
+                              ? Icons
+                                  .trending_up_rounded
+                              : Icons
+                                  .trending_down_rounded,
+                          size: 14,
+                          color: positive
+                              ? Colors.green
+                              : Colors.red,
+                        ),
+                        const SizedBox(
+                          width: 3,
+                        ),
+                        Text(
+                          positive
+                              ? (settings
+                                      .isBangla
+                                  ? 'উদ্বৃত্ত'
+                                  : 'Positive')
+                              : (settings
+                                      .isBangla
+                                  ? 'ঘাটতি'
+                                  : 'Negative'),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight:
+                                FontWeight.bold,
+                            color: positive
+                                ? Colors.green
+                                : Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              Text(
+                _formatNumber(_balance),
+                maxLines: 1,
+                overflow:
+                    TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 34,
+                  fontWeight:
+                      FontWeight.w800,
+                  letterSpacing: -0.5,
+                  color: positive
+                      ? AppTheme.gold
+                      : Colors.red.shade600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // INCOME / EXPENSE
+  // ------------------------------------------------------------
 
   Widget _buildIncomeExpense() {
     return Row(
@@ -520,19 +723,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 settings.t('incomeTotal'),
             amount: _income,
             icon:
-                Icons.arrow_downward_rounded,
-            color: Colors.green.shade600,
+                Icons.south_west_rounded,
+            color:
+                const Color(0xFF2E9D68),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: _summaryCard(
             title:
                 settings.t('expenseTotal'),
             amount: _expense,
             icon:
-                Icons.arrow_upward_rounded,
-            color: Colors.red.shade600,
+                Icons.north_east_rounded,
+            color:
+                const Color(0xFFD9534F),
           ),
         ),
       ],
@@ -549,18 +754,18 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+        child: Row(
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color:
-                    color.withValues(alpha: 0.12),
+                    color.withValues(
+                  alpha: 0.11,
+                ),
                 borderRadius:
-                    BorderRadius.circular(11),
+                    BorderRadius.circular(13),
               ),
               child: Icon(
                 icon,
@@ -568,28 +773,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 size: 20,
               ),
             ),
-            const SizedBox(height: 9),
-            Text(
-              title,
-              maxLines: 1,
-              overflow:
-                  TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                color: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.color,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              _formatNumber(amount),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight:
-                    FontWeight.bold,
-                color: color,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(
+                        context,
+                      )
+                          .textTheme
+                          .bodySmall
+                          ?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatNumber(amount),
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                          FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -597,6 +815,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // QUICK ACTIONS
+  // ------------------------------------------------------------
 
   Widget _buildQuickActions() {
     final actions = [
@@ -609,7 +831,8 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: _openAddTransaction,
       ),
       _ActionItem(
-        icon: Icons.receipt_long_rounded,
+        icon:
+            Icons.receipt_long_rounded,
         title:
             settings.t('transactions'),
         color: Colors.blue,
@@ -618,27 +841,32 @@ class _HomeScreenState extends State<HomeScreen> {
       _ActionItem(
         icon:
             Icons.account_balance_wallet_rounded,
-        title: settings.t('accounts'),
+        title:
+            settings.t('accounts'),
         color: Colors.orange,
         onTap: _openAccounts,
       ),
       _ActionItem(
-        icon: Icons.category_rounded,
+        icon:
+            Icons.category_rounded,
         title:
             settings.t('categories'),
         color: Colors.purple,
         onTap: _openCategories,
       ),
       _ActionItem(
-        icon: Icons.bar_chart_rounded,
+        icon:
+            Icons.bar_chart_rounded,
         title:
             settings.t('statistics'),
         color: Colors.teal,
         onTap: _openStatistics,
       ),
       _ActionItem(
-        icon: Icons.assessment_rounded,
-        title: settings.t('report'),
+        icon:
+            Icons.assessment_rounded,
+        title:
+            settings.t('report'),
         color: AppTheme.gold,
         onTap: _openReport,
       ),
@@ -652,9 +880,9 @@ class _HomeScreenState extends State<HomeScreen> {
       gridDelegate:
           const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 0.92,
+        crossAxisSpacing: 9,
+        mainAxisSpacing: 9,
+        childAspectRatio: 1.02,
       ),
       itemBuilder: (context, index) {
         final item = actions[index];
@@ -663,34 +891,39 @@ class _HomeScreenState extends State<HomeScreen> {
           margin: EdgeInsets.zero,
           child: InkWell(
             borderRadius:
-                BorderRadius.circular(16),
+                BorderRadius.circular(18),
             onTap: item.onTap,
             child: Padding(
               padding:
-                  const EdgeInsets.all(9),
+                  const EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 9,
+              ),
               child: Column(
                 mainAxisAlignment:
                     MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 43,
-                    height: 43,
+                    width: 45,
+                    height: 45,
                     decoration:
                         BoxDecoration(
                       color: item.color
-                          .withValues(alpha: 0.12),
+                          .withValues(
+                        alpha: 0.11,
+                      ),
                       borderRadius:
                           BorderRadius.circular(
-                        13,
+                        14,
                       ),
                     ),
                     child: Icon(
                       item.icon,
                       color: item.color,
-                      size: 22,
+                      size: 23,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 7),
                   Text(
                     item.title,
                     textAlign:
@@ -699,7 +932,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow:
                         TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight:
                           FontWeight.w600,
                     ),
@@ -713,6 +946,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // ACCOUNTS
+  // ------------------------------------------------------------
+
   Widget _buildAccounts() {
     return Column(
       crossAxisAlignment:
@@ -721,13 +958,40 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           children: [
             Expanded(
-              child: Text(
-                settings.t('accounts'),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight:
-                      FontWeight.bold,
-                ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration:
+                        BoxDecoration(
+                      color: AppTheme.gold
+                          .withValues(
+                        alpha: 0.11,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        11,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.wallet_rounded,
+                      color:
+                          AppTheme.gold,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Text(
+                    settings.t('accounts'),
+                    style:
+                        const TextStyle(
+                      fontSize: 18,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
             TextButton(
@@ -740,7 +1004,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 5),
+
+        const SizedBox(height: 7),
+
         if (_accounts.isEmpty)
           Card(
             child: Padding(
@@ -774,63 +1040,157 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Card(
       margin: const EdgeInsets.only(
-        bottom: 9,
+        bottom: 8,
       ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 3,
-        ),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color:
-                color.withValues(alpha: 0.12),
-            borderRadius:
-                BorderRadius.circular(13),
+      child: InkWell(
+        borderRadius:
+            BorderRadius.circular(18),
+        onTap: _openAccounts,
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 13,
+            vertical: 11,
           ),
-          child: Icon(
-            _accountIcon(
-              account['type']
-                      ?.toString() ??
-                  '',
-            ),
-            color: color,
-          ),
-        ),
-        title: Text(
-          _accountDisplayName(account),
-          style: const TextStyle(
-            fontWeight:
-                FontWeight.w600,
-          ),
-        ),
-        subtitle: Text(
-          settings.t('balance'),
-          style: const TextStyle(
-            fontSize: 11,
-          ),
-        ),
-        trailing: Text(
-          _formatNumber(balance),
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight:
-                FontWeight.bold,
-            color: balance >= 0
-                ? color
-                : Colors.red.shade600,
+          child: Row(
+            children: [
+              Container(
+                width: 45,
+                height: 45,
+                decoration:
+                    BoxDecoration(
+                  color: color.withValues(
+                    alpha: 0.11,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(
+                    14,
+                  ),
+                ),
+                child: Icon(
+                  _accountIcon(
+                    account['type']
+                            ?.toString() ??
+                        '',
+                  ),
+                  color: color,
+                  size: 22,
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _accountDisplayName(
+                        account,
+                      ),
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style:
+                          const TextStyle(
+                        fontWeight:
+                            FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 3,
+                    ),
+                    Text(
+                      settings.t('balance'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(
+                          context,
+                        )
+                            .textTheme
+                            .bodySmall
+                            ?.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Text(
+                _formatNumber(balance),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight:
+                      FontWeight.w800,
+                  color: balance >= 0
+                      ? color
+                      : Colors.red.shade600,
+                ),
+              ),
+
+              const SizedBox(width: 3),
+
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.color,
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  // ------------------------------------------------------------
+  // FLOATING TRANSACTION BUTTON
+  // ------------------------------------------------------------
+
+  Widget _buildTransactionButton() {
+    return Padding(
+      padding: const EdgeInsets.only(
+        right: 4,
+        bottom: 4,
+      ),
+      child: FloatingActionButton.extended(
+        heroTag: 'home_transactions',
+        onPressed: _openTransactions,
+        backgroundColor: AppTheme.gold,
+        foregroundColor: Colors.black,
+        elevation: 5,
+        icon: const Icon(
+          Icons.receipt_long_rounded,
+          size: 19,
+        ),
+        label: Text(
+          settings.isBangla
+              ? 'লেনদেন'
+              : 'Transactions',
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // BUILD
+  // ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.endFloat,
+      floatingActionButton:
+          _buildTransactionButton(),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadData,
@@ -842,7 +1202,7 @@ class _HomeScreenState extends State<HomeScreen> {
               14,
               14,
               14,
-              35,
+              105,
             ),
             children: [
               _buildHeader(),
@@ -850,36 +1210,69 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 14),
 
               if (_loading)
-                const LinearProgressIndicator(
-                  minHeight: 2,
+                ClipRRect(
+                  borderRadius:
+                      BorderRadius.circular(10),
+                  child:
+                      const LinearProgressIndicator(
+                    minHeight: 2,
+                  ),
                 ),
 
-              const SizedBox(height: 12),
+              if (_loading)
+                const SizedBox(height: 12),
 
               _buildBalanceCard(),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
               _buildIncomeExpense(),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
 
-              Text(
-                settings.isBangla
-                    ? 'দ্রুত কাজ'
-                    : 'Quick Actions',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight:
-                      FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration:
+                        BoxDecoration(
+                      color: AppTheme.green
+                          .withValues(
+                        alpha: 0.11,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        11,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons
+                          .auto_awesome_rounded,
+                      color:
+                          AppTheme.green,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Text(
+                    settings.isBangla
+                        ? 'দ্রুত কাজ'
+                        : 'Quick Actions',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 10),
 
               _buildQuickActions(),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
 
               _buildAccounts(),
             ],
