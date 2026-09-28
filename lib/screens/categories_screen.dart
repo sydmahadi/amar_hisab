@@ -15,22 +15,53 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  List<Map<String, dynamic>> _incomeCategories = [];
   List<Map<String, dynamic>> _expenseCategories = [];
+  List<Map<String, dynamic>> _incomeCategories = [];
 
   bool _loading = true;
 
   AppSettings get settings => AppSettings.instance;
 
+  final List<IconData> _availableIcons = const [
+    Icons.shopping_bag,
+    Icons.fastfood,
+    Icons.home,
+    Icons.directions_bus,
+    Icons.medical_services,
+    Icons.movie,
+    Icons.school,
+    Icons.receipt_long,
+    Icons.card_giftcard,
+    Icons.work,
+    Icons.attach_money,
+    Icons.trending_up,
+    Icons.business_center,
+    Icons.laptop,
+    Icons.store,
+    Icons.savings,
+    Icons.account_balance,
+    Icons.sports_esports,
+    Icons.flight,
+    Icons.pets,
+  ];
+
+  final List<Color> _availableColors = [
+    AppTheme.green,
+    AppTheme.gold,
+    Colors.red,
+    Colors.blue,
+    Colors.orange,
+    Colors.purple,
+    Colors.teal,
+    Colors.pink,
+    Colors.indigo,
+    Colors.brown,
+  ];
+
   @override
   void initState() {
     super.initState();
-
-    _tabController = TabController(
-      length: 2,
-      vsync: this,
-    );
-
+    _tabController = TabController(length: 2, vsync: this);
     _loadCategories();
   }
 
@@ -48,19 +79,14 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     }
 
     try {
-      final income = await MoneyDb.instance.getCategories(
-        type: 'income',
-      );
-
-      final expense = await MoneyDb.instance.getCategories(
-        type: 'expense',
-      );
+      final expense = await MoneyDb.instance.getCategories(type: 'expense');
+      final income = await MoneyDb.instance.getCategories(type: 'income');
 
       if (!mounted) return;
 
       setState(() {
-        _incomeCategories = income;
         _expenseCategories = expense;
+        _incomeCategories = income;
         _loading = false;
       });
     } catch (e) {
@@ -77,537 +103,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     }
   }
 
-  Future<void> _showAddCategoryDialog() async {
-    final nameController = TextEditingController();
-
-    String type = _tabController.index == 0 ? 'income' : 'expense';
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(settings.t('addCategory')),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: settings.t('categoryName'),
-                      hintText: settings.t('enterName'),
-                      prefixIcon: const Icon(
-                        Icons.category_outlined,
-                        color: AppTheme.gold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  DropdownButtonFormField<String>(
-                    initialValue: type,
-                    decoration: InputDecoration(
-                      labelText: settings.isBangla
-                          ? 'খাতের ধরন'
-                          : 'Category Type',
-                    ),
-                    items: [
-                      DropdownMenuItem<String>(
-                        value: 'income',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.arrow_downward_rounded,
-                              size: 19,
-                              color: Colors.green.shade600,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(settings.t('income')),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem<String>(
-                        value: 'expense',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.arrow_upward_rounded,
-                              size: 19,
-                              color: Colors.red.shade600,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(settings.t('expense')),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-
-                      setDialogState(() {
-                        type = value;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext, false);
-                  },
-                  child: Text(settings.t('cancel')),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    final name = nameController.text.trim();
-
-                    if (name.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            settings.t('enterName'),
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-
-                    try {
-                      await MoneyDb.instance.addCategory(
-                        name: name,
-                        type: type,
-                        icon: type == 'income' ? 0xe850 : 0xe145,
-                        color: type == 'income'
-                            ? 0xFF176B45
-                            : 0xFFE57373,
-                      );
-
-                      if (!context.mounted) return;
-
-                      Navigator.pop(dialogContext, true);
-                    } catch (e) {
-                      if (!context.mounted) return;
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            e.toString().replaceFirst(
-                                  'Exception: ',
-                                  '',
-                                ),
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(settings.t('save')),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    nameController.dispose();
-
-    if (result == true) {
-      await _loadCategories();
-
-      if (!mounted) return;
-
-      _showMessage(
-        settings.t('categoryAdded'),
-      );
-    }
-  }
-
-  Future<void> _showEditCategoryDialog(
-    Map<String, dynamic> category,
-  ) async {
-    final id = category['id'] as int;
-
-    final nameController = TextEditingController(
-      text: category['name']?.toString() ?? '',
-    );
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(settings.t('edit')),
-          content: TextField(
-            controller: nameController,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: settings.t('categoryName'),
-              prefixIcon: const Icon(
-                Icons.category_outlined,
-                color: AppTheme.gold,
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: Text(settings.t('cancel')),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-
-                if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        settings.t('enterName'),
-                      ),
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  await MoneyDb.instance.updateCategory(
-                    id,
-                    name: name,
-                  );
-
-                  if (!context.mounted) return;
-
-                  Navigator.pop(dialogContext, true);
-                } catch (e) {
-                  if (!context.mounted) return;
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        e.toString().replaceFirst(
-                              'Exception: ',
-                              '',
-                            ),
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: Text(settings.t('update')),
-            ),
-          ],
-        );
-      },
-    );
-
-    nameController.dispose();
-
-    if (result == true) {
-      await _loadCategories();
-
-      if (!mounted) return;
-
-      _showMessage(
-        settings.isBangla ? 'খাত আপডেট হয়েছে' : 'Category updated',
-      );
-    }
-  }
-
-  Future<void> _deleteCategory(
-    Map<String, dynamic> category,
-  ) async {
-    final id = category['id'] as int;
-
-    if ((category['is_default'] ?? 0) == 1) {
-      _showMessage(
-        settings.isBangla
-            ? 'ডিফল্ট খাত মুছে ফেলা যাবে না'
-            : 'Default categories cannot be deleted',
-        isError: true,
-      );
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(settings.t('confirm')),
-          content: Text(
-            settings.isBangla
-                ? 'আপনি কি এই খাতটি মুছে ফেলতে চান?'
-                : 'Do you want to delete this category?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: Text(settings.t('cancel')),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red.shade700,
-              ),
-              child: Text(settings.t('delete')),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await MoneyDb.instance.deleteCategory(id);
-
-      await _loadCategories();
-
-      if (!mounted) return;
-
-      _showMessage(
-        settings.t('categoryDeleted'),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      _showMessage(
-        e.toString().replaceFirst('Exception: ', ''),
-        isError: true,
-      );
-    }
-  }
-
-  IconData _iconForCategory(
-    dynamic rawIcon,
-    String type,
-  ) {
-    int? codePoint;
-    if (rawIcon is int) {
-      codePoint = rawIcon;
-    } else {
-      codePoint = int.tryParse(rawIcon?.toString() ?? '');
-    }
-
-    if (codePoint != null) {
-      return IconData(codePoint, fontFamily: 'MaterialIcons');
-    }
-
-    final iconStr = rawIcon?.toString();
-    switch (iconStr) {
-      case 'payments':
-        return Icons.payments_outlined;
-      case 'business_center':
-        return Icons.business_center_outlined;
-      case 'card_giftcard':
-        return Icons.card_giftcard_outlined;
-      case 'restaurant':
-        return Icons.restaurant_outlined;
-      case 'shopping_cart':
-        return Icons.shopping_cart_outlined;
-      case 'directions_car':
-        return Icons.directions_car_outlined;
-      case 'home':
-        return Icons.home_outlined;
-      case 'receipt_long':
-        return Icons.receipt_long_outlined;
-      case 'medical_services':
-        return Icons.medical_services_outlined;
-      case 'school':
-        return Icons.school_outlined;
-      case 'family_restroom':
-        return Icons.family_restroom_outlined;
-      default:
-        return type == 'income'
-            ? Icons.add_circle_outline
-            : Icons.category_outlined;
-    }
-  }
-
-  Color _colorForCategory(
-    Map<String, dynamic> category,
-  ) {
-    final value = category['color'];
-
-    if (value is int) {
-      return Color(value);
-    }
-
-    if (value is num) {
-      return Color(value.toInt());
-    }
-
-    return category['type'] == 'income'
-        ? AppTheme.green
-        : Colors.red.shade400;
-  }
-
-  Widget _buildCategoryCard(
-    Map<String, dynamic> category,
-  ) {
-    final type = category['type']?.toString() ?? 'expense';
-    final name = category['name']?.toString() ?? '';
-    final color = _colorForCategory(category);
-    final isDefault = (category['is_default'] ?? 0) == 1;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 3,
-        ),
-        leading: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(
-            _iconForCategory(
-              category['icon'],
-              type,
-            ),
-            color: color,
-          ),
-        ),
-        title: Text(
-          name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Text(
-          isDefault
-              ? settings.isBangla
-                  ? 'ডিফল্ট খাত'
-                  : 'Default category'
-              : settings.isBangla
-                  ? 'নিজস্ব খাত'
-                  : 'Custom category',
-          style: TextStyle(
-            fontSize: 11,
-            color: isDefault
-                ? AppTheme.gold
-                : Theme.of(context).textTheme.bodySmall?.color,
-          ),
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'edit') {
-              _showEditCategoryDialog(category);
-            } else if (value == 'delete') {
-              _deleteCategory(category);
-            }
-          },
-          itemBuilder: (context) {
-            return [
-              PopupMenuItem<String>(
-                value: 'edit',
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.edit_outlined,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(settings.t('edit')),
-                  ],
-                ),
-              ),
-              if (!isDefault)
-                PopupMenuItem<String>(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.delete_outline,
-                        size: 20,
-                        color: Colors.red.shade600,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        settings.t('delete'),
-                        style: TextStyle(
-                          color: Colors.red.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ];
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryList(
-    List<Map<String, dynamic>> categories,
-  ) {
-    if (categories.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.category_outlined,
-              size: 58,
-              color: AppTheme.gold.withValues(alpha: 0.7),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              settings.t('noCategories'),
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              settings.isBangla
-                  ? 'নিচের + বাটনে নতুন খাত যোগ করুন'
-                  : 'Tap the + button to add a category',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).textTheme.bodySmall?.color,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadCategories,
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          14,
-          16,
-          100,
-        ),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          return _buildCategoryCard(
-            categories[index],
-          );
-        },
-      ),
-    );
-  }
-
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
+  void _showMessage(String message, {bool isError = false}) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
@@ -621,59 +117,378 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       );
   }
 
+  IconData _iconFromData(dynamic iconData) {
+    if (iconData is int) {
+      return IconData(iconData, fontFamily: 'MaterialIcons');
+    }
+
+    if (iconData is num) {
+      return IconData(iconData.toInt(), fontFamily: 'MaterialIcons');
+    }
+
+    if (iconData is String) {
+      final parsed = int.tryParse(iconData);
+      if (parsed != null) {
+        return IconData(parsed, fontFamily: 'MaterialIcons');
+      }
+    }
+
+    return Icons.category;
+  }
+
+  Color _colorFromData(dynamic colorData) {
+    if (colorData is int) {
+      return Color(colorData);
+    }
+
+    if (colorData is num) {
+      return Color(colorData.toInt());
+    }
+
+    if (colorData is String) {
+      final parsed = int.tryParse(colorData);
+      if (parsed != null) {
+        return Color(parsed);
+      }
+    }
+
+    return AppTheme.green;
+  }
+
+  Future<void> _addOrEditCategory({
+    required String type,
+    Map<String, dynamic>? category,
+  }) async {
+    final nameController = TextEditingController(
+      text: category?['name']?.toString() ?? '',
+    );
+
+    IconData selectedIcon = category != null
+        ? _iconFromData(category['icon'])
+        : _availableIcons.first;
+
+    Color selectedColor = category != null
+        ? _colorFromData(category['color'])
+        : _availableColors.first;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final theme = Theme.of(context);
+
+            return Container(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              decoration: BoxDecoration(
+                color: theme.scaffoldBackgroundColor,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category == null
+                          ? (type == 'expense'
+                              ? (settings.isBangla
+                                  ? 'নতুন খরচের খাত'
+                                  : 'New Expense Category')
+                              : (settings.isBangla
+                                  ? 'নতুন আয়ের খাত'
+                                  : 'New Income Category'))
+                          : (settings.isBangla
+                              ? 'খাত এডিট করুন'
+                              : 'Edit Category'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: settings.t('categoryName'),
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      settings.isBangla ? 'আইকন বেছে নিন' : 'Select Icon',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 55,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _availableIcons.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final icon = _availableIcons[index];
+                          final isSelected =
+                              selectedIcon.codePoint == icon.codePoint;
+
+                          return InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                selectedIcon = icon;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? selectedColor.withValues(alpha: 0.2)
+                                    : theme.cardColor,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? selectedColor
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                icon,
+                                color: isSelected
+                                    ? selectedColor
+                                    : theme.iconTheme.color,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      settings.isBangla ? 'কালার বেছে নিন' : 'Select Color',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 45,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _availableColors.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final color = _availableColors[index];
+                          final isSelected = selectedColor.value == color.value;
+
+                          return InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                selectedColor = color;
+                              });
+                            },
+                            shape: const CircleBorder(),
+                            child: CircleAvatar(
+                              backgroundColor: color,
+                              radius: 20,
+                              child: isSelected
+                                  ? const Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.green,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () async {
+                          final name = nameController.text.trim();
+                          if (name.isEmpty) return;
+
+                          try {
+                            if (category == null) {
+                              await MoneyDb.instance.insertCategory({
+                                'name': name,
+                                'type': type,
+                                'icon': selectedIcon.codePoint,
+                                'color': selectedColor.value,
+                              });
+                            } else {
+                              await MoneyDb.instance.updateCategory(
+                                category['id'] as int,
+                                {
+                                  'name': name,
+                                  'type': type,
+                                  'icon': selectedIcon.codePoint,
+                                  'color': selectedColor.value,
+                                },
+                              );
+                            }
+
+                            if (!mounted) return;
+                            Navigator.pop(context);
+                            _loadCategories();
+                          } catch (e) {
+                            _showMessage(
+                              e.toString().replaceFirst('Exception: ', ''),
+                              isError: true,
+                            );
+                          }
+                        },
+                        child: Text(
+                          category == null
+                              ? settings.t('add')
+                              : settings.t('update'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteCategory(Map<String, dynamic> category) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(settings.isBangla ? 'খাত মুছুন' : 'Delete Category'),
+        content: Text(
+          settings.isBangla
+              ? 'আপনি কি নিশ্চিত যে এই খাতটি মুছে ফেলতে চান?'
+              : 'Are you sure you want to delete this category?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(settings.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(settings.t('delete')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await MoneyDb.instance.deleteCategory(category['id'] as int);
+        _loadCategories();
+      } catch (e) {
+        _showMessage(
+          e.toString().replaceFirst('Exception: ', ''),
+          isError: true,
+        );
+      }
+    }
+  }
+
+  Widget _buildCategoryList(
+      List<Map<String, dynamic>> categories, String type) {
+    if (categories.isEmpty) {
+      return Center(
+        child: Text(settings.t('noData')),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final item = categories[index];
+        final name = item['name']?.toString() ?? '';
+        final icon = _iconFromData(item['icon']);
+        final color = _colorFromData(item['color']);
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.15),
+              child: Icon(icon, color: color),
+            ),
+            title: Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  onPressed: () => _addOrEditCategory(
+                    type: type,
+                    category: item,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      size: 20, color: Colors.red),
+                  onPressed: () => _deleteCategory(item),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          settings.t('categories'),
-        ),
+        title: Text(settings.t('categories')),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.gold,
-          indicatorWeight: 3,
-          labelColor: AppTheme.gold,
-          unselectedLabelColor:
-              Theme.of(context).textTheme.bodyMedium?.color,
           tabs: [
-            Tab(
-              icon: const Icon(
-                Icons.arrow_downward_rounded,
-              ),
-              text: settings.t('incomeCategories'),
-            ),
-            Tab(
-              icon: const Icon(
-                Icons.arrow_upward_rounded,
-              ),
-              text: settings.t('expenseCategories'),
-            ),
+            Tab(text: settings.t('expense')),
+            Tab(text: settings.t('income')),
           ],
         ),
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildCategoryList(
-                  _incomeCategories,
-                ),
-                _buildCategoryList(
-                  _expenseCategories,
-                ),
+                _buildCategoryList(_expenseCategories, 'expense'),
+                _buildCategoryList(_incomeCategories, 'income'),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddCategoryDialog,
+      floatingActionButton: FloatingActionButton(
         backgroundColor: AppTheme.green,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: Text(
-          settings.t('addCategory'),
-        ),
+        onPressed: () {
+          final currentType =
+              _tabController.index == 0 ? 'expense' : 'income';
+          _addOrEditCategory(type: currentType);
+        },
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
