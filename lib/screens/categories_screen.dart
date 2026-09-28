@@ -48,13 +48,11 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     }
 
     try {
-      final income =
-          await MoneyDb.instance.getCategories(
+      final income = await MoneyDb.instance.getCategories(
         type: 'income',
       );
 
-      final expense =
-          await MoneyDb.instance.getCategories(
+      final expense = await MoneyDb.instance.getCategories(
         type: 'expense',
       );
 
@@ -107,18 +105,16 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 18),
-
                   DropdownButtonFormField<String>(
-                    value: type,
+                    initialValue: type,
                     decoration: InputDecoration(
                       labelText: settings.isBangla
                           ? 'খাতের ধরন'
                           : 'Category Type',
                     ),
                     items: [
-                      DropdownMenuItem(
+                      DropdownMenuItem<String>(
                         value: 'income',
                         child: Row(
                           children: [
@@ -132,7 +128,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                           ],
                         ),
                       ),
-                      DropdownMenuItem(
+                      DropdownMenuItem<String>(
                         value: 'expense',
                         child: Row(
                           children: [
@@ -186,8 +182,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         name: name,
                         type: type,
                         icon: type == 'income'
-                            ? 'payments'
-                            : 'category',
+                            ? 0xe850
+                            : 0xe145,
                         color: type == 'income'
                             ? 0xFF176B45
                             : 0xFFE57373,
@@ -285,7 +281,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
                 try {
                   await MoneyDb.instance.updateCategory(
-                    id: id,
+                    id,
                     name: name,
                   );
 
@@ -470,7 +466,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     final name =
         category['name']?.toString() ?? '';
 
-    final color = _colorForCategory(category);
+    final color =
+        _colorForCategory(category);
 
     final isDefault =
         (category['is_default'] ?? 0) == 1;
@@ -478,7 +475,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
+        contentPadding:
+            const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 3,
         ),
@@ -487,7 +485,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           height: 46,
           decoration: BoxDecoration(
             color: color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius:
+                BorderRadius.circular(14),
           ),
           child: Icon(
             _iconForCategory(
@@ -531,7 +530,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           },
           itemBuilder: (context) {
             return [
-              PopupMenuItem(
+              PopupMenuItem<String>(
                 value: 'edit',
                 child: Row(
                   children: [
@@ -545,7 +544,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 ),
               ),
               if (!isDefault)
-                PopupMenuItem(
+                PopupMenuItem<String>(
                   value: 'delete',
                   child: Row(
                     children: [
@@ -583,7 +582,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             Icon(
               Icons.category_outlined,
               size: 58,
-              color: AppTheme.gold.withOpacity(0.7),
+              color:
+                  AppTheme.gold.withOpacity(0.7),
             ),
             const SizedBox(height: 14),
             Text(
@@ -645,7 +645,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           content: Text(message),
           behavior: SnackBarBehavior.floating,
           backgroundColor:
-              isError ? Colors.red.shade700 : AppTheme.green,
+              isError
+                  ? Colors.red.shade700
+                  : AppTheme.green,
         ),
       );
   }
@@ -654,7 +656,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(settings.t('categories')),
+        title: Text(
+          settings.t('categories'),
+        ),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.gold,
@@ -670,20 +674,23 @@ class _CategoriesScreenState extends State<CategoriesScreen>
               icon: const Icon(
                 Icons.arrow_downward_rounded,
               ),
-              text: settings.t('incomeCategories'),
+              text:
+                  settings.t('incomeCategories'),
             ),
             Tab(
               icon: const Icon(
                 Icons.arrow_upward_rounded,
               ),
-              text: settings.t('expenseCategories'),
+              text:
+                  settings.t('expenseCategories'),
             ),
           ],
         ),
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(),
+              child:
+                  CircularProgressIndicator(),
             )
           : TabBarView(
               controller: _tabController,
@@ -702,7 +709,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         backgroundColor: AppTheme.green,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
-        label: Text(settings.t('addCategory')),
+        label: Text(
+          settings.t('addCategory'),
+        ),
       ),
     );
   }
