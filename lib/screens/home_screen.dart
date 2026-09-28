@@ -4,13 +4,13 @@ import '../services/app_settings.dart';
 import '../services/money_db.dart';
 import '../theme/app_theme.dart';
 import 'about_screen.dart';
-import 'accounts_screen.dart';
+import 'account_screen.dart';
 import 'add_transaction_screen.dart';
 import 'categories_screen.dart';
 import 'report_screen.dart';
 import 'settings_screen.dart';
 import 'statistics_screen.dart';
-import 'transactions_screen.dart';
+import 'transaction_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
