@@ -316,17 +316,24 @@ class MoneyDb {
     int id, {
     required String name,
     required String type,
+    double? balance,
     int? icon,
     int? color,
   }) async {
+    final data = <String, dynamic>{
+      'name': name.trim(),
+      'type': type,
+      'icon': icon,
+      'color': color,
+    };
+
+    if (balance != null) {
+      data['balance'] = balance;
+    }
+
     final result = await db.update(
       'accounts',
-      {
-        'name': name.trim(),
-        'type': type,
-        'icon': icon,
-        'color': color,
-      },
+      data,
       where: 'id = ?',
       whereArgs: [id],
     );
