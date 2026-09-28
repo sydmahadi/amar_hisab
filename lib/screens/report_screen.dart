@@ -107,7 +107,7 @@ class _ReportScreenState extends State<ReportScreen> {
       final file = File('${tempDir.path}/amar_hisab_report.txt');
       await file.writeAsString(buffer.toString());
 
-      await SharePlus.instance.share(
+      await Share.shareXFiles(
         [XFile(file.path)],
         text: 'Amar Hisab Report (${_formatDate(_startDate)} - ${_formatDate(_endDate)})',
       );
