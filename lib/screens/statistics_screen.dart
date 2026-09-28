@@ -119,26 +119,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
 
     try {
-      final income =
-          await MoneyDb.instance.getTotalIncome(
+      final income = await MoneyDb.instance.getTotalIncome(
         startDate: _startDate,
         endDate: _endDate,
       );
 
-      final expense =
-          await MoneyDb.instance.getTotalExpense(
+      final expense = await MoneyDb.instance.getTotalExpense(
         startDate: _startDate,
         endDate: _endDate,
       );
 
-      final expenseCategories =
-          await MoneyDb.instance.getExpenseByCategory(
+      final expenseCategories = await MoneyDb.instance.getExpenseByCategory(
         startDate: _startDate,
         endDate: _endDate,
       );
 
-      final incomeCategories =
-          await MoneyDb.instance.getIncomeByCategory(
+      final incomeCategories = await MoneyDb.instance.getIncomeByCategory(
         startDate: _startDate,
         endDate: _endDate,
       );
@@ -295,12 +291,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       labelStyle: TextStyle(
         color: selected
             ? Colors.white
-            : Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.color,
-        fontWeight:
-            selected ? FontWeight.bold : FontWeight.normal,
+            : Theme.of(context).textTheme.bodyMedium?.color,
+        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
       ),
     );
   }
@@ -345,16 +337,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       child: Padding(
         padding: const EdgeInsets.all(15),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius:
-                    BorderRadius.circular(12),
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
@@ -369,10 +359,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 12,
-                color: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.color,
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
             const SizedBox(height: 4),
@@ -393,9 +380,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Widget _differenceCard() {
-    final color = _isSurplus
-        ? Colors.green.shade600
-        : Colors.red.shade600;
+    final color = _isSurplus ? Colors.green.shade600 : Colors.red.shade600;
 
     return Card(
       child: Padding(
@@ -406,7 +391,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -419,8 +404,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(width: 13),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _isSurplus
@@ -428,10 +412,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         : settings.t('deficit'),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.color,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -478,20 +459,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     for (int i = 0; i < categories.length; i++) {
       final item = categories[i];
 
-      final total =
-          (item['total'] as num?)?.toDouble() ?? 0;
+      final total = (item['total'] as num?)?.toDouble() ?? 0;
 
       if (total <= 0) continue;
 
-      final percentage =
-          _expense == 0 ? 0 : (total / _expense) * 100;
+      final percentage = _expense == 0 ? 0 : (total / _expense) * 100;
 
       sections.add(
         PieChartSectionData(
           value: total,
-          title: percentage >= 5
-              ? '${percentage.toStringAsFixed(0)}%'
-              : '',
+          title: percentage >= 5 ? '${percentage.toStringAsFixed(0)}%' : '',
           color: _categoryColor(item, i),
           radius: 75,
           titleStyle: const TextStyle(
@@ -531,28 +508,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         (index) {
           final item = categories[index];
 
-          final name =
-              item['name']?.toString() ?? '';
+          final name = item['name']?.toString() ?? '';
 
-          final total =
-              (item['total'] as num?)?.toDouble() ?? 0;
+          final total = (item['total'] as num?)?.toDouble() ?? 0;
 
-          final percentage = categories.isEmpty
-              ? 0.0
-              : (_expense > 0
-                  ? total / _expense
-                  : 0.0);
+          final percentage =
+              categories.isEmpty ? 0.0 : (_expense > 0 ? total / _expense : 0.0);
 
-          final color =
-              _categoryColor(item, index);
+          final color = _categoryColor(item, index);
 
           return Padding(
             padding: const EdgeInsets.only(
               bottom: 10,
             ),
             child: InkWell(
-              borderRadius:
-                  BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(14),
               onTap: () {
                 _showCategoryDetails(
                   item,
@@ -560,21 +530,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 );
               },
               child: Container(
-                padding:
-                    const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .cardColor,
-                  borderRadius:
-                      BorderRadius.circular(14),
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
                   children: [
                     Container(
                       width: 12,
                       height: 12,
-                      decoration:
-                          BoxDecoration(
+                      decoration: BoxDecoration(
                         color: color,
                         shape: BoxShape.circle,
                       ),
@@ -582,37 +548,28 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             name,
-                            style:
-                                const TextStyle(
-                              fontWeight:
-                                  FontWeight.w600,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(
                             height: 5,
                           ),
                           ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(
+                            borderRadius: BorderRadius.circular(
                               10,
                             ),
-                            child:
-                                LinearProgressIndicator(
-                              value: percentage
-                                  .clamp(0.0, 1.0),
+                            child: LinearProgressIndicator(
+                              value: percentage.clamp(0.0, 1.0),
                               minHeight: 5,
-                              backgroundColor:
-                                  color.withOpacity(
-                                0.10,
+                              backgroundColor: color.withValues(
+                                alpha: 0.10,
                               ),
-                              valueColor:
-                                  AlwaysStoppedAnimation<
-                                      Color>(
+                              valueColor: AlwaysStoppedAnimation<Color>(
                                 color,
                               ),
                             ),
@@ -622,15 +579,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ),
                     const SizedBox(width: 12),
                     Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           _formatNumber(total),
-                          style:
-                              const TextStyle(
-                            fontWeight:
-                                FontWeight.bold,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -639,10 +593,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                           style: TextStyle(
                             fontSize: 10,
                             color:
-                                Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color,
+                                Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
                       ],
@@ -672,17 +623,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         (index) {
           final item = _incomeCategories[index];
 
-          final name =
-              item['name']?.toString() ?? '';
+          final name = item['name']?.toString() ?? '';
 
-          final total =
-              (item['total'] as num?)?.toDouble() ?? 0;
+          final total = (item['total'] as num?)?.toDouble() ?? 0;
 
-          final percentage =
-              _income > 0 ? total / _income : 0.0;
+          final percentage = _income > 0 ? total / _income : 0.0;
 
-          final color =
-              _categoryColor(item, index);
+          final color = _categoryColor(item, index);
 
           return Padding(
             padding: const EdgeInsets.only(
@@ -692,8 +639,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
-                borderRadius:
-                    BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
@@ -708,35 +654,27 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           name,
                           style: const TextStyle(
-                            fontWeight:
-                                FontWeight.w600,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 5),
                         ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(10),
-                          child:
-                              LinearProgressIndicator(
-                            value:
-                                percentage.clamp(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: percentage.clamp(
                               0.0,
                               1.0,
                             ),
                             minHeight: 5,
-                            backgroundColor:
-                                color.withOpacity(
-                              0.10,
+                            backgroundColor: color.withValues(
+                              alpha: 0.10,
                             ),
-                            valueColor:
-                                AlwaysStoppedAnimation<
-                                    Color>(
+                            valueColor: AlwaysStoppedAnimation<Color>(
                               color,
                             ),
                           ),
@@ -746,8 +684,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   ),
                   const SizedBox(width: 12),
                   Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
                         _formatNumber(total),
@@ -760,10 +697,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         '${(percentage * 100).toStringAsFixed(1)}%',
                         style: TextStyle(
                           fontSize: 10,
-                          color: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.color,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),
                     ],
@@ -787,23 +721,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
-        mainAxisAlignment:
-            MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.pie_chart_outline_rounded,
             size: 45,
-            color: AppTheme.gold.withOpacity(0.7),
+            color: AppTheme.gold.withValues(alpha: 0.7),
           ),
           const SizedBox(height: 10),
           Text(
             message,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.color,
+              color: Theme.of(context).textTheme.bodySmall?.color,
             ),
           ),
         ],
@@ -819,8 +749,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
     if (categoryId == null) return;
 
-    final transactions =
-        await MoneyDb.instance.getTransactions(
+    final transactions = await MoneyDb.instance.getTransactions(
       categoryId: categoryId as int,
       startDate: _startDate,
       endDate: _endDate,
@@ -835,13 +764,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       builder: (context) {
         return SafeArea(
           child: SizedBox(
-            height: MediaQuery.of(context).size.height *
-                0.70,
+            height: MediaQuery.of(context).size.height * 0.70,
             child: Column(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     20,
                     4,
                     20,
@@ -851,30 +778,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          category['name']
-                                  ?.toString() ??
-                              '',
+                          category['name']?.toString() ?? '',
                           style: const TextStyle(
                             fontSize: 18,
-                            fontWeight:
-                                FontWeight.bold,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                       Text(
                         _formatNumber(
-                          (category['total']
-                                  as num?)
-                              ?.toDouble() ??
-                              0,
+                          (category['total'] as num?)?.toDouble() ?? 0,
                         ),
                         style: TextStyle(
                           color: isIncome
                               ? Colors.green.shade600
                               : Colors.red.shade600,
                           fontSize: 17,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
@@ -889,61 +809,39 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                           ),
                         )
                       : ListView.builder(
-                          padding:
-                              const EdgeInsets.all(16),
-                          itemCount:
-                              transactions.length,
-                          itemBuilder:
-                              (context, index) {
-                            final item =
-                                transactions[index];
+                          padding: const EdgeInsets.all(16),
+                          itemCount: transactions.length,
+                          itemBuilder: (context, index) {
+                            final item = transactions[index];
 
                             final amount =
-                                (item['amount']
-                                        as num?)
-                                    ?.toDouble() ??
-                                    0;
+                                (item['amount'] as num?)?.toDouble() ?? 0;
 
                             return ListTile(
-                              contentPadding:
-                                  const EdgeInsets
-                                      .symmetric(
+                              contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 4,
                                 vertical: 2,
                               ),
                               leading: CircleAvatar(
                                 backgroundColor:
-                                    (isIncome
-                                            ? Colors
-                                                .green
-                                            : Colors
-                                                .red)
-                                        .withOpacity(
-                                  0.10,
+                                    (isIncome ? Colors.green : Colors.red)
+                                        .withValues(
+                                  alpha: 0.10,
                                 ),
                                 child: Icon(
                                   isIncome
-                                      ? Icons
-                                          .arrow_downward_rounded
-                                      : Icons
-                                          .arrow_upward_rounded,
-                                  color: isIncome
-                                      ? Colors.green
-                                      : Colors.red,
+                                      ? Icons.arrow_downward_rounded
+                                      : Icons.arrow_upward_rounded,
+                                  color:
+                                      isIncome ? Colors.green : Colors.red,
                                 ),
                               ),
                               title: Text(
-                                item['account_name']
-                                        ?.toString() ??
-                                    '',
+                                item['account_name']?.toString() ?? '',
                               ),
                               subtitle: Text(
-                                item['note']
-                                            ?.toString()
-                                            .isNotEmpty ==
-                                        true
-                                    ? item['note']
-                                        .toString()
+                                item['note']?.toString().isNotEmpty == true
+                                    ? item['note'].toString()
                                     : item['transaction_date']
                                         .toString()
                                         .split('T')
@@ -952,11 +850,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                               trailing: Text(
                                 _formatNumber(amount),
                                 style: TextStyle(
-                                  color: isIncome
-                                      ? Colors.green
-                                      : Colors.red,
-                                  fontWeight:
-                                      FontWeight.bold,
+                                  color:
+                                      isIncome ? Colors.green : Colors.red,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             );
@@ -984,8 +880,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           : RefreshIndicator(
               onRefresh: _loadStatistics,
               child: ListView(
-                physics:
-                    const AlwaysScrollableScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(
                   16,
                   16,
@@ -994,13 +889,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 ),
                 children: [
                   _buildPeriodSelector(),
-
                   const SizedBox(height: 18),
-
                   _buildSummaryCards(),
-
                   const SizedBox(height: 24),
-
                   Text(
                     settings.isBangla
                         ? 'ব্যয়ের বিশ্লেষণ'
@@ -1010,18 +901,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
                   Card(
                     child: Padding(
-                      padding:
-                          const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(10),
                       child: Column(
                         children: [
                           _buildPieChart(),
-                          if (_expenseCategories
-                              .isNotEmpty) ...[
+                          if (_expenseCategories.isNotEmpty) ...[
                             const Divider(),
                             const SizedBox(height: 10),
                             _buildCategoryList(
@@ -1032,9 +919,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
                   Text(
                     settings.isBangla
                         ? 'আয়ের বিশ্লেষণ'
@@ -1044,9 +929,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
                   _buildIncomeList(),
                 ],
               ),
