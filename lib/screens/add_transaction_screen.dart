@@ -15,10 +15,12 @@ class AddTransactionScreen extends StatefulWidget {
   bool get isEditing => transactionId != null;
 
   @override
-  State<AddTransactionScreen> createState() => _AddTransactionScreenState();
+  State<AddTransactionScreen> createState() =>
+      _AddTransactionScreenState();
 }
 
-class _AddTransactionScreenState extends State<AddTransactionScreen> {
+class _AddTransactionScreenState
+    extends State<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _amountController = TextEditingController();
@@ -95,7 +97,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (id == null) return;
 
     try {
-      final transaction = await MoneyDb.instance.getTransaction(id);
+      final transaction =
+          await MoneyDb.instance.getTransaction(id);
 
       if (transaction == null) {
         if (!mounted) return;
@@ -109,7 +112,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         return;
       }
 
-      final type = transaction['type']?.toString() ?? 'expense';
+      final type =
+          transaction['type']?.toString() ?? 'expense';
 
       final amount =
           (transaction['amount'] as num?)?.toDouble() ?? 0;
@@ -132,8 +136,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         _noteController.text =
             transaction['note']?.toString() ?? '';
 
-        _accountId = transaction['account_id'] as int?;
-        _categoryId = transaction['category_id'] as int?;
+        _accountId =
+            transaction['account_id'] as int?;
+
+        _categoryId =
+            transaction['category_id'] as int?;
 
         _fromAccountId =
             transaction['from_account_id'] as int?;
@@ -144,7 +151,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         _selectedDate = transactionDate;
       });
 
-      final categories = await MoneyDb.instance.getCategories(
+      final categories =
+          await MoneyDb.instance.getCategories(
         type: type == 'transfer' ? null : type,
       );
 
@@ -166,15 +174,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   void _setDefaultSelections() {
     if (_accounts.isNotEmpty) {
       _accountId ??= _accounts.first['id'] as int;
-      _fromAccountId ??= _accounts.first['id'] as int;
+
+      _fromAccountId ??=
+          _accounts.first['id'] as int;
 
       if (_accounts.length > 1) {
-        _toAccountId ??= _accounts[1]['id'] as int;
+        _toAccountId ??=
+            _accounts[1]['id'] as int;
       }
     }
 
     if (_categories.isNotEmpty) {
-      _categoryId ??= _categories.first['id'] as int;
+      _categoryId ??=
+          _categories.first['id'] as int;
     }
 
     if (mounted) {
@@ -192,16 +204,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     if (type == 'transfer') {
       _fromAccountId ??=
-          _accounts.isNotEmpty ? _accounts.first['id'] as int : null;
+          _accounts.isNotEmpty
+              ? _accounts.first['id'] as int
+              : null;
 
       if (_accounts.length > 1) {
-        _toAccountId ??= _accounts[1]['id'] as int;
+        _toAccountId ??=
+            _accounts[1]['id'] as int;
       }
 
       return;
     }
 
-    final categories = await MoneyDb.instance.getCategories(
+    final categories =
+        await MoneyDb.instance.getCategories(
       type: type,
     );
 
@@ -211,7 +227,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _categories = categories;
 
       if (_categories.isNotEmpty) {
-        _categoryId = _categories.first['id'] as int;
+        _categoryId =
+            _categories.first['id'] as int;
       }
     });
   }
@@ -225,9 +242,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: AppTheme.green,
-                ),
+            colorScheme:
+                Theme.of(context).colorScheme.copyWith(
+                      primary: AppTheme.green,
+                    ),
           ),
           child: child!,
         );
@@ -267,7 +285,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
 
     if (_type == 'transfer') {
-      if (_fromAccountId == null || _toAccountId == null) {
+      if (_fromAccountId == null ||
+          _toAccountId == null) {
         _showMessage(
           settings.t('requiredField'),
           isError: true,
@@ -285,7 +304,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         return;
       }
     } else {
-      if (_accountId == null || _categoryId == null) {
+      if (_accountId == null ||
+          _categoryId == null) {
         _showMessage(
           settings.t('requiredField'),
           isError: true,
@@ -301,33 +321,55 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     try {
       if (widget.isEditing) {
         await MoneyDb.instance.updateTransaction(
-          id: widget.transactionId!,
+          widget.transactionId!,
           type: _type,
           amount: amount,
-          categoryId: _type == 'transfer' ? null : _categoryId,
-          accountId: _type == 'transfer' ? null : _accountId,
+          categoryId:
+              _type == 'transfer'
+                  ? null
+                  : _categoryId,
+          accountId:
+              _type == 'transfer'
+                  ? null
+                  : _accountId,
           fromAccountId:
-              _type == 'transfer' ? _fromAccountId : null,
+              _type == 'transfer'
+                  ? _fromAccountId
+                  : null,
           toAccountId:
-              _type == 'transfer' ? _toAccountId : null,
-          note: _noteController.text.trim().isEmpty
-              ? null
-              : _noteController.text.trim(),
+              _type == 'transfer'
+                  ? _toAccountId
+                  : null,
+          note:
+              _noteController.text.trim().isEmpty
+                  ? null
+                  : _noteController.text.trim(),
           transactionDate: _selectedDate,
         );
       } else {
         await MoneyDb.instance.addTransaction(
           type: _type,
           amount: amount,
-          categoryId: _type == 'transfer' ? null : _categoryId,
-          accountId: _type == 'transfer' ? null : _accountId,
+          categoryId:
+              _type == 'transfer'
+                  ? null
+                  : _categoryId,
+          accountId:
+              _type == 'transfer'
+                  ? null
+                  : _accountId,
           fromAccountId:
-              _type == 'transfer' ? _fromAccountId : null,
+              _type == 'transfer'
+                  ? _fromAccountId
+                  : null,
           toAccountId:
-              _type == 'transfer' ? _toAccountId : null,
-          note: _noteController.text.trim().isEmpty
-              ? null
-              : _noteController.text.trim(),
+              _type == 'transfer'
+                  ? _toAccountId
+                  : null,
+          note:
+              _noteController.text.trim().isEmpty
+                  ? null
+                  : _noteController.text.trim(),
           transactionDate: _selectedDate,
         );
       }
@@ -364,7 +406,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           content: Text(message),
           behavior: SnackBarBehavior.floating,
           backgroundColor:
-              isError ? Colors.red.shade700 : AppTheme.green,
+              isError
+                  ? Colors.red.shade700
+                  : AppTheme.green,
         ),
       );
   }
@@ -389,7 +433,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark =
+        Theme.of(context).brightness ==
+            Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -410,7 +456,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     _buildTypeSelector(),
-
                     const SizedBox(height: 20),
 
                     _buildAmountField(),
@@ -490,25 +535,29 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return GestureDetector(
       onTap: () => _changeType(type),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration:
+            const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(
           vertical: 13,
           horizontal: 6,
         ),
         decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.green
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          color:
+              selected
+                  ? AppTheme.green
+                  : Colors.transparent,
+          borderRadius:
+              BorderRadius.circular(12),
         ),
         child: Column(
           children: [
             Icon(
               icon,
               size: 21,
-              color: selected
-                  ? Colors.white
-                  : AppTheme.gold,
+              color:
+                  selected
+                      ? Colors.white
+                      : AppTheme.gold,
             ),
             const SizedBox(height: 5),
             Text(
@@ -517,13 +566,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight:
-                    selected ? FontWeight.bold : FontWeight.w500,
-                color: selected
-                    ? Colors.white
-                    : Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.color,
+                    selected
+                        ? FontWeight.bold
+                        : FontWeight.w500,
+                color:
+                    selected
+                        ? Colors.white
+                        : Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color,
               ),
             ),
           ],
@@ -535,7 +587,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildAmountField() {
     return TextFormField(
       controller: _amountController,
-      keyboardType: const TextInputType.numberWithOptions(
+      keyboardType:
+          const TextInputType.numberWithOptions(
         decimal: true,
       ),
       style: const TextStyle(
@@ -576,9 +629,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return Column(
       children: [
         _buildAccountDropdown(),
-
         const SizedBox(height: 16),
-
         _buildCategoryDropdown(),
       ],
     );
@@ -600,7 +651,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ),
       items: _accounts.map((account) {
         final id = account['id'] as int;
-        final name = account['name']?.toString() ?? '';
+        final name =
+            account['name']?.toString() ?? '';
 
         return DropdownMenuItem<int>(
           value: id,
@@ -616,6 +668,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         if (value == null) {
           return settings.t('requiredField');
         }
+
         return null;
       },
     );
@@ -637,7 +690,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ),
       items: _categories.map((category) {
         final id = category['id'] as int;
-        final name = category['name']?.toString() ?? '';
+        final name =
+            category['name']?.toString() ?? '';
 
         return DropdownMenuItem<int>(
           value: id,
@@ -653,6 +707,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         if (value == null) {
           return settings.t('requiredField');
         }
+
         return null;
       },
     );
@@ -693,6 +748,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             if (value == null) {
               return settings.t('requiredField');
             }
+
             return null;
           },
         ),
@@ -746,6 +802,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             if (value == null) {
               return settings.t('requiredField');
             }
+
             return null;
           },
         ),
@@ -754,7 +811,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             _toAccountId != null &&
             _fromAccountId == _toAccountId)
           Padding(
-            padding: const EdgeInsets.only(top: 10),
+            padding:
+                const EdgeInsets.only(top: 10),
             child: Text(
               settings.isBangla
                   ? 'একই অ্যাকাউন্ট নির্বাচন করা হয়েছে'
@@ -770,11 +828,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             _toAccountId != null &&
             _fromAccountId != _toAccountId)
           Padding(
-            padding: const EdgeInsets.only(top: 10),
+            padding:
+                const EdgeInsets.only(top: 10),
             child: Text(
               '${_accountName(_fromAccountId!)} → '
               '${_accountName(_toAccountId!)}',
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppTheme.gold,
                 fontWeight: FontWeight.w600,
               ),
@@ -811,7 +870,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return TextFormField(
       controller: _noteController,
       maxLines: 3,
-      textInputAction: TextInputAction.newline,
+      textInputAction:
+          TextInputAction.newline,
       decoration: InputDecoration(
         labelText: settings.t('note'),
         hintText: settings.isBangla
@@ -832,12 +892,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return SizedBox(
       height: 54,
       child: ElevatedButton.icon(
-        onPressed: _saving ? null : _saveTransaction,
+        onPressed:
+            _saving ? null : _saveTransaction,
         icon: _saving
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
+                child:
+                    CircularProgressIndicator(
                   strokeWidth: 2,
                   color: Colors.white,
                 ),
@@ -862,7 +924,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           backgroundColor: AppTheme.green,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius:
+                BorderRadius.circular(16),
           ),
         ),
       ),
