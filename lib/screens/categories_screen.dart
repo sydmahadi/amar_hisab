@@ -45,7 +45,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     Icons.pets,
   ];
 
-  final List<Color> _availableColors = [
+  final List<Color> _availableColors = const [
     AppTheme.green,
     AppTheme.gold,
     Colors.red,
@@ -118,22 +118,20 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   }
 
   IconData _iconFromData(dynamic iconData) {
+    int codePoint = Icons.category.codePoint;
+
     if (iconData is int) {
-      return IconData(iconData, fontFamily: 'MaterialIcons');
-    }
-
-    if (iconData is num) {
-      return IconData(iconData.toInt(), fontFamily: 'MaterialIcons');
-    }
-
-    if (iconData is String) {
+      codePoint = iconData;
+    } else if (iconData is num) {
+      codePoint = iconData.toInt();
+    } else if (iconData is String) {
       final parsed = int.tryParse(iconData);
       if (parsed != null) {
-        return IconData(parsed, fontFamily: 'MaterialIcons');
+        codePoint = parsed;
       }
     }
 
-    return Icons.category;
+    return IconData(codePoint, fontFamily: 'MaterialIcons');
   }
 
   Color _colorFromData(dynamic colorData) {
@@ -286,7 +284,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         separatorBuilder: (_, __) => const SizedBox(width: 8),
                         itemBuilder: (context, index) {
                           final color = _availableColors[index];
-                          final isSelected = selectedColor.value == color.value;
+                          final isSelected =
+                              selectedColor.toARGB32() == color.toARGB32();
 
                           return InkWell(
                             onTap: () {
@@ -294,7 +293,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                                 selectedColor = color;
                               });
                             },
-                            shape: const CircleBorder(),
+                            customBorder: const CircleBorder(),
                             child: CircleAvatar(
                               backgroundColor: color,
                               radius: 20,
@@ -324,21 +323,19 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
                           try {
                             if (category == null) {
-                              await MoneyDb.instance.insertCategory({
-                                'name': name,
-                                'type': type,
-                                'icon': selectedIcon.codePoint,
-                                'color': selectedColor.value,
-                              });
+                              await MoneyDb.instance.addCategory(
+                                name: name,
+                                type: type,
+                                icon: selectedIcon.codePoint,
+                                color: selectedColor.toARGB32(),
+                              );
                             } else {
                               await MoneyDb.instance.updateCategory(
-                                category['id'] as int,
-                                {
-                                  'name': name,
-                                  'type': type,
-                                  'icon': selectedIcon.codePoint,
-                                  'color': selectedColor.value,
-                                },
+                                id: category['id'] as int,
+                                name: name,
+                                type: type,
+                                icon: selectedIcon.codePoint,
+                                color: selectedColor.toARGB32(),
                               );
                             }
 
