@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -233,7 +232,6 @@ class _ReportScreenState extends State<ReportScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         final theme = Theme.of(context);
-        final isDark = theme.brightness == Brightness.dark;
 
         return Container(
           height: MediaQuery.of(context).size.height * 0.75,
@@ -332,7 +330,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                     (isIncome
                                             ? Colors.green
                                             : Colors.red)
-                                        .withOpacity(0.12),
+                                        .withValues(alpha: 0.12),
                                 child: Icon(
                                   isIncome
                                       ? Icons.arrow_downward
@@ -656,7 +654,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
       await file.writeAsBytes(image);
 
-      await Share.shareXFiles(
+      await SharePlus.instance.share(
         [
           XFile(
             file.path,
@@ -702,10 +700,10 @@ class _ReportScreenState extends State<ReportScreen> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.10),
+          color: color.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: color.withOpacity(0.20),
+            color: color.withValues(alpha: 0.20),
           ),
         ),
         child: Column(
@@ -848,7 +846,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             value: percentage,
                             minHeight: 7,
                             backgroundColor:
-                                color.withOpacity(0.10),
+                                color.withValues(alpha: 0.10),
                             valueColor:
                                 AlwaysStoppedAnimation<
                                     Color>(
@@ -1064,8 +1062,8 @@ class _ReportScreenState extends State<ReportScreen> {
                                 .textTheme
                                 .bodySmall
                                 ?.color
-                                ?.withOpacity(
-                                  0.6,
+                                ?.withValues(
+                                  alpha: 0.6,
                                 ),
                           ),
                         ),
