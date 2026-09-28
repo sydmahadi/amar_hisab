@@ -25,10 +25,12 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   @override
   void initState() {
     super.initState();
+
     _tabController = TabController(
       length: 2,
       vsync: this,
     );
+
     _loadCategories();
   }
 
@@ -46,8 +48,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     }
 
     try {
-      final income = await MoneyDb.instance.getCategories(type: 'income');
-      final expense = await MoneyDb.instance.getCategories(type: 'expense');
+      final income = await MoneyDb.instance.getCategories(
+        type: 'income',
+      );
+
+      final expense = await MoneyDb.instance.getCategories(
+        type: 'expense',
+      );
 
       if (!mounted) return;
 
@@ -72,13 +79,14 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
   Future<void> _showAddCategoryDialog() async {
     final nameController = TextEditingController();
+
     String type = _tabController.index == 0 ? 'income' : 'expense';
 
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (builderContext, setDialogState) {
+          builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(settings.t('addCategory')),
               content: Column(
@@ -136,6 +144,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     ],
                     onChanged: (value) {
                       if (value == null) return;
+
                       setDialogState(() {
                         type = value;
                       });
@@ -145,7 +154,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
+                  onPressed: () {
+                    Navigator.pop(dialogContext, false);
+                  },
                   child: Text(settings.t('cancel')),
                 ),
                 ElevatedButton(
@@ -153,9 +164,11 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     final name = nameController.text.trim();
 
                     if (name.isEmpty) {
-                      ScaffoldMessenger.of(builderContext).showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(settings.t('enterName')),
+                          content: Text(
+                            settings.t('enterName'),
+                          ),
                         ),
                       );
                       return;
@@ -166,17 +179,24 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         name: name,
                         type: type,
                         icon: type == 'income' ? 0xe850 : 0xe145,
-                        color: type == 'income' ? 0xFF176B45 : 0xFFE57373,
+                        color: type == 'income'
+                            ? 0xFF176B45
+                            : 0xFFE57373,
                       );
 
-                      if (!builderContext.mounted) return;
+                      if (!context.mounted) return;
+
                       Navigator.pop(dialogContext, true);
                     } catch (e) {
-                      if (!builderContext.mounted) return;
-                      ScaffoldMessenger.of(builderContext).showSnackBar(
+                      if (!context.mounted) return;
+
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            e.toString().replaceFirst('Exception: ', ''),
+                            e.toString().replaceFirst(
+                                  'Exception: ',
+                                  '',
+                                ),
                           ),
                         ),
                       );
@@ -195,13 +215,20 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
     if (result == true) {
       await _loadCategories();
+
       if (!mounted) return;
-      _showMessage(settings.t('categoryAdded'));
+
+      _showMessage(
+        settings.t('categoryAdded'),
+      );
     }
   }
 
-  Future<void> _showEditCategoryDialog(Map<String, dynamic> category) async {
+  Future<void> _showEditCategoryDialog(
+    Map<String, dynamic> category,
+  ) async {
     final id = category['id'] as int;
+
     final nameController = TextEditingController(
       text: category['name']?.toString() ?? '',
     );
@@ -224,7 +251,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
               child: Text(settings.t('cancel')),
             ),
             ElevatedButton(
@@ -232,25 +261,35 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 final name = nameController.text.trim();
 
                 if (name.isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(settings.t('enterName')),
+                      content: Text(
+                        settings.t('enterName'),
+                      ),
                     ),
                   );
                   return;
                 }
 
                 try {
-                  await MoneyDb.instance.updateCategory(id, name: name);
+                  await MoneyDb.instance.updateCategory(
+                    id,
+                    name: name,
+                  );
 
-                  if (!dialogContext.mounted) return;
+                  if (!context.mounted) return;
+
                   Navigator.pop(dialogContext, true);
                 } catch (e) {
-                  if (!dialogContext.mounted) return;
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  if (!context.mounted) return;
+
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        e.toString().replaceFirst('Exception: ', ''),
+                        e.toString().replaceFirst(
+                              'Exception: ',
+                              '',
+                            ),
                       ),
                     ),
                   );
@@ -267,14 +306,18 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
     if (result == true) {
       await _loadCategories();
+
       if (!mounted) return;
+
       _showMessage(
         settings.isBangla ? 'খাত আপডেট হয়েছে' : 'Category updated',
       );
     }
   }
 
-  Future<void> _deleteCategory(Map<String, dynamic> category) async {
+  Future<void> _deleteCategory(
+    Map<String, dynamic> category,
+  ) async {
     final id = category['id'] as int;
 
     if ((category['is_default'] ?? 0) == 1) {
@@ -299,11 +342,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
               child: Text(settings.t('cancel')),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.red.shade700,
               ),
@@ -318,11 +365,17 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
     try {
       await MoneyDb.instance.deleteCategory(id);
+
       await _loadCategories();
+
       if (!mounted) return;
-      _showMessage(settings.t('categoryDeleted'));
+
+      _showMessage(
+        settings.t('categoryDeleted'),
+      );
     } catch (e) {
       if (!mounted) return;
+
       _showMessage(
         e.toString().replaceFirst('Exception: ', ''),
         isError: true,
@@ -330,17 +383,22 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     }
   }
 
-  IconData _iconForCategory(dynamic rawIcon, String type) {
+  IconData _iconForCategory(
+    dynamic rawIcon,
+    String type,
+  ) {
+    int? codePoint;
     if (rawIcon is int) {
-      return IconData(rawIcon, fontFamily: 'MaterialIcons');
+      codePoint = rawIcon;
+    } else {
+      codePoint = int.tryParse(rawIcon?.toString() ?? '');
+    }
+
+    if (codePoint != null) {
+      return IconData(codePoint, fontFamily: 'MaterialIcons');
     }
 
     final iconStr = rawIcon?.toString();
-    final parsedInt = int.tryParse(iconStr ?? '');
-    if (parsedInt != null) {
-      return IconData(parsedInt, fontFamily: 'MaterialIcons');
-    }
-
     switch (iconStr) {
       case 'payments':
         return Icons.payments_outlined;
@@ -371,7 +429,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     }
   }
 
-  Color _colorForCategory(Map<String, dynamic> category) {
+  Color _colorForCategory(
+    Map<String, dynamic> category,
+  ) {
     final value = category['color'];
 
     if (value is int) {
@@ -387,7 +447,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         : Colors.red.shade400;
   }
 
-  Widget _buildCategoryCard(Map<String, dynamic> category) {
+  Widget _buildCategoryCard(
+    Map<String, dynamic> category,
+  ) {
     final type = category['type']?.toString() ?? 'expense';
     final name = category['name']?.toString() ?? '';
     final color = _colorForCategory(category);
@@ -404,22 +466,31 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
-            _iconForCategory(category['icon'], type),
+            _iconForCategory(
+              category['icon'],
+              type,
+            ),
             color: color,
           ),
         ),
         title: Text(
           name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         subtitle: Text(
           isDefault
-              ? (settings.isBangla ? 'ডিফল্ট খাত' : 'Default category')
-              : (settings.isBangla ? 'নিজস্ব খাত' : 'Custom category'),
+              ? settings.isBangla
+                  ? 'ডিফল্ট খাত'
+                  : 'Default category'
+              : settings.isBangla
+                  ? 'নিজস্ব খাত'
+                  : 'Custom category',
           style: TextStyle(
             fontSize: 11,
             color: isDefault
@@ -441,7 +512,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 value: 'edit',
                 child: Row(
                   children: [
-                    const Icon(Icons.edit_outlined, size: 20),
+                    const Icon(
+                      Icons.edit_outlined,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
                     Text(settings.t('edit')),
                   ],
@@ -460,7 +534,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                       const SizedBox(width: 10),
                       Text(
                         settings.t('delete'),
-                        style: TextStyle(color: Colors.red.shade600),
+                        style: TextStyle(
+                          color: Colors.red.shade600,
+                        ),
                       ),
                     ],
                   ),
@@ -472,7 +548,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     );
   }
 
-  Widget _buildCategoryList(List<Map<String, dynamic>> categories) {
+  Widget _buildCategoryList(
+    List<Map<String, dynamic>> categories,
+  ) {
     if (categories.isEmpty) {
       return Center(
         child: Column(
@@ -481,7 +559,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             Icon(
               Icons.category_outlined,
               size: 58,
-              color: AppTheme.gold.withOpacity(0.7),
+              color: AppTheme.gold.withValues(alpha: 0.7),
             ),
             const SizedBox(height: 14),
             Text(
@@ -510,16 +588,26 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       onRefresh: _loadCategories,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
+        padding: const EdgeInsets.fromLTRB(
+          16,
+          14,
+          16,
+          100,
+        ),
         itemCount: categories.length,
         itemBuilder: (context, index) {
-          return _buildCategoryCard(categories[index]);
+          return _buildCategoryCard(
+            categories[index],
+          );
         },
       ),
     );
   }
 
-  void _showMessage(String message, {bool isError = false}) {
+  void _showMessage(
+    String message, {
+    bool isError = false,
+  }) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
@@ -537,7 +625,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(settings.t('categories')),
+        title: Text(
+          settings.t('categories'),
+        ),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.gold,
@@ -547,23 +637,33 @@ class _CategoriesScreenState extends State<CategoriesScreen>
               Theme.of(context).textTheme.bodyMedium?.color,
           tabs: [
             Tab(
-              icon: const Icon(Icons.arrow_downward_rounded),
+              icon: const Icon(
+                Icons.arrow_downward_rounded,
+              ),
               text: settings.t('incomeCategories'),
             ),
             Tab(
-              icon: const Icon(Icons.arrow_upward_rounded),
+              icon: const Icon(
+                Icons.arrow_upward_rounded,
+              ),
               text: settings.t('expenseCategories'),
             ),
           ],
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildCategoryList(_incomeCategories),
-                _buildCategoryList(_expenseCategories),
+                _buildCategoryList(
+                  _incomeCategories,
+                ),
+                _buildCategoryList(
+                  _expenseCategories,
+                ),
               ],
             ),
       floatingActionButton: FloatingActionButton.extended(
@@ -571,7 +671,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         backgroundColor: AppTheme.green,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
-        label: Text(settings.t('addCategory')),
+        label: Text(
+          settings.t('addCategory'),
+        ),
       ),
     );
   }
