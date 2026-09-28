@@ -121,11 +121,11 @@ class SettingsScreen extends StatelessWidget {
                     height: 42,
                     decoration: BoxDecoration(
                       color:
-                          AppTheme.green.withOpacity(0.12),
+                          AppTheme.green.withValues(alpha: 0.12),
                       borderRadius:
                           BorderRadius.circular(12),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.info_outline_rounded,
                       color: AppTheme.green,
                     ),
@@ -161,7 +161,7 @@ class SettingsScreen extends StatelessWidget {
               Center(
                 child: Column(
                   children: [
-                    Text(
+                    const Text(
                       'আমার হিসাব',
                       style: TextStyle(
                         color: AppTheme.gold,
