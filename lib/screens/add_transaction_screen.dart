@@ -49,7 +49,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     Map<String, dynamic>? existingTx;
     if (widget.transactionId != null) {
-      final db = await MoneyDb.instance.db;
+      final db = await MoneyDb.instance.database;
       final results = await db.query(
         'transactions',
         where: 'id = ?',
@@ -79,8 +79,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _categories = categories;
 
       if (existingTx != null) {
-        _selectedAccountId = existingTx?['account_id'] as int?;
-        _selectedCategoryId = existingTx?['category_id'] as int?;
+        _selectedAccountId = existingTx['account_id'] as int?;
+        _selectedCategoryId = existingTx['category_id'] as int?;
       } else {
         if (_accounts.isNotEmpty) {
           _selectedAccountId = _accounts.first['id'] as int?;
@@ -192,7 +192,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   const SizedBox(height: 16),
                   if (_accounts.isNotEmpty)
                     DropdownButtonFormField<int>(
-                      value: _selectedAccountId,
+                      initialValue: _selectedAccountId,
                       decoration: InputDecoration(
                         labelText: settings.t('account'),
                       ),
@@ -211,7 +211,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   const SizedBox(height: 16),
                   if (_categories.isNotEmpty)
                     DropdownButtonFormField<int>(
-                      value: _selectedCategoryId,
+                      initialValue: _selectedCategoryId,
                       decoration: InputDecoration(
                         labelText: settings.t('category'),
                       ),
