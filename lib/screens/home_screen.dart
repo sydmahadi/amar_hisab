@@ -58,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
+      await MoneyDb.instance.init();
       await MoneyDb.instance.recalculateBalances();
 
       final balance =
@@ -89,7 +90,10 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       _showMessage(
-        e.toString().replaceFirst('Exception: ', ''),
+        e.toString().replaceFirst(
+              'Exception: ',
+              '',
+            ),
         isError: true,
       );
     }
@@ -107,8 +111,9 @@ class _HomeScreenState extends State<HomeScreen> {
         SnackBar(
           content: Text(message),
           behavior: SnackBarBehavior.floating,
-          backgroundColor:
-              isError ? Colors.red.shade700 : AppTheme.green,
+          backgroundColor: isError
+              ? Colors.red.shade700
+              : AppTheme.green,
         ),
       );
   }
@@ -159,6 +164,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const CategoriesScreen(),
       ),
     );
+
+    await _loadData();
   }
 
   Future<void> _openStatistics() async {
@@ -255,13 +262,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
     switch (name.toLowerCase()) {
       case 'cash':
-        return settings.isBangla ? 'ক্যাশ' : 'Cash';
+        return settings.isBangla
+            ? 'ক্যাশ'
+            : 'Cash';
 
       case 'bkash':
-        return settings.isBangla ? 'বিকাশ' : 'Bkash';
+        return settings.isBangla
+            ? 'বিকাশ'
+            : 'Bkash';
 
       case 'nagad':
-        return settings.isBangla ? 'নগদ' : 'Nagad';
+        return settings.isBangla
+            ? 'নগদ'
+            : 'Nagad';
 
       case 'bank account':
         return settings.isBangla
@@ -269,7 +282,9 @@ class _HomeScreenState extends State<HomeScreen> {
             : 'Bank Account';
 
       case 'card':
-        return settings.isBangla ? 'কার্ড' : 'Card';
+        return settings.isBangla
+            ? 'কার্ড'
+            : 'Card';
 
       default:
         return name;
@@ -281,11 +296,11 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.fromLTRB(
         18,
         18,
-        14,
+        10,
         18,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [
             AppTheme.darkGreen,
             AppTheme.green,
@@ -293,153 +308,142 @@ class _HomeScreenState extends State<HomeScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius:
+            BorderRadius.circular(24),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ',
-                      style: TextStyle(
-                        color:
-                            AppTheme.goldLight,
-                        fontSize: 12,
-                        fontWeight:
-                            FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'আমার হিসাব',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 25,
-                        fontWeight:
-                            FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      settings.isBangla
-                          ? 'সহজে আপনার হিসাব রাখুন'
-                          : 'Manage your money easily',
-                      style: TextStyle(
-                        color: Colors.white
-                            .withOpacity(0.78),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ',
+                  style: TextStyle(
+                    color: AppTheme.goldLight,
+                    fontSize: 12,
+                    fontWeight:
+                        FontWeight.w500,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                Text(
+                  settings.t('appName'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 25,
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  settings.t('appTagline'),
+                  style: TextStyle(
+                    color: Colors.white
+                        .withOpacity(0.78),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-              // Language button
-              Material(
-                color: Colors.white
-                    .withOpacity(0.10),
-                borderRadius:
-                    BorderRadius.circular(12),
-                child: InkWell(
-                  borderRadius:
-                      BorderRadius.circular(12),
-                  onTap: () {
-                    settings.toggleLanguage();
-                  },
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    child: Text(
-                      settings.isBangla
-                          ? 'EN'
-                          : 'বাং',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight:
-                            FontWeight.bold,
-                      ),
-                    ),
+          Material(
+            color: Colors.white
+                .withOpacity(0.10),
+            borderRadius:
+                BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius:
+                  BorderRadius.circular(12),
+              onTap: () {
+                settings.toggleLanguage();
+              },
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                child: Text(
+                  settings.isBangla
+                      ? 'EN'
+                      : 'বাং',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight:
+                        FontWeight.bold,
                   ),
                 ),
               ),
+            ),
+          ),
 
-              const SizedBox(width: 6),
+          const SizedBox(width: 4),
 
-              // Theme button
-              IconButton(
-                tooltip: settings.darkMode
-                    ? 'Light Theme'
-                    : 'Dark Theme',
-                onPressed: () {
-                  settings.toggleTheme();
-                },
-                icon: Icon(
-                  settings.darkMode
-                      ? Icons.light_mode_rounded
-                      : Icons.dark_mode_rounded,
-                  color: AppTheme.goldLight,
-                ),
-              ),
+          IconButton(
+            tooltip: settings.darkMode
+                ? 'Light Theme'
+                : 'Dark Theme',
+            onPressed: () {
+              settings.toggleTheme();
+            },
+            icon: Icon(
+              settings.darkMode
+                  ? Icons.light_mode_rounded
+                  : Icons.dark_mode_rounded,
+              color: AppTheme.goldLight,
+            ),
+          ),
 
-              // Menu
-              PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert_rounded,
-                  color: Colors.white,
-                ),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'settings':
-                      _openSettings();
-                      break;
+          PopupMenuButton<String>(
+            icon: const Icon(
+              Icons.more_vert_rounded,
+              color: Colors.white,
+            ),
+            onSelected: (value) {
+              if (value == 'settings') {
+                _openSettings();
+              }
 
-                    case 'about':
-                      _openAbout();
-                      break;
-                  }
-                },
-                itemBuilder: (context) {
-                  return [
-                    PopupMenuItem(
-                      value: 'settings',
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.settings_rounded,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            settings.t('settings'),
-                          ),
-                        ],
+              if (value == 'about') {
+                _openAbout();
+              }
+            },
+            itemBuilder: (context) {
+              return [
+                PopupMenuItem<String>(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.settings_rounded,
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'about',
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.info_outline_rounded,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            settings.t('about'),
-                          ),
-                        ],
+                      const SizedBox(width: 10),
+                      Text(
+                        settings.t('settings'),
                       ),
-                    ),
-                  ];
-                },
-              ),
-            ],
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'about',
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        settings.t('about'),
+                      ),
+                    ],
+                  ),
+                ),
+              ];
+            },
           ),
         ],
       ),
@@ -468,8 +472,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius:
                         BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    Icons.account_balance_wallet_rounded,
+                  child: const Icon(
+                    Icons
+                        .account_balance_wallet_rounded,
                     color: AppTheme.gold,
                   ),
                 ),
@@ -493,7 +498,8 @@ class _HomeScreenState extends State<HomeScreen> {
               _formatNumber(_balance),
               style: TextStyle(
                 fontSize: 30,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
                 color: positive
                     ? AppTheme.gold
                     : Colors.red.shade600,
@@ -510,18 +516,22 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Expanded(
           child: _summaryCard(
-            title: settings.t('incomeTotal'),
+            title:
+                settings.t('incomeTotal'),
             amount: _income,
-            icon: Icons.arrow_downward_rounded,
+            icon:
+                Icons.arrow_downward_rounded,
             color: Colors.green.shade600,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _summaryCard(
-            title: settings.t('expenseTotal'),
+            title:
+                settings.t('expenseTotal'),
             amount: _expense,
-            icon: Icons.arrow_upward_rounded,
+            icon:
+                Icons.arrow_upward_rounded,
             color: Colors.red.shade600,
           ),
         ),
@@ -547,7 +557,8 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color:
+                    color.withOpacity(0.12),
                 borderRadius:
                     BorderRadius.circular(11),
               ),
@@ -561,7 +572,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               title,
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow:
+                  TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
                 color: Theme.of(context)
@@ -575,7 +587,8 @@ class _HomeScreenState extends State<HomeScreen> {
               _formatNumber(amount),
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
                 color: color,
               ),
             ),
@@ -588,32 +601,38 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildQuickActions() {
     final actions = [
       _ActionItem(
-        icon: Icons.add_circle_outline_rounded,
-        title: settings.t('addTransaction'),
+        icon:
+            Icons.add_circle_outline_rounded,
+        title:
+            settings.t('addTransaction'),
         color: AppTheme.green,
         onTap: _openAddTransaction,
       ),
       _ActionItem(
         icon: Icons.receipt_long_rounded,
-        title: settings.t('transactions'),
+        title:
+            settings.t('transactions'),
         color: Colors.blue,
         onTap: _openTransactions,
       ),
       _ActionItem(
-        icon: Icons.account_balance_wallet_rounded,
+        icon:
+            Icons.account_balance_wallet_rounded,
         title: settings.t('accounts'),
         color: Colors.orange,
         onTap: _openAccounts,
       ),
       _ActionItem(
         icon: Icons.category_rounded,
-        title: settings.t('categories'),
+        title:
+            settings.t('categories'),
         color: Colors.purple,
         onTap: _openCategories,
       ),
       _ActionItem(
         icon: Icons.bar_chart_rounded,
-        title: settings.t('statistics'),
+        title:
+            settings.t('statistics'),
         color: Colors.teal,
         onTap: _openStatistics,
       ),
@@ -647,7 +666,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 BorderRadius.circular(16),
             onTap: item.onTap,
             child: Padding(
-              padding: const EdgeInsets.all(9),
+              padding:
+                  const EdgeInsets.all(9),
               child: Column(
                 mainAxisAlignment:
                     MainAxisAlignment.center,
@@ -655,11 +675,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     width: 43,
                     height: 43,
-                    decoration: BoxDecoration(
-                      color:
-                          item.color.withOpacity(0.12),
+                    decoration:
+                        BoxDecoration(
+                      color: item.color
+                          .withOpacity(0.12),
                       borderRadius:
-                          BorderRadius.circular(13),
+                          BorderRadius.circular(
+                        13,
+                      ),
                     ),
                     child: Icon(
                       item.icon,
@@ -670,7 +693,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 8),
                   Text(
                     item.title,
-                    textAlign: TextAlign.center,
+                    textAlign:
+                        TextAlign.center,
                     maxLines: 2,
                     overflow:
                         TextOverflow.ellipsis,
@@ -701,7 +725,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 settings.t('accounts'),
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontWeight:
+                      FontWeight.bold,
                 ),
               ),
             ),
@@ -730,9 +755,7 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         else
           ..._accounts.map(
-            (account) => _buildAccountTile(
-              account,
-            ),
+            _buildAccountTile,
           ),
       ],
     );
@@ -763,13 +786,15 @@ class _HomeScreenState extends State<HomeScreen> {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color:
+                color.withOpacity(0.12),
             borderRadius:
                 BorderRadius.circular(13),
           ),
           child: Icon(
             _accountIcon(
-              account['type']?.toString() ??
+              account['type']
+                      ?.toString() ??
                   '',
             ),
             color: color,
@@ -778,7 +803,8 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(
           _accountDisplayName(account),
           style: const TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight:
+                FontWeight.w600,
           ),
         ),
         subtitle: Text(
@@ -791,7 +817,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _formatNumber(balance),
           style: TextStyle(
             fontSize: 15,
-            fontWeight: FontWeight.bold,
+            fontWeight:
+                FontWeight.bold,
             color: balance >= 0
                 ? color
                 : Colors.red.shade600,
@@ -810,7 +837,8 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(
             physics:
                 const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
+            padding:
+                const EdgeInsets.fromLTRB(
               14,
               14,
               14,
@@ -842,7 +870,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     : 'Quick Actions',
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontWeight:
+                      FontWeight.bold,
                 ),
               ),
 
