@@ -76,8 +76,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _categories = categories;
 
       if (existingTx != null) {
-        _selectedAccountId = existingTx?['account_id'] as int?;
-        _selectedCategoryId = existingTx?['category_id'] as int?;
+        _selectedAccountId = existingTx['account_id'] as int?;
+        _selectedCategoryId = existingTx['category_id'] as int?;
       } else {
         if (_accounts.isNotEmpty) {
           _selectedAccountId = _accounts.first['id'] as int?;
