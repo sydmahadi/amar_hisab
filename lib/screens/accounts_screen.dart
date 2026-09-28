@@ -192,7 +192,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                         color: _colorForType(
                           selectedType,
-                        ),
+                        ).value,
                       );
 
                       if (!context.mounted) return;
@@ -409,7 +409,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                         color: _colorForType(
                           selectedType,
-                        ),
+                        ).value,
                       );
 
                       if (!context.mounted) return;
@@ -566,25 +566,25 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
-  int _colorForType(String type) {
+  Color _colorForType(String type) {
     switch (type) {
       case 'bkash':
-        return 0xFFE2136E;
+        return const Color(0xFFE2136E);
 
       case 'nagad':
-        return 0xFFF7941D;
+        return const Color(0xFFF7941D);
 
       case 'bank':
-        return 0xFF246B4A;
+        return const Color(0xFF246B4A);
 
       case 'card':
-        return 0xFFC9A45C;
+        return const Color(0xFFC9A45C);
 
       case 'cash':
-        return 0xFF176B45;
+        return const Color(0xFF176B45);
 
       default:
-        return 0xFF607D8B;
+        return const Color(0xFF607D8B);
     }
   }
 
@@ -615,6 +615,13 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
     if (value is num) {
       return Color(value.toInt());
+    }
+
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      if (parsed != null) {
+        return Color(parsed);
+      }
     }
 
     return AppTheme.green;
