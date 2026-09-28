@@ -9,12 +9,10 @@ class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
 
   @override
-  State<StatisticsScreen> createState() =>
-      _StatisticsScreenState();
+  State<StatisticsScreen> createState() => _StatisticsScreenState();
 }
 
-class _StatisticsScreenState
-    extends State<StatisticsScreen> {
+class _StatisticsScreenState extends State<StatisticsScreen> {
   String _period = 'monthly';
 
   DateTime? _startDate;
@@ -33,19 +31,9 @@ class _StatisticsScreenState
   @override
   void initState() {
     super.initState();
-
     _setPeriodDates();
     _loadStatistics();
   }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  // ------------------------------------------------------------
-  // DATE
-  // ------------------------------------------------------------
 
   void _setPeriodDates() {
     final now = DateTime.now();
@@ -73,8 +61,7 @@ class _StatisticsScreenState
         now.day,
       );
 
-      final daysFromMonday =
-          today.weekday - 1;
+      final daysFromMonday = today.weekday - 1;
 
       _startDate = today.subtract(
         Duration(days: daysFromMonday),
@@ -132,14 +119,12 @@ class _StatisticsScreenState
     }
 
     try {
-      final income =
-          await MoneyDb.instance.getTotalIncome(
+      final income = await MoneyDb.instance.getTotalIncome(
         startDate: _startDate,
         endDate: _endDate,
       );
 
-      final expense =
-          await MoneyDb.instance.getTotalExpense(
+      final expense = await MoneyDb.instance.getTotalExpense(
         startDate: _startDate,
         endDate: _endDate,
       );
@@ -161,10 +146,8 @@ class _StatisticsScreenState
       setState(() {
         _income = income;
         _expense = expense;
-        _expenseCategories =
-            expenseCategories;
-        _incomeCategories =
-            incomeCategories;
+        _expenseCategories = expenseCategories;
+        _incomeCategories = incomeCategories;
         _loading = false;
       });
     } catch (e) {
@@ -176,17 +159,15 @@ class _StatisticsScreenState
 
       _showMessage(
         e.toString().replaceFirst(
-          'Exception: ',
-          '',
-        ),
+              'Exception: ',
+              '',
+            ),
         isError: true,
       );
     }
   }
 
-  Future<void> _changePeriod(
-    String period,
-  ) async {
+  Future<void> _changePeriod(String period) async {
     setState(() {
       _period = period;
     });
@@ -195,10 +176,6 @@ class _StatisticsScreenState
 
     await _loadStatistics();
   }
-
-  // ------------------------------------------------------------
-  // HELPERS
-  // ------------------------------------------------------------
 
   String _formatNumber(double value) {
     if (value == value.toInt()) {
@@ -224,11 +201,9 @@ class _StatisticsScreenState
     }
   }
 
-  double get _difference =>
-      _income - _expense;
+  double get _difference => _income - _expense;
 
-  bool get _isSurplus =>
-      _difference >= 0;
+  bool get _isSurplus => _difference >= 0;
 
   Color _categoryColor(
     Map<String, dynamic> item,
@@ -257,8 +232,7 @@ class _StatisticsScreenState
       Colors.cyan,
     ];
 
-    return colors[
-        index % colors.length];
+    return colors[index % colors.length];
   }
 
   void _showMessage(
@@ -272,25 +246,18 @@ class _StatisticsScreenState
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          behavior:
-              SnackBarBehavior.floating,
-          backgroundColor: isError
-              ? Colors.red.shade700
-              : AppTheme.green,
+          behavior: SnackBarBehavior.floating,
+          backgroundColor:
+              isError ? Colors.red.shade700 : AppTheme.green,
         ),
       );
   }
-
-  // ------------------------------------------------------------
-  // PERIOD
-  // ------------------------------------------------------------
 
   Widget _buildPeriodSelector() {
     return SizedBox(
       height: 44,
       child: ListView(
-        scrollDirection:
-            Axis.horizontal,
+        scrollDirection: Axis.horizontal,
         children: [
           _periodButton(
             value: 'daily',
@@ -320,14 +287,12 @@ class _StatisticsScreenState
     required String value,
     required String label,
   }) {
-    final selected =
-        _period == value;
+    final selected = _period == value;
 
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      onSelected: (_) =>
-          _changePeriod(value),
+      onSelected: (_) => _changePeriod(value),
       selectedColor: AppTheme.green,
       labelStyle: TextStyle(
         color: selected
@@ -336,16 +301,11 @@ class _StatisticsScreenState
                 .textTheme
                 .bodyMedium
                 ?.color,
-        fontWeight: selected
-            ? FontWeight.bold
-            : FontWeight.normal,
+        fontWeight:
+            selected ? FontWeight.bold : FontWeight.normal,
       ),
     );
   }
-
-  // ------------------------------------------------------------
-  // SUMMARY
-  // ------------------------------------------------------------
 
   Widget _buildSummaryCards() {
     return Column(
@@ -354,25 +314,19 @@ class _StatisticsScreenState
           children: [
             Expanded(
               child: _summaryCard(
-                title:
-                    settings.t('incomeTotal'),
+                title: settings.t('incomeTotal'),
                 amount: _income,
-                icon: Icons
-                    .arrow_downward_rounded,
-                color:
-                    Colors.green.shade600,
+                icon: Icons.arrow_downward_rounded,
+                color: Colors.green.shade600,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _summaryCard(
-                title:
-                    settings.t('expenseTotal'),
+                title: settings.t('expenseTotal'),
                 amount: _expense,
-                icon:
-                    Icons.arrow_upward_rounded,
-                color:
-                    Colors.red.shade600,
+                icon: Icons.arrow_upward_rounded,
+                color: Colors.red.shade600,
               ),
             ),
           ],
@@ -391,24 +345,16 @@ class _StatisticsScreenState
   }) {
     return Card(
       child: Padding(
-        padding:
-            const EdgeInsets.all(15),
+        padding: const EdgeInsets.all(15),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color:
-                    color.withValues(
-                  alpha: 0.12,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
@@ -420,8 +366,7 @@ class _StatisticsScreenState
             Text(
               title,
               maxLines: 1,
-              overflow:
-                  TextOverflow.ellipsis,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context)
@@ -434,12 +379,10 @@ class _StatisticsScreenState
             Text(
               _formatNumber(amount),
               maxLines: 1,
-              overflow:
-                  TextOverflow.ellipsis,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 18,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
@@ -450,24 +393,19 @@ class _StatisticsScreenState
   }
 
   Widget _differenceCard() {
-    final color = _isSurplus
-        ? Colors.green.shade600
-        : Colors.red.shade600;
+    final color =
+        _isSurplus ? Colors.green.shade600 : Colors.red.shade600;
 
     return Card(
       child: Padding(
-        padding:
-            const EdgeInsets.all(17),
+        padding: const EdgeInsets.all(17),
         child: Row(
           children: [
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color:
-                    color.withValues(
-                  alpha: 0.12,
-                ),
+                color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -480,22 +418,15 @@ class _StatisticsScreenState
             const SizedBox(width: 13),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _isSurplus
-                        ? settings.t(
-                            'surplus',
-                          )
-                        : settings.t(
-                            'deficit',
-                          ),
+                        ? settings.t('surplus')
+                        : settings.t('deficit'),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(
-                        context,
-                      )
+                      color: Theme.of(context)
                           .textTheme
                           .bodySmall
                           ?.color,
@@ -503,13 +434,10 @@ class _StatisticsScreenState
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _formatNumber(
-                      _difference.abs(),
-                    ),
+                    _formatNumber(_difference.abs()),
                     style: TextStyle(
                       fontSize: 21,
-                      fontWeight:
-                          FontWeight.bold,
+                      fontWeight: FontWeight.bold,
                       color: color,
                     ),
                   ),
@@ -521,8 +449,7 @@ class _StatisticsScreenState
               style: const TextStyle(
                 fontSize: 11,
                 color: AppTheme.gold,
-                fontWeight:
-                    FontWeight.w600,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -531,44 +458,29 @@ class _StatisticsScreenState
     );
   }
 
-  // ------------------------------------------------------------
-  // PIE CHART
-  // ------------------------------------------------------------
-
   Widget _buildPieChart({
-    required List<Map<String, dynamic>>
-        categories,
+    required List<Map<String, dynamic>> categories,
     required double total,
     required Color emptyColor,
     required String emptyMessage,
   }) {
-    if (categories.isEmpty ||
-        total <= 0) {
-      return _emptyChart(
-        emptyMessage,
-      );
+    if (categories.isEmpty || total <= 0) {
+      return _emptyChart(emptyMessage);
     }
 
-    final sections =
-        <PieChartSectionData>[];
+    final sections = <PieChartSectionData>[];
 
-    for (int i = 0;
-        i < categories.length;
-        i++) {
-      final item =
-          categories[i];
+    for (int i = 0; i < categories.length; i++) {
+      final item = categories[i];
 
       final value =
-          (item['total'] as num?)
-                  ?.toDouble() ??
-              0;
+          (item['total'] as num?)?.toDouble() ?? 0;
 
       if (value <= 0) {
         continue;
       }
 
-      final percentage =
-          (value / total) * 100;
+      final percentage = (value / total) * 100;
 
       sections.add(
         PieChartSectionData(
@@ -576,18 +488,14 @@ class _StatisticsScreenState
           title: percentage >= 5
               ? '${percentage.toStringAsFixed(0)}%'
               : '',
-          color:
-              _categoryColor(item, i),
+          color: _categoryColor(item, i),
           radius: 78,
-          titleStyle:
-              const TextStyle(
+          titleStyle: const TextStyle(
             color: Colors.white,
             fontSize: 11,
-            fontWeight:
-                FontWeight.bold,
+            fontWeight: FontWeight.bold,
           ),
-          borderSide:
-              const BorderSide(
+          borderSide: const BorderSide(
             color: Colors.white,
             width: 1,
           ),
@@ -596,9 +504,7 @@ class _StatisticsScreenState
     }
 
     if (sections.isEmpty) {
-      return _emptyChart(
-        emptyMessage,
-      );
+      return _emptyChart(emptyMessage);
     }
 
     return SizedBox(
@@ -608,49 +514,32 @@ class _StatisticsScreenState
           sections: sections,
           centerSpaceRadius: 52,
           sectionsSpace: 3,
-          borderData:
-              FlBorderData(
+          borderData: FlBorderData(
             show: false,
           ),
-          duration:
-              const Duration(
-            milliseconds: 650,
-          ),
-          curve:
-              Curves.easeOutCubic,
         ),
       ),
     );
   }
-
-  // ------------------------------------------------------------
-  // EXPENSE SECTION
-  // ------------------------------------------------------------
 
   Widget _buildExpenseAnalysis() {
     return _analysisCard(
       title: settings.isBangla
           ? 'ব্যয়ের বিশ্লেষণ'
           : 'Expense Analysis',
-      icon:
-          Icons.arrow_upward_rounded,
-      iconColor:
-          Colors.red.shade600,
+      icon: Icons.arrow_upward_rounded,
+      iconColor: Colors.red.shade600,
       child: Column(
         children: [
           _buildPieChart(
-            categories:
-                _expenseCategories,
+            categories: _expenseCategories,
             total: _expense,
-            emptyColor:
-                Colors.red.shade600,
-            emptyMessage:
-                settings.isBangla
-                    ? 'এই সময়ে কোনো ব্যয়ের তথ্য নেই'
-                    : 'No expense data for this period',
+            emptyColor: Colors.red.shade600,
+            emptyMessage: settings.isBangla
+                ? 'এই সময়ে কোনো ব্যয়ের তথ্য নেই'
+                : 'No expense data for this period',
           ),
-          if (_expenseCategories
-              .isNotEmpty) ...[
+          if (_expenseCategories.isNotEmpty) ...[
             const Divider(),
             const SizedBox(height: 10),
             _buildCategoryList(
@@ -664,34 +553,24 @@ class _StatisticsScreenState
     );
   }
 
-  // ------------------------------------------------------------
-  // INCOME SECTION
-  // ------------------------------------------------------------
-
   Widget _buildIncomeAnalysis() {
     return _analysisCard(
       title: settings.isBangla
           ? 'আয়ের বিশ্লেষণ'
           : 'Income Analysis',
-      icon:
-          Icons.arrow_downward_rounded,
-      iconColor:
-          Colors.green.shade600,
+      icon: Icons.arrow_downward_rounded,
+      iconColor: Colors.green.shade600,
       child: Column(
         children: [
           _buildPieChart(
-            categories:
-                _incomeCategories,
+            categories: _incomeCategories,
             total: _income,
-            emptyColor:
-                Colors.green.shade600,
-            emptyMessage:
-                settings.isBangla
-                    ? 'এই সময়ে কোনো আয়ের তথ্য নেই'
-                    : 'No income data for this period',
+            emptyColor: Colors.green.shade600,
+            emptyMessage: settings.isBangla
+                ? 'এই সময়ে কোনো আয়ের তথ্য নেই'
+                : 'No income data for this period',
           ),
-          if (_incomeCategories
-              .isNotEmpty) ...[
+          if (_incomeCategories.isNotEmpty) ...[
             const Divider(),
             const SizedBox(height: 10),
             _buildCategoryList(
@@ -712,8 +591,7 @@ class _StatisticsScreenState
     required Widget child,
   }) {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
@@ -721,14 +599,8 @@ class _StatisticsScreenState
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color:
-                    iconColor.withValues(
-                  alpha: 0.12,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  11,
-                ),
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(11),
               ),
               child: Icon(
                 icon,
@@ -741,8 +613,7 @@ class _StatisticsScreenState
               title,
               style: const TextStyle(
                 fontSize: 18,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
@@ -750,8 +621,7 @@ class _StatisticsScreenState
         const SizedBox(height: 10),
         Card(
           child: Padding(
-            padding:
-                const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(10),
             child: child,
           ),
         ),
@@ -759,60 +629,37 @@ class _StatisticsScreenState
     );
   }
 
-  // ------------------------------------------------------------
-  // CATEGORY LIST
-  // ------------------------------------------------------------
-
   Widget _buildCategoryList(
-    List<Map<String, dynamic>>
-        categories, {
+    List<Map<String, dynamic>> categories, {
     required double total,
     required bool isIncome,
   }) {
     if (categories.isEmpty) {
-      return _emptyChart(
-        settings.t('noData'),
-      );
+      return _emptyChart(settings.t('noData'));
     }
 
     return Column(
       children: List.generate(
         categories.length,
         (index) {
-          final item =
-              categories[index];
+          final item = categories[index];
 
           final name =
-              item['name']
-                      ?.toString() ??
-                  '';
+              item['name']?.toString() ?? '';
 
           final value =
-              (item['total'] as num?)
-                      ?.toDouble() ??
-                  0;
+              (item['total'] as num?)?.toDouble() ?? 0;
 
           final percentage =
-              total > 0
-                  ? value / total
-                  : 0.0;
+              total > 0 ? value / total : 0.0;
 
           final color =
-              _categoryColor(
-            item,
-            index,
-          );
+              _categoryColor(item, index);
 
           return Padding(
-            padding:
-                const EdgeInsets.only(
-              bottom: 10,
-            ),
+            padding: const EdgeInsets.only(bottom: 10),
             child: InkWell(
-              borderRadius:
-                  BorderRadius.circular(
-                14,
-              ),
+              borderRadius: BorderRadius.circular(14),
               onTap: () {
                 _showCategoryDetails(
                   item,
@@ -820,76 +667,50 @@ class _StatisticsScreenState
                 );
               },
               child: Container(
-                padding:
-                    const EdgeInsets.all(
-                  12,
-                ),
-                decoration:
-                    BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).cardColor,
-                  borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
                   children: [
                     Container(
                       width: 12,
                       height: 12,
-                      decoration:
-                          BoxDecoration(
+                      decoration: BoxDecoration(
                         color: color,
-                        shape:
-                            BoxShape.circle,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(
-                      width: 10,
-                    ),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment:
-                            CrossAxisAlignment
-                                .start,
+                            CrossAxisAlignment.start,
                         children: [
                           Text(
                             name,
-                            style:
-                                const TextStyle(
-                              fontWeight:
-                                  FontWeight
-                                      .w600,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(
-                            height: 5,
-                          ),
+                          const SizedBox(height: 5),
                           ClipRRect(
                             borderRadius:
-                                BorderRadius
-                                    .circular(
-                              10,
-                            ),
+                                BorderRadius.circular(10),
                             child:
                                 LinearProgressIndicator(
-                              value:
-                                  percentage
-                                      .clamp(
+                              value: percentage.clamp(
                                 0.0,
                                 1.0,
                               ),
                               minHeight: 5,
                               backgroundColor:
-                                  color
-                                      .withValues(
+                                  color.withValues(
                                 alpha: 0.10,
                               ),
                               valueColor:
-                                  AlwaysStoppedAnimation<
-                                      Color>(
+                                  AlwaysStoppedAnimation<Color>(
                                 color,
                               ),
                             ),
@@ -897,36 +718,23 @@ class _StatisticsScreenState
                         ],
                       ),
                     ),
-                    const SizedBox(
-                      width: 12,
-                    ),
+                    const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment
-                              .end,
+                          CrossAxisAlignment.end,
                       children: [
                         Text(
-                          _formatNumber(
-                            value,
-                          ),
-                          style:
-                              const TextStyle(
-                            fontWeight:
-                                FontWeight
-                                    .bold,
+                          _formatNumber(value),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(
-                          height: 3,
-                        ),
+                        const SizedBox(height: 3),
                         Text(
                           '${(percentage * 100).toStringAsFixed(1)}%',
-                          style:
-                              TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
-                            color: Theme.of(
-                              context,
-                            )
+                            color: Theme.of(context)
                                 .textTheme
                                 .bodySmall
                                 ?.color,
@@ -944,39 +752,27 @@ class _StatisticsScreenState
     );
   }
 
-  Widget _emptyChart(
-    String message,
-  ) {
+  Widget _emptyChart(String message) {
     return Container(
       height: 190,
       width: double.infinity,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color:
-            Theme.of(context).cardColor,
-        borderRadius:
-            BorderRadius.circular(18),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
-        mainAxisAlignment:
-            MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons
-                .pie_chart_outline_rounded,
+            Icons.pie_chart_outline_rounded,
             size: 45,
-            color:
-                AppTheme.gold.withValues(
-              alpha: 0.7,
-            ),
+            color: AppTheme.gold.withValues(alpha: 0.7),
           ),
-          const SizedBox(
-            height: 10,
-          ),
+          const SizedBox(height: 10),
           Text(
             message,
-            textAlign:
-                TextAlign.center,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: Theme.of(context)
                   .textTheme
@@ -989,27 +785,19 @@ class _StatisticsScreenState
     );
   }
 
-  // ------------------------------------------------------------
-  // CATEGORY DETAILS
-  // ------------------------------------------------------------
-
-  Future<void>
-      _showCategoryDetails(
+  Future<void> _showCategoryDetails(
     Map<String, dynamic> category, {
     required bool isIncome,
   }) async {
-    final categoryId =
-        category['id'];
+    final categoryId = category['id'];
 
     if (categoryId == null) {
       return;
     }
 
     final transactions =
-        await MoneyDb.instance
-            .getTransactions(
-      categoryId:
-          categoryId as int,
+        await MoneyDb.instance.getTransactions(
+      categoryId: categoryId as int,
       startDate: _startDate,
       endDate: _endDate,
     );
@@ -1024,15 +812,11 @@ class _StatisticsScreenState
         return SafeArea(
           child: SizedBox(
             height:
-                MediaQuery.of(
-                      sheetContext,
-                    ).size.height *
-                    0.70,
+                MediaQuery.of(sheetContext).size.height * 0.70,
             child: Column(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     20,
                     4,
                     20,
@@ -1042,94 +826,64 @@ class _StatisticsScreenState
                     children: [
                       Expanded(
                         child: Text(
-                          category['name']
-                                  ?.toString() ??
-                              '',
-                          style:
-                              const TextStyle(
+                          category['name']?.toString() ?? '',
+                          style: const TextStyle(
                             fontSize: 18,
-                            fontWeight:
-                                FontWeight
-                                    .bold,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                       Text(
                         _formatNumber(
-                          (category[
-                                      'total']
-                                  as num?)
-                              ?.toDouble() ??
+                          (category['total'] as num?)
+                                  ?.toDouble() ??
                               0,
                         ),
                         style: TextStyle(
                           color: isIncome
-                              ? Colors.green
-                                  .shade600
-                              : Colors.red
-                                  .shade600,
+                              ? Colors.green.shade600
+                              : Colors.red.shade600,
                           fontSize: 17,
-                          fontWeight:
-                              FontWeight
-                                  .bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Divider(
-                  height: 1,
-                ),
+                const Divider(height: 1),
                 Expanded(
-                  child: transactions
-                          .isEmpty
+                  child: transactions.isEmpty
                       ? Center(
                           child: Text(
-                            settings.t(
-                              'noTransactions',
-                            ),
+                            settings.t('noTransactions'),
                           ),
                         )
                       : ListView.builder(
-                          padding:
-                              const EdgeInsets
-                                  .all(
-                            16,
-                          ),
-                          itemCount:
-                              transactions
-                                  .length,
-                          itemBuilder:
-                              (
+                          padding: const EdgeInsets.all(16),
+                          itemCount: transactions.length,
+                          itemBuilder: (
                             context,
                             index,
                           ) {
                             final item =
-                                transactions[
-                                    index];
+                                transactions[index];
 
                             final amount =
-                                (item[
-                                            'amount']
-                                        as num?)
-                                    ?.toDouble() ??
+                                (item['amount'] as num?)
+                                        ?.toDouble() ??
                                     0;
 
                             return ListTile(
                               contentPadding:
-                                  const EdgeInsets
-                                      .symmetric(
+                                  const EdgeInsets.symmetric(
                                 horizontal: 4,
                                 vertical: 2,
                               ),
-                              leading:
-                                  CircleAvatar(
+                              leading: CircleAvatar(
                                 backgroundColor:
                                     (isIncome
-                                            ? Colors
-                                                .green
-                                            : Colors
-                                                .red)
+                                            ? Colors.green
+                                            : Colors.red)
                                         .withValues(
                                   alpha: 0.10,
                                 ),
@@ -1139,52 +893,35 @@ class _StatisticsScreenState
                                           .arrow_downward_rounded
                                       : Icons
                                           .arrow_upward_rounded,
-                                  color:
-                                      isIncome
-                                          ? Colors
-                                              .green
-                                          : Colors
-                                              .red,
+                                  color: isIncome
+                                      ? Colors.green
+                                      : Colors.red,
                                 ),
                               ),
                               title: Text(
-                                item[
-                                            'account_name']
+                                item['account_name']
                                         ?.toString() ??
                                     '',
                               ),
-                              subtitle:
-                                  Text(
+                              subtitle: Text(
                                 item['note']
                                             ?.toString()
                                             .isNotEmpty ==
                                         true
-                                    ? item[
-                                            'note']
-                                        .toString()
-                                    : item[
-                                            'transaction_date']
-                                        .toString()
-                                        .split(
-                                          'T',
-                                        )
-                                        .first,
+                                    ? item['note'].toString()
+                                    : item['transaction_date']
+                                            ?.toString()
+                                            .split('T')
+                                            .first ??
+                                        '',
                               ),
-                              trailing:
-                                  Text(
-                                _formatNumber(
-                                  amount,
-                                ),
-                                style:
-                                    TextStyle(
+                              trailing: Text(
+                                _formatNumber(amount),
+                                style: TextStyle(
                                   color: isIncome
-                                      ? Colors
-                                          .green
-                                      : Colors
-                                          .red,
-                                  fontWeight:
-                                      FontWeight
-                                          .bold,
+                                      ? Colors.green
+                                      : Colors.red,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             );
@@ -1199,14 +936,8 @@ class _StatisticsScreenState
     );
   }
 
-  // ------------------------------------------------------------
-  // BUILD
-  // ------------------------------------------------------------
-
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -1215,17 +946,14 @@ class _StatisticsScreenState
       ),
       body: _loading
           ? const Center(
-              child:
-                  CircularProgressIndicator(),
+              child: CircularProgressIndicator(),
             )
           : RefreshIndicator(
-              onRefresh:
-                  _loadStatistics,
+              onRefresh: _loadStatistics,
               child: ListView(
                 physics:
                     const AlwaysScrollableScrollPhysics(),
-                padding:
-                    const EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                   16,
                   16,
                   16,
@@ -1233,23 +961,11 @@ class _StatisticsScreenState
                 ),
                 children: [
                   _buildPeriodSelector(),
-
-                  const SizedBox(
-                    height: 18,
-                  ),
-
+                  const SizedBox(height: 18),
                   _buildSummaryCards(),
-
-                  const SizedBox(
-                    height: 26,
-                  ),
-
+                  const SizedBox(height: 26),
                   _buildExpenseAnalysis(),
-
-                  const SizedBox(
-                    height: 28,
-                  ),
-
+                  const SizedBox(height: 28),
                   _buildIncomeAnalysis(),
                 ],
               ),
