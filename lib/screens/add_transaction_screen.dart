@@ -5,7 +5,12 @@ import '../services/money_db.dart';
 import '../theme/app_theme.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final int? transactionId;
+
+  const AddTransactionScreen({
+    super.key,
+    this.transactionId,
+  });
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -32,8 +37,33 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     _loadInitialData();
   }
 
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadInitialData() async {
     final accounts = await MoneyDb.instance.getAccounts();
+
+    Map<String, dynamic>? existingTx;
+    if (widget.transactionId != null) {
+      existingTx =
+          await MoneyDb.instance.getTransactionById(widget.transactionId!);
+      if (existingTx != null) {
+        _type = existingTx['type']?.toString() ?? 'expense';
+        _amountController.text =
+            (existingTx['amount'] as num?)?.toString() ?? '';
+        _noteController.text = existingTx['note']?.toString() ?? '';
+        if (existingTx['transaction_date'] != null) {
+          _selectedDate =
+              DateTime.tryParse(existingTx['transaction_date'].toString()) ??
+                  DateTime.now();
+        }
+      }
+    }
+
     final categories = await MoneyDb.instance.getCategories(type: _type);
 
     if (!mounted) return;
@@ -42,11 +72,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _accounts = accounts;
       _categories = categories;
 
-      if (_accounts.isNotEmpty) {
-        _selectedAccountId = _accounts.first['id'] as int?;
-      }
-      if (_categories.isNotEmpty) {
-        _selectedCategoryId = _categories.first['id'] as int?;
+      if (existingTx != null) {
+        _selectedAccountId = existingTx['account_id'] as int?;
+        _selectedCategoryId = existingTx['category_id'] as int?;
+      } else {
+        if (_accounts.isNotEmpty) {
+          _selectedAccountId = _accounts.first['id'] as int?;
+        }
+        if (_categories.isNotEmpty) {
+          _selectedCategoryId = _categories.first['id'] as int?;
+        }
       }
 
       _loading = false;
@@ -79,14 +114,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (amount == null || amount <= 0) return;
 
     try {
-      await MoneyDb.instance.addTransaction(
-        type: _type,
-        amount: amount,
-        accountId: _selectedAccountId,
-        categoryId: _selectedCategoryId,
-        note: _noteController.text.trim(),
-        transactionDate: _selectedDate,
-      );
+      if (widget.transactionId != null) {
+        await MoneyDb.instance.updateTransaction(
+          widget.transactionId!,
+          type: _type,
+          amount: amount,
+          accountId: _selectedAccountId,
+          categoryId: _selectedCategoryId,
+          note: _noteController.text.trim(),
+          transactionDate: _selectedDate,
+        );
+      } else {
+        await MoneyDb.instance.addTransaction(
+          type: _type,
+          amount: amount,
+          accountId: _selectedAccountId,
+          categoryId: _selectedCategoryId,
+          note: _noteController.text.trim(),
+          transactionDate: _selectedDate,
+        );
+      }
 
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -100,9 +147,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.transactionId != null;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(settings.isBangla ? 'লেনদেন যোগ করুন' : 'Add Transaction'),
+        title: Text(
+          isEdit
+              ? (settings.isBangla ? 'লেনদেন আপডেট করুন' : 'Edit Transaction')
+              : (settings.isBangla ? 'লেনদেন যোগ করুন' : 'Add Transaction'),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -187,7 +240,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size.fromHeight(50),
                       ),
-                      child: Text(settings.t('save')),
+                      child: Text(
+                        isEdit ? settings.t('update') : settings.t('save'),
+                      ),
                     ),
                   ),
                 ],
