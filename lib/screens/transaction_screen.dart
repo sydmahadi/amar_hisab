@@ -395,7 +395,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
@@ -451,7 +451,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               .textTheme
                               .bodySmall
                               ?.color
-                              ?.withOpacity(0.7),
+                              ?.withValues(alpha: 0.7),
                         ),
                       ),
                   ],
@@ -543,7 +543,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                color: AppTheme.green.withOpacity(0.12),
+                color: AppTheme.green.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
