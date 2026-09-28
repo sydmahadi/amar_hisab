@@ -84,11 +84,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     }
 
     try {
-      final expense = await MoneyDb.instance.getCategories(
+      final expense =
+          await MoneyDb.instance.getCategories(
         type: 'expense',
       );
 
-      final income = await MoneyDb.instance.getCategories(
+      final income =
+          await MoneyDb.instance.getCategories(
         type: 'income',
       );
 
@@ -107,7 +109,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       });
 
       _showMessage(
-        e.toString().replaceFirst('Exception: ', ''),
+        e.toString().replaceFirst(
+              'Exception: ',
+              '',
+            ),
         isError: true,
       );
     }
@@ -146,6 +151,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       }
     }
 
+    // ignore: non_const_argument_for_const_parameter
     return IconData(
       codePoint,
       fontFamily: 'MaterialIcons',
@@ -203,18 +209,21 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 right: 20,
                 top: 20,
                 bottom:
-                    MediaQuery.of(context).viewInsets.bottom + 20,
+                    MediaQuery.of(context).viewInsets.bottom +
+                        20,
               ),
               decoration: BoxDecoration(
                 color: theme.scaffoldBackgroundColor,
-                borderRadius: const BorderRadius.vertical(
+                borderRadius:
+                    const BorderRadius.vertical(
                   top: Radius.circular(24),
                 ),
               ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Text(
                       category == null
@@ -239,8 +248,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     TextField(
                       controller: nameController,
                       decoration: InputDecoration(
-                        labelText: settings.t('categoryName'),
-                        border: const OutlineInputBorder(),
+                        labelText:
+                            settings.t('categoryName'),
+                        border:
+                            const OutlineInputBorder(),
                       ),
                     ),
 
@@ -260,47 +271,68 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     SizedBox(
                       height: 55,
                       child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _availableIcons.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final icon = _availableIcons[index];
+                        scrollDirection:
+                            Axis.horizontal,
+                        itemCount:
+                            _availableIcons.length,
+                        separatorBuilder:
+                            (_, __) =>
+                                const SizedBox(
+                          width: 8,
+                        ),
+                        itemBuilder:
+                            (context, index) {
+                          final icon =
+                              _availableIcons[index];
 
                           final isSelected =
-                              selectedIcon.codePoint ==
+                              selectedIcon
+                                      .codePoint ==
                                   icon.codePoint;
 
                           return InkWell(
                             onTap: () {
                               setModalState(() {
-                                selectedIcon = icon;
+                                selectedIcon =
+                                    icon;
                               });
                             },
                             borderRadius:
-                                BorderRadius.circular(12),
+                                BorderRadius.circular(
+                              12,
+                            ),
                             child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
+                              padding:
+                                  const EdgeInsets
+                                      .all(10),
+                              decoration:
+                                  BoxDecoration(
                                 color: isSelected
-                                    ? selectedColor.withValues(
+                                    ? selectedColor
+                                        .withValues(
                                         alpha: 0.2,
                                       )
                                     : theme.cardColor,
-                                border: Border.all(
+                                border:
+                                    Border.all(
                                   color: isSelected
                                       ? selectedColor
-                                      : Colors.transparent,
+                                      : Colors
+                                          .transparent,
                                   width: 2,
                                 ),
                                 borderRadius:
-                                    BorderRadius.circular(12),
+                                    BorderRadius
+                                        .circular(
+                                  12,
+                                ),
                               ),
                               child: Icon(
                                 icon,
                                 color: isSelected
                                     ? selectedColor
-                                    : theme.iconTheme.color,
+                                    : theme.iconTheme
+                                        .color,
                               ),
                             ),
                           );
@@ -324,31 +356,43 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     SizedBox(
                       height: 45,
                       child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _availableColors.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final color = _availableColors[index];
+                        scrollDirection:
+                            Axis.horizontal,
+                        itemCount:
+                            _availableColors.length,
+                        separatorBuilder:
+                            (_, __) =>
+                                const SizedBox(
+                          width: 8,
+                        ),
+                        itemBuilder:
+                            (context, index) {
+                          final color =
+                              _availableColors[index];
 
                           final isSelected =
-                              selectedColor.toARGB32() ==
+                              selectedColor
+                                      .toARGB32() ==
                                   color.toARGB32();
 
                           return InkWell(
                             onTap: () {
                               setModalState(() {
-                                selectedColor = color;
+                                selectedColor =
+                                    color;
                               });
                             },
-                            customBorder: const CircleBorder(),
+                            customBorder:
+                                const CircleBorder(),
                             child: CircleAvatar(
-                              backgroundColor: color,
+                              backgroundColor:
+                                  color,
                               radius: 20,
                               child: isSelected
                                   ? const Icon(
                                       Icons.check,
-                                      color: Colors.white,
+                                      color:
+                                          Colors.white,
                                     )
                                   : null,
                             ),
@@ -363,13 +407,17 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.green,
-                          foregroundColor: Colors.white,
+                        style:
+                            ElevatedButton.styleFrom(
+                          backgroundColor:
+                              AppTheme.green,
+                          foregroundColor:
+                              Colors.white,
                         ),
                         onPressed: () async {
                           final name =
-                              nameController.text.trim();
+                              nameController.text
+                                  .trim();
 
                           if (name.isEmpty) {
                             return;
@@ -377,33 +425,45 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
                           try {
                             if (category == null) {
-                              await MoneyDb.instance.addCategory(
+                              await MoneyDb.instance
+                                  .addCategory(
                                 name: name,
                                 type: type,
-                                icon: selectedIcon.codePoint,
-                                color: selectedColor.toARGB32(),
+                                icon: selectedIcon
+                                    .codePoint,
+                                color:
+                                    selectedColor
+                                        .toARGB32(),
                               );
                             } else {
                               await MoneyDb.instance
                                   .updateCategory(
                                 category['id'] as int,
                                 name: name,
-                                icon: selectedIcon.codePoint,
-                                color: selectedColor.toARGB32(),
+                                icon: selectedIcon
+                                    .codePoint,
+                                color:
+                                    selectedColor
+                                        .toARGB32(),
                               );
                             }
 
-                            if (!mounted) return;
+                            if (!mounted) {
+                              return;
+                            }
 
-                            Navigator.pop(context);
+                            Navigator.pop(
+                              context,
+                            );
 
                             await _loadCategories();
                           } catch (e) {
                             _showMessage(
-                              e.toString().replaceFirst(
-                                    'Exception: ',
-                                    '',
-                                  ),
+                              e.toString()
+                                  .replaceFirst(
+                                'Exception: ',
+                                '',
+                              ),
                               isError: true,
                             );
                           }
@@ -412,8 +472,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                           category == null
                               ? settings.t('add')
                               : settings.t('update'),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                          style:
+                              const TextStyle(
+                            fontWeight:
+                                FontWeight.bold,
                           ),
                         ),
                       ),
@@ -433,7 +495,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   Future<void> _deleteCategory(
     Map<String, dynamic> category,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
@@ -448,7 +511,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(
+            onPressed: () =>
+                Navigator.pop(
               context,
               false,
             ),
@@ -457,11 +521,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             ),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(
+            onPressed: () =>
+                Navigator.pop(
               context,
               true,
             ),
-            style: TextButton.styleFrom(
+            style:
+                TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
             child: Text(
@@ -474,7 +540,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
 
     if (confirmed == true) {
       try {
-        await MoneyDb.instance.deleteCategory(
+        await MoneyDb.instance
+            .deleteCategory(
           category['id'] as int,
         );
 
@@ -509,23 +576,24 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       itemBuilder: (context, index) {
         final item = categories[index];
 
-        final name = item['name']?.toString() ?? '';
+        final name =
+            item['name']?.toString() ?? '';
 
-        final icon = _iconFromData(
-          item['icon'],
-        );
+        final icon =
+            _iconFromData(item['icon']);
 
-        final color = _colorFromData(
-          item['color'],
-        );
+        final color =
+            _colorFromData(item['color']);
 
         return Card(
-          margin: const EdgeInsets.only(
+          margin:
+              const EdgeInsets.only(
             bottom: 10,
           ),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: color.withValues(
+              backgroundColor:
+                  color.withValues(
                 alpha: 0.15,
               ),
               child: Icon(
@@ -536,18 +604,21 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             title: Text(
               name,
               style: const TextStyle(
-                fontWeight: FontWeight.w600,
+                fontWeight:
+                    FontWeight.w600,
               ),
             ),
             trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize:
+                  MainAxisSize.min,
               children: [
                 IconButton(
                   icon: const Icon(
                     Icons.edit_outlined,
                     size: 20,
                   ),
-                  onPressed: () => _addOrEditCategory(
+                  onPressed: () =>
+                      _addOrEditCategory(
                     type: type,
                     category: item,
                   ),
@@ -558,7 +629,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     size: 20,
                     color: Colors.red,
                   ),
-                  onPressed: () => _deleteCategory(
+                  onPressed: () =>
+                      _deleteCategory(
                     item,
                   ),
                 ),
@@ -592,7 +664,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(),
+              child:
+                  CircularProgressIndicator(),
             )
           : TabBarView(
               controller: _tabController,
@@ -607,8 +680,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.green,
+      floatingActionButton:
+          FloatingActionButton(
+        backgroundColor:
+            AppTheme.green,
         onPressed: () {
           final currentType =
               _tabController.index == 0
