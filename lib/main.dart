@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
 import 'services/app_settings.dart';
-import 'services/money_db.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await MoneyDb.instance.init();
   await AppSettings.instance.init();
 
   runApp(const AmarHisabApp());
@@ -36,23 +34,22 @@ class _AmarHisabAppState extends State<AmarHisabApp> {
   }
 
   void _settingsChanged() {
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final settings = AppSettings.instance;
-
     return MaterialApp(
       debugShowCheckedModeBanner: false,
 
-      title: settings.t('appName'),
+      title: AppSettings.instance.t('appName'),
 
-      theme: AppTheme.light(),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
 
-      darkTheme: AppTheme.dark(),
-
-      themeMode: settings.darkMode
+      themeMode: AppSettings.instance.isDarkMode
           ? ThemeMode.dark
           : ThemeMode.light,
 
