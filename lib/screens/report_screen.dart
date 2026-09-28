@@ -654,7 +654,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
       await file.writeAsBytes(image);
 
-      await SharePlus.instance.share(
+      await Share.shareXFiles(
         [
           XFile(
             file.path,
