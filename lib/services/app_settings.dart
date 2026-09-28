@@ -12,6 +12,7 @@ class AppSettings extends ChangeNotifier {
   String _language = 'bn';
 
   bool get isDarkMode => _isDarkMode;
+  bool get darkMode => _isDarkMode;
 
   String get language => _language;
 
@@ -52,6 +53,10 @@ class AppSettings extends ChangeNotifier {
     );
 
     notifyListeners();
+  }
+
+  Future<void> toggleLanguage() async {
+    await setLanguage(_language == 'bn' ? 'en' : 'bn');
   }
 
   String t(String key) {
