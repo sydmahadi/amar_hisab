@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Android APK
@@ -15,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -24,22 +27,62 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: "stable"
+          flutter-version: "3.47.5"
+          channel: stable
           cache: true
 
-      - name: Flutter doctor
+      - name: Flutter Doctor
         run: flutter doctor -v
 
-      - name: Get dependencies
+      - name: Generate Android Project
+        run: |
+          rm -rf android
+
+          flutter create \
+            --platforms=android \
+            --org com.amar \
+            --project-name amar_hisab \
+            .
+
+      - name: Set App Name and Internet Permission
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+
+          text = manifest.read_text(encoding="utf-8")
+
+          text = text.replace(
+              'android:label="amar_hisab"',
+              'android:label="আমার হিসাব"'
+          )
+
+          if "android.permission.INTERNET" not in text:
+              text = text.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n\n'
+                  '    <uses-permission android:name="android.permission.INTERNET"/>'
+              )
+
+          manifest.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Check Android Structure
+        run: |
+          echo "===== Android files ====="
+          find android -maxdepth 6 -type f | sort
+
+      - name: Get Dependencies
         run: flutter pub get
 
-      - name: Analyze project
+      - name: Analyze Project
         run: flutter analyze
 
-      - name: Build Release APK
+      - name: Build APK
         run: flutter build apk --release
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: amar-hisab-release-apk
