@@ -54,13 +54,11 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     }
 
     try {
-      final income =
-          await MoneyDb.instance.getCategories(
+      final income = await MoneyDb.instance.getCategories(
         type: 'income',
       );
 
-      final expense =
-          await MoneyDb.instance.getCategories(
+      final expense = await MoneyDb.instance.getCategories(
         type: 'expense',
       );
 
@@ -116,7 +114,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (
+            dialogBuilderContext,
+            setDialogState,
+          ) {
             return AlertDialog(
               title: Text(
                 settings.t('addCategory'),
@@ -128,10 +129,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     controller: nameController,
                     autofocus: true,
                     decoration: InputDecoration(
-                      labelText:
-                          settings.t('categoryName'),
-                      hintText:
-                          settings.t('enterName'),
+                      labelText: settings.t('categoryName'),
+                      hintText: settings.t('enterName'),
                       prefixIcon: const Icon(
                         Icons.category_outlined,
                         color: AppTheme.gold,
@@ -152,11 +151,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         child: Row(
                           children: [
                             Icon(
-                              Icons
-                                  .arrow_downward_rounded,
+                              Icons.arrow_downward_rounded,
                               size: 19,
-                              color:
-                                  Colors.green.shade600,
+                              color: Colors.green.shade600,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -170,11 +167,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         child: Row(
                           children: [
                             Icon(
-                              Icons
-                                  .arrow_upward_rounded,
+                              Icons.arrow_upward_rounded,
                               size: 19,
-                              color:
-                                  Colors.red.shade600,
+                              color: Colors.red.shade600,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -208,12 +203,12 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    final name =
-                        nameController.text.trim();
+                    final name = nameController.text.trim();
 
                     if (name.isEmpty) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      ScaffoldMessenger.of(
+                        dialogBuilderContext,
+                      ).showSnackBar(
                         SnackBar(
                           content: Text(
                             settings.t('enterName'),
@@ -228,28 +223,25 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         name: name,
                         type: type,
                         icon: type == 'income'
-                            ? Icons
-                                .payments_outlined
-                                .codePoint
-                            : Icons
-                                .category_outlined
-                                .codePoint,
+                            ? Icons.payments_outlined.codePoint
+                            : Icons.category_outlined.codePoint,
                         color: type == 'income'
                             ? 0xFF176B45
                             : 0xFFE57373,
                       );
 
-                      if (!context.mounted) return;
+                      if (!dialogContext.mounted) return;
 
                       Navigator.pop(
                         dialogContext,
                         true,
                       );
                     } catch (e) {
-                      if (!context.mounted) return;
+                      if (!dialogContext.mounted) return;
 
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      ScaffoldMessenger.of(
+                        dialogContext,
+                      ).showSnackBar(
                         SnackBar(
                           content: Text(
                             e.toString().replaceFirst(
@@ -309,8 +301,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             controller: nameController,
             autofocus: true,
             decoration: InputDecoration(
-              labelText:
-                  settings.t('categoryName'),
+              labelText: settings.t('categoryName'),
               prefixIcon: const Icon(
                 Icons.category_outlined,
                 color: AppTheme.gold,
@@ -331,12 +322,12 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             ),
             ElevatedButton(
               onPressed: () async {
-                final name =
-                    nameController.text.trim();
+                final name = nameController.text.trim();
 
                 if (name.isEmpty) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
+                  ScaffoldMessenger.of(
+                    dialogContext,
+                  ).showSnackBar(
                     SnackBar(
                       content: Text(
                         settings.t('enterName'),
@@ -352,17 +343,18 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     name: name,
                   );
 
-                  if (!context.mounted) return;
+                  if (!dialogContext.mounted) return;
 
                   Navigator.pop(
                     dialogContext,
                     true,
                   );
                 } catch (e) {
-                  if (!context.mounted) return;
+                  if (!dialogContext.mounted) return;
 
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
+                  ScaffoldMessenger.of(
+                    dialogContext,
+                  ).showSnackBar(
                     SnackBar(
                       content: Text(
                         e.toString().replaceFirst(
@@ -450,8 +442,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 );
               },
               style: FilledButton.styleFrom(
-                backgroundColor:
-                    Colors.red.shade700,
+                backgroundColor: Colors.red.shade700,
               ),
               child: Text(
                 settings.t('delete'),
@@ -493,17 +484,6 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     dynamic icon,
     String type,
   ) {
-    /*
-     * Database-এ icon int হিসেবে সংরক্ষণ হচ্ছে।
-     *
-     * এখানে dynamic IconData তৈরি করছি না।
-     * তাই non_const_argument_for_const_parameter
-     * warning হবে না।
-     *
-     * বর্তমানে income/expense অনুযায়ী default icon
-     * দেখানো হচ্ছে।
-     */
-
     if (type == 'income') {
       return Icons.payments_outlined;
     }
@@ -524,8 +504,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       return Color(value.toInt());
     }
 
-    final type =
-        category['type']?.toString();
+    final type = category['type']?.toString();
 
     return type == 'income'
         ? AppTheme.green
@@ -599,13 +578,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     ?.color,
           ),
         ),
-        trailing:
-            PopupMenuButton<String>(
+        trailing: PopupMenuButton<String>(
           onSelected: (value) {
             if (value == 'edit') {
-              _showEditCategoryDialog(
-                category,
-              );
+              _showEditCategoryDialog(category);
             }
 
             if (value == 'delete') {
@@ -637,15 +613,13 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                       Icon(
                         Icons.delete_outline,
                         size: 20,
-                        color:
-                            Colors.red.shade600,
+                        color: Colors.red.shade600,
                       ),
                       const SizedBox(width: 10),
                       Text(
                         settings.t('delete'),
                         style: TextStyle(
-                          color:
-                              Colors.red.shade600,
+                          color: Colors.red.shade600,
                         ),
                       ),
                     ],
@@ -707,8 +681,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       child: ListView.builder(
         physics:
             const AlwaysScrollableScrollPhysics(),
-        padding:
-            const EdgeInsets.fromLTRB(
+        padding: const EdgeInsets.fromLTRB(
           16,
           14,
           16,
@@ -763,8 +736,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       ),
       body: _loading
           ? const Center(
-              child:
-                  CircularProgressIndicator(),
+              child: CircularProgressIndicator(),
             )
           : TabBarView(
               controller: _tabController,
@@ -779,8 +751,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             ),
       floatingActionButton:
           FloatingActionButton.extended(
-        onPressed:
-            _showAddCategoryDialog,
+        onPressed: _showAddCategoryDialog,
         backgroundColor: AppTheme.green,
         foregroundColor: Colors.white,
         icon: const Icon(
