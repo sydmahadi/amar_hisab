@@ -119,14 +119,12 @@ class _ReportScreenState extends State<ReportScreen> {
         endDate: _endDate,
       );
 
-      final incomeCategories =
-          await MoneyDb.instance.getIncomeByCategory(
+      final incomeCategories = await MoneyDb.instance.getIncomeByCategory(
         startDate: _startDate,
         endDate: _endDate,
       );
 
-      final expenseCategories =
-          await MoneyDb.instance.getExpenseByCategory(
+      final expenseCategories = await MoneyDb.instance.getExpenseByCategory(
         startDate: _startDate,
         endDate: _endDate,
       );
@@ -215,8 +213,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
     if (categoryId == null) return;
 
-    final transactions =
-        await MoneyDb.instance.getTransactions(
+    final transactions = await MoneyDb.instance.getTransactions(
       categoryId: categoryId is int
           ? categoryId
           : int.tryParse(categoryId.toString()),
@@ -244,7 +241,6 @@ class _ReportScreenState extends State<ReportScreen> {
           child: Column(
             children: [
               const SizedBox(height: 12),
-
               Container(
                 width: 45,
                 height: 5,
@@ -253,9 +249,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-
               const SizedBox(height: 18),
-
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -278,17 +272,13 @@ class _ReportScreenState extends State<ReportScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: isIncome
-                            ? Colors.green
-                            : Colors.red,
+                        color: isIncome ? Colors.green : Colors.red,
                       ),
                     ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 12),
-
               Expanded(
                 child: transactions.isEmpty
                     ? Center(
@@ -306,38 +296,28 @@ class _ReportScreenState extends State<ReportScreen> {
                         itemBuilder: (context, index) {
                           final tx = transactions[index];
 
-                          final amount =
-                              (tx['amount'] as num?)?.toDouble() ??
-                                  double.tryParse(
-                                    tx['amount']
-                                            ?.toString() ??
-                                        '0',
-                                  ) ??
-                                  0;
+                          final amount = (tx['amount'] as num?)?.toDouble() ??
+                              double.tryParse(
+                                tx['amount']?.toString() ?? '0',
+                              ) ??
+                              0;
 
-                          final note =
-                              tx['note']?.toString() ?? '';
+                          final note = tx['note']?.toString() ?? '';
 
-                          final date =
-                              tx['transaction_date']
-                                  ?.toString() ??
-                              '';
+                          final date = tx['transaction_date']?.toString() ?? '';
 
                           return Card(
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor:
-                                    (isIncome
-                                            ? Colors.green
-                                            : Colors.red)
-                                        .withValues(alpha: 0.12),
+                                backgroundColor: (isIncome
+                                        ? Colors.green
+                                        : Colors.red)
+                                    .withValues(alpha: 0.12),
                                 child: Icon(
                                   isIncome
                                       ? Icons.arrow_downward
                                       : Icons.arrow_upward,
-                                  color: isIncome
-                                      ? Colors.green
-                                      : Colors.red,
+                                  color: isIncome ? Colors.green : Colors.red,
                                 ),
                               ),
                               title: Text(
@@ -368,8 +348,10 @@ class _ReportScreenState extends State<ReportScreen> {
     try {
       final pdf = pw.Document();
 
-      final isBangla =
-          AppSettings.instance.language == 'bn';
+      // বাংলা ফন্ট সাপোর্ট যোগ করা যাতে PDF-এ টেক্সট না ভাঙে
+      final fontData = await PdfGoogleFonts.tiroBanglaRegular();
+
+      final isBangla = AppSettings.instance.language == 'bn';
 
       final title = isBangla
           ? 'আমার হিসাব - মাসিক রিপোর্ট'
@@ -377,11 +359,9 @@ class _ReportScreenState extends State<ReportScreen> {
 
       final monthText = _monthName;
 
-      final incomeTitle =
-          isBangla ? 'মোট আয়' : 'Total Income';
+      final incomeTitle = isBangla ? 'মোট আয়' : 'Total Income';
 
-      final expenseTitle =
-          isBangla ? 'মোট ব্যয়' : 'Total Expense';
+      final expenseTitle = isBangla ? 'মোট ব্যয়' : 'Total Expense';
 
       final differenceTitle = _difference >= 0
           ? (isBangla ? 'উদ্বৃত্ত' : 'Surplus')
@@ -391,6 +371,10 @@ class _ReportScreenState extends State<ReportScreen> {
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(28),
+          theme: pw.ThemeData.withFont(
+            base: fontData,
+            bold: fontData,
+          ),
           build: (context) {
             return [
               pw.Text(
@@ -400,18 +384,14 @@ class _ReportScreenState extends State<ReportScreen> {
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-
               pw.SizedBox(height: 8),
-
               pw.Text(
                 monthText,
                 style: const pw.TextStyle(
                   fontSize: 14,
                 ),
               ),
-
               pw.SizedBox(height: 20),
-
               pw.Table(
                 border: pw.TableBorder.all(
                   color: PdfColors.grey400,
@@ -450,26 +430,18 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                 ],
               ),
-
               pw.SizedBox(height: 25),
-
               pw.Text(
-                isBangla
-                    ? 'আয়ের খাত'
-                    : 'Income Categories',
+                isBangla ? 'আয়ের খাত' : 'Income Categories',
                 style: pw.TextStyle(
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-
               pw.SizedBox(height: 8),
-
               if (_incomeCategories.isEmpty)
                 pw.Text(
-                  isBangla
-                      ? 'কোনো তথ্য নেই'
-                      : 'No data',
+                  isBangla ? 'কোনো তথ্য নেই' : 'No data',
                 )
               else
                 pw.Table(
@@ -507,26 +479,18 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ],
                 ),
-
               pw.SizedBox(height: 25),
-
               pw.Text(
-                isBangla
-                    ? 'ব্যয়ের খাত'
-                    : 'Expense Categories',
+                isBangla ? 'ব্যয়ের খাত' : 'Expense Categories',
                 style: pw.TextStyle(
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-
               pw.SizedBox(height: 8),
-
               if (_expenseCategories.isEmpty)
                 pw.Text(
-                  isBangla
-                      ? 'কোনো তথ্য নেই'
-                      : 'No data',
+                  isBangla ? 'কোনো তথ্য নেই' : 'No data',
                 )
               else
                 pw.Table(
@@ -564,18 +528,12 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ],
                 ),
-
               pw.SizedBox(height: 30),
-
               pw.Divider(),
-
               pw.SizedBox(height: 8),
-
               pw.Text(
-                isBangla
-                    ? 'আমার হিসাব'
-                    : 'Amar Hisab',
-                style: pw.TextStyle(
+                isBangla ? 'আমার হিসাব' : 'Amar Hisab',
+                style: const pw.TextStyle(
                   fontSize: 10,
                   color: PdfColors.grey700,
                 ),
@@ -625,8 +583,7 @@ class _ReportScreenState extends State<ReportScreen> {
         text,
         style: pw.TextStyle(
           fontSize: 11,
-          fontWeight:
-              bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
         ),
       ),
     );
@@ -634,8 +591,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Future<void> _exportJpg() async {
     try {
-      final Uint8List? image =
-          await _screenshotController.capture(
+      final Uint8List? image = await _screenshotController.capture(
         pixelRatio: 2.5,
       );
 
@@ -643,8 +599,7 @@ class _ReportScreenState extends State<ReportScreen> {
         throw Exception('Could not create image');
       }
 
-      final directory =
-          await getApplicationDocumentsDirectory();
+      final directory = await getApplicationDocumentsDirectory();
 
       final file = File(
         '${directory.path}/'
@@ -707,8 +662,7 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
         ),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
               icon,
@@ -745,8 +699,7 @@ class _ReportScreenState extends State<ReportScreen> {
     required double total,
     required bool isIncome,
   }) {
-    final color =
-        isIncome ? Colors.green : Colors.red;
+    final color = isIncome ? Colors.green : Colors.red;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
@@ -756,8 +709,7 @@ class _ReportScreenState extends State<ReportScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
@@ -766,13 +718,10 @@ class _ReportScreenState extends State<ReportScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-
           const SizedBox(height: 14),
-
           if (categories.isEmpty)
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
                 AppSettings.instance.t(
                   'noData',
@@ -782,18 +731,15 @@ class _ReportScreenState extends State<ReportScreen> {
           else
             ...categories.map(
               (item) {
-                final amount =
-                    _categoryAmount(item);
+                final amount = _categoryAmount(item);
 
-                final percentage =
-                    _percentage(
+                final percentage = _percentage(
                   amount,
                   total,
                 );
 
                 return InkWell(
-                  borderRadius:
-                      BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12),
                   onTap: () {
                     _showCategoryTransactions(
                       item,
@@ -801,8 +747,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     );
                   },
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(
+                    padding: const EdgeInsets.symmetric(
                       vertical: 9,
                     ),
                     child: Column(
@@ -813,8 +758,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               child: Text(
                                 _categoryName(item),
                                 style: const TextStyle(
-                                  fontWeight:
-                                      FontWeight.w600,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -822,8 +766,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               _formatMoney(amount),
                               style: TextStyle(
                                 color: color,
-                                fontWeight:
-                                    FontWeight.bold,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -835,21 +778,14 @@ class _ReportScreenState extends State<ReportScreen> {
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 7),
-
                         ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(10),
-                          child:
-                              LinearProgressIndicator(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
                             value: percentage,
                             minHeight: 7,
-                            backgroundColor:
-                                color.withValues(alpha: 0.10),
-                            valueColor:
-                                AlwaysStoppedAnimation<
-                                    Color>(
+                            backgroundColor: color.withValues(alpha: 0.10),
+                            valueColor: AlwaysStoppedAnimation<Color>(
                               color,
                             ),
                           ),
@@ -867,10 +803,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final differenceColor =
-        _difference >= 0
-            ? Colors.green
-            : Colors.red;
+    final differenceColor = _difference >= 0 ? Colors.green : Colors.red;
 
     return Scaffold(
       appBar: AppBar(
@@ -885,20 +818,17 @@ class _ReportScreenState extends State<ReportScreen> {
             icon: const Icon(
               Icons.picture_as_pdf,
             ),
-            onPressed:
-                _loading ? null : _exportPdf,
+            onPressed: _loading ? null : _exportPdf,
           ),
           IconButton(
             tooltip: 'JPG',
             icon: const Icon(
               Icons.image_outlined,
             ),
-            onPressed:
-                _loading ? null : _exportJpg,
+            onPressed: _loading ? null : _exportJpg,
           ),
         ],
       ),
-
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(),
@@ -906,115 +836,84 @@ class _ReportScreenState extends State<ReportScreen> {
           : RefreshIndicator(
               onRefresh: _loadReport,
               child: Screenshot(
-                controller:
-                    _screenshotController,
+                controller: _screenshotController,
                 child: Container(
-                  color: Theme.of(context)
-                      .scaffoldBackgroundColor,
+                  color: Theme.of(context).scaffoldBackgroundColor,
                   child: ListView(
-                    padding:
-                        const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     children: [
                       // Month selector
                       Container(
-                        padding:
-                            const EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              Theme.of(context)
-                                  .cardColor,
-                          borderRadius:
-                              BorderRadius.circular(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(
                             16,
                           ),
                         ),
                         child: Row(
                           children: [
                             IconButton(
-                              onPressed:
-                                  _previousMonth,
+                              onPressed: _previousMonth,
                               icon: const Icon(
-                                Icons
-                                    .chevron_left,
+                                Icons.chevron_left,
                               ),
                             ),
-
                             Expanded(
                               child: Center(
                                 child: Text(
                                   _monthName,
-                                  style:
-                                      const TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 18,
-                                    fontWeight:
-                                        FontWeight.bold,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
                             ),
-
                             IconButton(
-                              onPressed:
-                                  _nextMonth,
+                              onPressed: _nextMonth,
                               icon: const Icon(
-                                Icons
-                                    .chevron_right,
+                                Icons.chevron_right,
                               ),
                             ),
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 16),
 
                       // Summary
                       Row(
                         children: [
                           _summaryCard(
-                            title:
-                                AppSettings.instance
-                                    .t('incomeTotal'),
+                            title: AppSettings.instance.t('incomeTotal'),
                             amount: _income,
-                            icon: Icons
-                                .arrow_downward,
+                            icon: Icons.arrow_downward,
                             color: Colors.green,
                           ),
                           const SizedBox(width: 10),
                           _summaryCard(
-                            title:
-                                AppSettings.instance
-                                    .t('expenseTotal'),
+                            title: AppSettings.instance.t('expenseTotal'),
                             amount: _expense,
-                            icon: Icons
-                                .arrow_upward,
+                            icon: Icons.arrow_upward,
                             color: Colors.red,
                           ),
                           const SizedBox(width: 10),
                           _summaryCard(
-                            title:
-                                _difference >= 0
-                                    ? AppSettings
-                                        .instance
-                                        .t(
-                                        'surplus',
-                                      )
-                                    : AppSettings
-                                        .instance
-                                        .t(
-                                        'deficit',
-                                      ),
-                            amount:
-                                _difference.abs(),
+                            title: _difference >= 0
+                                ? AppSettings.instance.t(
+                                    'surplus',
+                                  )
+                                : AppSettings.instance.t(
+                                    'deficit',
+                                  ),
+                            amount: _difference.abs(),
                             icon: _difference >= 0
-                                ? Icons
-                                    .trending_up
-                                : Icons
-                                    .trending_down,
-                            color:
-                                differenceColor,
+                                ? Icons.trending_up
+                                : Icons.trending_down,
+                            color: differenceColor,
                           ),
                         ],
                       ),
@@ -1022,25 +921,19 @@ class _ReportScreenState extends State<ReportScreen> {
                       const SizedBox(height: 20),
 
                       _categorySection(
-                        title: AppSettings
-                            .instance
-                            .t(
+                        title: AppSettings.instance.t(
                           'incomeCategories',
                         ),
-                        categories:
-                            _incomeCategories,
+                        categories: _incomeCategories,
                         total: _income,
                         isIncome: true,
                       ),
 
                       _categorySection(
-                        title: AppSettings
-                            .instance
-                            .t(
+                        title: AppSettings.instance.t(
                           'expenseCategories',
                         ),
-                        categories:
-                            _expenseCategories,
+                        categories: _expenseCategories,
                         total: _expense,
                         isIncome: false,
                       ),
@@ -1049,16 +942,12 @@ class _ReportScreenState extends State<ReportScreen> {
 
                       Center(
                         child: Text(
-                          AppSettings.instance
-                              .language ==
-                              'bn'
+                          AppSettings.instance.language == 'bn'
                               ? 'আমার হিসাব'
                               : 'Amar Hisab',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(
-                              context,
-                            )
+                            color: Theme.of(context)
                                 .textTheme
                                 .bodySmall
                                 ?.color
