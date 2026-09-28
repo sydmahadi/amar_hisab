@@ -106,7 +106,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                   ),
                   const SizedBox(height: 18),
                   DropdownButtonFormField<String>(
-                    value: type,
+                    initialValue: type,
                     decoration: InputDecoration(
                       labelText: settings.isBangla
                           ? 'খাতের ধরন'
