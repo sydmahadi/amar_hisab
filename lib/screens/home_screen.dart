@@ -342,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   settings.t('appTagline'),
                   style: TextStyle(
                     color: Colors.white
-                        .withOpacity(0.78),
+                        .withValues(alpha: 0.78),
                     fontSize: 12,
                   ),
                 ),
@@ -352,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           Material(
             color: Colors.white
-                .withOpacity(0.10),
+                .withValues(alpha: 0.10),
             borderRadius:
                 BorderRadius.circular(12),
             child: InkWell(
@@ -468,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 42,
                   decoration: BoxDecoration(
                     color: AppTheme.gold
-                        .withOpacity(0.12),
+                        .withValues(alpha: 0.12),
                     borderRadius:
                         BorderRadius.circular(12),
                   ),
@@ -558,7 +558,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 38,
               decoration: BoxDecoration(
                 color:
-                    color.withOpacity(0.12),
+                    color.withValues(alpha: 0.12),
                 borderRadius:
                     BorderRadius.circular(11),
               ),
@@ -678,7 +678,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration:
                         BoxDecoration(
                       color: item.color
-                          .withOpacity(0.12),
+                          .withValues(alpha: 0.12),
                       borderRadius:
                           BorderRadius.circular(
                         13,
@@ -787,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen> {
           height: 44,
           decoration: BoxDecoration(
             color:
-                color.withOpacity(0.12),
+                color.withValues(alpha: 0.12),
             borderRadius:
                 BorderRadius.circular(13),
           ),
