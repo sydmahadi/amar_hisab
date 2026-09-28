@@ -182,18 +182,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return DateTime.tryParse(value);
   }
 
-  String _formatDate(String? value) {
-    final date = _parseDate(value);
-
-    if (date == null) {
-      return '';
-    }
-
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
-  }
-
   String _dateKey(Map<String, dynamic> item) {
     final date = _parseDate(
       item['transaction_date']?.toString(),
@@ -210,9 +198,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   String _dateHeader(String key) {
     if (key == 'unknown') {
-      return settings.isBangla
-          ? 'তারিখ নেই'
-          : 'No Date';
+      return settings.isBangla ? 'তারিখ নেই' : 'No Date';
     }
 
     final parts = key.split('-');
@@ -564,7 +550,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ],
             ),
           ),
-
           if (income > 0 || expense > 0)
             Column(
               crossAxisAlignment:
@@ -635,9 +620,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   size: 24,
                 ),
               ),
-
               const SizedBox(width: 12),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -652,7 +635,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         fontSize: 15,
                       ),
                     ),
-
                     if (subtitle.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
@@ -671,9 +653,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(width: 8),
-
               Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.end,
@@ -686,9 +666,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 6),
-
                   PopupMenuButton<String>(
                     padding: EdgeInsets.zero,
                     iconSize: 21,
@@ -766,9 +744,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 color: AppTheme.gold,
               ),
             ),
-
             const SizedBox(height: 20),
-
             Text(
               settings.t('noTransactions'),
               textAlign: TextAlign.center,
@@ -777,9 +753,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               settings.isBangla
                   ? 'নতুন আয়, ব্যয় অথবা ট্রান্সফার যোগ করুন'
@@ -792,9 +766,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ?.color,
               ),
             ),
-
             const SizedBox(height: 20),
-
             ElevatedButton.icon(
               onPressed: _openAddTransaction,
               icon: const Icon(Icons.add_rounded),
@@ -893,7 +865,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
             child: _buildSearchField(),
           ),
-
           Padding(
             padding: const EdgeInsets.fromLTRB(
               16,
@@ -903,7 +874,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
             child: _buildFilter(),
           ),
-
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadTransactions,
