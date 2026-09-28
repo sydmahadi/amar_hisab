@@ -49,24 +49,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     Map<String, dynamic>? existingTx;
     if (widget.transactionId != null) {
-      final db = await MoneyDb.instance.database;
-      final results = await db.query(
-        'transactions',
-        where: 'id = ?',
-        whereArgs: [widget.transactionId],
-        limit: 1,
-      );
-      if (results.isNotEmpty) {
-        existingTx = results.first;
-        _type = existingTx['type']?.toString() ?? 'expense';
-        _amountController.text =
-            (existingTx['amount'] as num?)?.toString() ?? '';
-        _noteController.text = existingTx['note']?.toString() ?? '';
-        if (existingTx['transaction_date'] != null) {
-          _selectedDate =
-              DateTime.tryParse(existingTx['transaction_date'].toString()) ??
-                  DateTime.now();
-        }
+      final allTxs = await MoneyDb.instance.getTransactions();
+      final matches = allTxs.where((t) => t['id'] == widget.transactionId);
+      if (matches.isNotEmpty) {
+        existingTx = matches.first;
+      }
+    }
+
+    if (existingTx != null) {
+      _type = existingTx['type']?.toString() ?? 'expense';
+      _amountController.text = (existingTx['amount'] as num?)?.toString() ?? '';
+      _noteController.text = existingTx['note']?.toString() ?? '';
+      if (existingTx['transaction_date'] != null) {
+        _selectedDate =
+            DateTime.tryParse(existingTx['transaction_date'].toString()) ??
+                DateTime.now();
       }
     }
 
@@ -79,8 +76,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _categories = categories;
 
       if (existingTx != null) {
-        _selectedAccountId = existingTx['account_id'] as int?;
-        _selectedCategoryId = existingTx['category_id'] as int?;
+        _selectedAccountId = existingTx?['account_id'] as int?;
+        _selectedCategoryId = existingTx?['category_id'] as int?;
       } else {
         if (_accounts.isNotEmpty) {
           _selectedAccountId = _accounts.first['id'] as int?;
