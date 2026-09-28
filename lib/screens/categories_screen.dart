@@ -80,8 +80,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   Future<void> _showAddCategoryDialog() async {
     final nameController = TextEditingController();
 
-    String type =
-        _tabController.index == 0 ? 'income' : 'expense';
+    String type = _tabController.index == 0 ? 'income' : 'expense';
 
     final result = await showDialog<bool>(
       context: context,
@@ -107,7 +106,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                   ),
                   const SizedBox(height: 18),
                   DropdownButtonFormField<String>(
-                    initialValue: type,
+                    value: type,
                     decoration: InputDecoration(
                       labelText: settings.isBangla
                           ? 'খাতের ধরন'
@@ -162,12 +161,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    final name =
-                        nameController.text.trim();
+                    final name = nameController.text.trim();
 
                     if (name.isEmpty) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
                             settings.t('enterName'),
@@ -181,9 +178,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                       await MoneyDb.instance.addCategory(
                         name: name,
                         type: type,
-                        icon: type == 'income'
-                            ? 0xe850
-                            : 0xe145,
+                        icon: type == 'income' ? 0xe850 : 0xe145,
                         color: type == 'income'
                             ? 0xFF176B45
                             : 0xFFE57373,
@@ -195,8 +190,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                     } catch (e) {
                       if (!context.mounted) return;
 
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
                             e.toString().replaceFirst(
@@ -264,12 +258,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             ),
             ElevatedButton(
               onPressed: () async {
-                final name =
-                    nameController.text.trim();
+                final name = nameController.text.trim();
 
                 if (name.isEmpty) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
                         settings.t('enterName'),
@@ -291,8 +283,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 } catch (e) {
                   if (!context.mounted) return;
 
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
                         e.toString().replaceFirst(
@@ -319,9 +310,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       if (!mounted) return;
 
       _showMessage(
-        settings.isBangla
-            ? 'খাত আপডেট হয়েছে'
-            : 'Category updated',
+        settings.isBangla ? 'খাত আপডেট হয়েছে' : 'Category updated',
       );
     }
   }
@@ -395,43 +384,42 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   }
 
   IconData _iconForCategory(
-    String? icon,
+    dynamic rawIcon,
     String type,
   ) {
-    switch (icon) {
+    if (rawIcon is int) {
+      return IconData(rawIcon, fontFamily: 'MaterialIcons');
+    }
+
+    final iconStr = rawIcon?.toString();
+    final parsedInt = int.tryParse(iconStr ?? '');
+    if (parsedInt != null) {
+      return IconData(parsedInt, fontFamily: 'MaterialIcons');
+    }
+
+    switch (iconStr) {
       case 'payments':
         return Icons.payments_outlined;
-
       case 'business_center':
         return Icons.business_center_outlined;
-
       case 'card_giftcard':
         return Icons.card_giftcard_outlined;
-
       case 'restaurant':
         return Icons.restaurant_outlined;
-
       case 'shopping_cart':
         return Icons.shopping_cart_outlined;
-
       case 'directions_car':
         return Icons.directions_car_outlined;
-
       case 'home':
         return Icons.home_outlined;
-
       case 'receipt_long':
         return Icons.receipt_long_outlined;
-
       case 'medical_services':
         return Icons.medical_services_outlined;
-
       case 'school':
         return Icons.school_outlined;
-
       case 'family_restroom':
         return Icons.family_restroom_outlined;
-
       default:
         return type == 'income'
             ? Icons.add_circle_outline
@@ -460,23 +448,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   Widget _buildCategoryCard(
     Map<String, dynamic> category,
   ) {
-    final type =
-        category['type']?.toString() ?? 'expense';
-
-    final name =
-        category['name']?.toString() ?? '';
-
-    final color =
-        _colorForCategory(category);
-
-    final isDefault =
-        (category['is_default'] ?? 0) == 1;
+    final type = category['type']?.toString() ?? 'expense';
+    final name = category['name']?.toString() ?? '';
+    final color = _colorForCategory(category);
+    final isDefault = (category['is_default'] ?? 0) == 1;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(
+        contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 3,
         ),
@@ -484,13 +464,12 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius:
-                BorderRadius.circular(14),
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
             _iconForCategory(
-              category['icon']?.toString(),
+              category['icon'],
               type,
             ),
             color: color,
@@ -514,10 +493,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             fontSize: 11,
             color: isDefault
                 ? AppTheme.gold
-                : Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.color,
+                : Theme.of(context).textTheme.bodySmall?.color,
           ),
         ),
         trailing: PopupMenuButton<String>(
@@ -576,14 +552,12 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     if (categories.isEmpty) {
       return Center(
         child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.category_outlined,
               size: 58,
-              color:
-                  AppTheme.gold.withOpacity(0.7),
+              color: AppTheme.gold.withValues(alpha: 0.7),
             ),
             const SizedBox(height: 14),
             Text(
@@ -600,10 +574,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                   : 'Tap the + button to add a category',
               style: TextStyle(
                 fontSize: 12,
-                color: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.color,
+                color: Theme.of(context).textTheme.bodySmall?.color,
               ),
             ),
           ],
@@ -614,8 +585,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     return RefreshIndicator(
       onRefresh: _loadCategories,
       child: ListView.builder(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           16,
           14,
@@ -644,10 +614,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
         SnackBar(
           content: Text(message),
           behavior: SnackBarBehavior.floating,
-          backgroundColor:
-              isError
-                  ? Colors.red.shade700
-                  : AppTheme.green,
+          backgroundColor: isError ? Colors.red.shade700 : AppTheme.green,
         ),
       );
   }
@@ -665,32 +632,26 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           indicatorWeight: 3,
           labelColor: AppTheme.gold,
           unselectedLabelColor:
-              Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.color,
+              Theme.of(context).textTheme.bodyMedium?.color,
           tabs: [
             Tab(
               icon: const Icon(
                 Icons.arrow_downward_rounded,
               ),
-              text:
-                  settings.t('incomeCategories'),
+              text: settings.t('incomeCategories'),
             ),
             Tab(
               icon: const Icon(
                 Icons.arrow_upward_rounded,
               ),
-              text:
-                  settings.t('expenseCategories'),
+              text: settings.t('expenseCategories'),
             ),
           ],
         ),
       ),
       body: _loading
           ? const Center(
-              child:
-                  CircularProgressIndicator(),
+              child: CircularProgressIndicator(),
             )
           : TabBarView(
               controller: _tabController,
@@ -703,8 +664,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                 ),
               ],
             ),
-      floatingActionButton:
-          FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddCategoryDialog,
         backgroundColor: AppTheme.green,
         foregroundColor: Colors.white,
