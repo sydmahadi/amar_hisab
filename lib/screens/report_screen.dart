@@ -104,6 +104,7 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _loadReport() async {
+    if (!mounted) return;
     setState(() {
       _loading = true;
     });
@@ -348,8 +349,12 @@ class _ReportScreenState extends State<ReportScreen> {
     try {
       final pdf = pw.Document();
 
-      // বাংলা ফন্ট সাপোর্ট যোগ করা যাতে PDF-এ টেক্সট না ভাঙে
-      final fontData = await PdfGoogleFonts.tiroBanglaRegular();
+      pw.Font? fontData;
+      try {
+        fontData = await PdfGoogleFonts.tiroBanglaRegular();
+      } catch (_) {
+        fontData = null;
+      }
 
       final isBangla = AppSettings.instance.language == 'bn';
 
@@ -371,10 +376,12 @@ class _ReportScreenState extends State<ReportScreen> {
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(28),
-          theme: pw.ThemeData.withFont(
-            base: fontData,
-            bold: fontData,
-          ),
+          theme: fontData != null
+              ? pw.ThemeData.withFont(
+                  base: fontData,
+                  bold: fontData,
+                )
+              : null,
           build: (context) {
             return [
               pw.Text(
@@ -599,7 +606,7 @@ class _ReportScreenState extends State<ReportScreen> {
         throw Exception('Could not create image');
       }
 
-      final directory = await getApplicationDocumentsDirectory();
+      final directory = await getTemporaryDirectory();
 
       final file = File(
         '${directory.path}/'
