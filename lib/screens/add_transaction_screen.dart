@@ -49,9 +49,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     Map<String, dynamic>? existingTx;
     if (widget.transactionId != null) {
-      existingTx =
-          await MoneyDb.instance.getTransactionById(widget.transactionId!);
-      if (existingTx != null) {
+      final db = await MoneyDb.instance.database;
+      final results = await db.query(
+        'transactions',
+        where: 'id = ?',
+        whereArgs: [widget.transactionId],
+        limit: 1,
+      );
+      if (results.isNotEmpty) {
+        existingTx = results.first;
         _type = existingTx['type']?.toString() ?? 'expense';
         _amountController.text =
             (existingTx['amount'] as num?)?.toString() ?? '';
