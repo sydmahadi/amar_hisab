@@ -31,6 +31,12 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       vsync: this,
     );
 
+    _tabController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
     _loadCategories();
   }
 
@@ -132,9 +138,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 18),
-
                   DropdownButtonFormField<String>(
                     initialValue: type,
                     decoration: InputDecoration(
@@ -148,7 +152,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         child: Row(
                           children: [
                             Icon(
-                              Icons.arrow_downward_rounded,
+                              Icons
+                                  .arrow_downward_rounded,
                               size: 19,
                               color:
                                   Colors.green.shade600,
@@ -165,7 +170,8 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         child: Row(
                           children: [
                             Icon(
-                              Icons.arrow_upward_rounded,
+                              Icons
+                                  .arrow_upward_rounded,
                               size: 19,
                               color:
                                   Colors.red.shade600,
@@ -222,8 +228,12 @@ class _CategoriesScreenState extends State<CategoriesScreen>
                         name: name,
                         type: type,
                         icon: type == 'income'
-                            ? 'payments'
-                            : 'category',
+                            ? Icons
+                                .payments_outlined
+                                .codePoint
+                            : Icons
+                                .category_outlined
+                                .codePoint,
                         color: type == 'income'
                             ? 0xFF176B45
                             : 0xFFE57373,
@@ -270,7 +280,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       if (!mounted) return;
 
       _showMessage(
-        settings.t('categoryAdded'),
+        settings.isBangla
+            ? 'নতুন খাত যোগ হয়েছে'
+            : 'Category added',
       );
     }
   }
@@ -289,7 +301,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(
-            settings.t('edit'),
+            settings.isBangla
+                ? 'খাত এডিট করুন'
+                : 'Edit Category',
           ),
           content: TextField(
             controller: nameController,
@@ -389,7 +403,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   ) async {
     final id = category['id'] as int;
 
-    if ((category['is_default'] ?? 0) == 1) {
+    final isDefault =
+        (category['is_default'] ?? 0) == 1;
+
+    if (isDefault) {
       _showMessage(
         settings.isBangla
             ? 'ডিফল্ট খাত মুছে ফেলা যাবে না'
@@ -404,7 +421,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(
-            settings.t('confirm'),
+            settings.isBangla
+                ? 'খাত মুছে ফেলুন'
+                : 'Delete Category',
           ),
           content: Text(
             settings.isBangla
@@ -453,7 +472,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       if (!mounted) return;
 
       _showMessage(
-        settings.t('categoryDeleted'),
+        settings.isBangla
+            ? 'খাত মুছে ফেলা হয়েছে'
+            : 'Category deleted',
       );
     } catch (e) {
       if (!mounted) return;
@@ -469,48 +490,25 @@ class _CategoriesScreenState extends State<CategoriesScreen>
   }
 
   IconData _iconForCategory(
-    String? icon,
+    dynamic icon,
     String type,
   ) {
-    switch (icon) {
-      case 'payments':
-        return Icons.payments_outlined;
+    /*
+     * Database-এ icon int হিসেবে সংরক্ষণ হচ্ছে।
+     *
+     * এখানে dynamic IconData তৈরি করছি না।
+     * তাই non_const_argument_for_const_parameter
+     * warning হবে না।
+     *
+     * বর্তমানে income/expense অনুযায়ী default icon
+     * দেখানো হচ্ছে।
+     */
 
-      case 'business_center':
-        return Icons.business_center_outlined;
-
-      case 'card_giftcard':
-        return Icons.card_giftcard_outlined;
-
-      case 'restaurant':
-        return Icons.restaurant_outlined;
-
-      case 'shopping_cart':
-        return Icons.shopping_cart_outlined;
-
-      case 'directions_car':
-        return Icons.directions_car_outlined;
-
-      case 'home':
-        return Icons.home_outlined;
-
-      case 'receipt_long':
-        return Icons.receipt_long_outlined;
-
-      case 'medical_services':
-        return Icons.medical_services_outlined;
-
-      case 'school':
-        return Icons.school_outlined;
-
-      case 'family_restroom':
-        return Icons.family_restroom_outlined;
-
-      default:
-        return type == 'income'
-            ? Icons.add_circle_outline
-            : Icons.category_outlined;
+    if (type == 'income') {
+      return Icons.payments_outlined;
     }
+
+    return Icons.category_outlined;
   }
 
   Color _colorForCategory(
@@ -526,7 +524,10 @@ class _CategoriesScreenState extends State<CategoriesScreen>
       return Color(value.toInt());
     }
 
-    return category['type'] == 'income'
+    final type =
+        category['type']?.toString();
+
+    return type == 'income'
         ? AppTheme.green
         : Colors.red.shade400;
   }
@@ -568,7 +569,7 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           ),
           child: Icon(
             _iconForCategory(
-              category['icon']?.toString(),
+              category['icon'],
               type,
             ),
             color: color,
@@ -605,7 +606,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
               _showEditCategoryDialog(
                 category,
               );
-            } else if (value == 'delete') {
+            }
+
+            if (value == 'delete') {
               _deleteCategory(category);
             }
           },
@@ -673,7 +676,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
             ),
             const SizedBox(height: 14),
             Text(
-              settings.t('noCategories'),
+              settings.isBangla
+                  ? 'কোনো খাত নেই'
+                  : 'No categories',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -741,15 +746,17 @@ class _CategoriesScreenState extends State<CategoriesScreen>
               icon: const Icon(
                 Icons.arrow_downward_rounded,
               ),
-              text:
-                  settings.t('incomeCategories'),
+              text: settings.t(
+                'incomeCategories',
+              ),
             ),
             Tab(
               icon: const Icon(
                 Icons.arrow_upward_rounded,
               ),
-              text:
-                  settings.t('expenseCategories'),
+              text: settings.t(
+                'expenseCategories',
+              ),
             ),
           ],
         ),
@@ -780,7 +787,9 @@ class _CategoriesScreenState extends State<CategoriesScreen>
           Icons.add_rounded,
         ),
         label: Text(
-          settings.t('addCategory'),
+          settings.isBangla
+              ? 'খাত যোগ করুন'
+              : 'Add Category',
         ),
       ),
     );
