@@ -86,7 +86,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
-                      value: selectedType,
+                      initialValue: selectedType,
                       decoration: InputDecoration(
                         labelText: settings.isBangla
                             ? 'অ্যাকাউন্টের ধরন'
@@ -242,7 +242,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Future<void> _showEditAccountDialog(
     Map<String, dynamic> account,
   ) async {
-    final id = account['id'] as int;
+    final rawId = account['id'];
+    final int id = rawId is int
+        ? rawId
+        : int.tryParse(rawId.toString()) ?? 0;
 
     final nameController = TextEditingController(
       text: account['name']?.toString() ?? '',
@@ -280,7 +283,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
-                      value: _validAccountType(
+                      initialValue: _validAccountType(
                         selectedType,
                       ),
                       decoration: InputDecoration(
@@ -394,7 +397,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
                     try {
                       await MoneyDb.instance.updateAccount(
-                        id: id,
+                        id,
                         name: name,
                         type: selectedType,
                         balance:
@@ -456,7 +459,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Future<void> _deleteAccount(
     Map<String, dynamic> account,
   ) async {
-    final id = account['id'] as int;
+    final rawId = account['id'];
+    final int id = rawId is int
+        ? rawId
+        : int.tryParse(rawId.toString()) ?? 0;
 
     if ((account['is_default'] ?? 0) == 1) {
       _showMessage(
@@ -695,7 +701,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.13),
+                color: color.withValues(alpha: 0.13),
                 borderRadius:
                     BorderRadius.circular(16),
               ),
@@ -900,7 +906,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       boxShadow: [
                         BoxShadow(
                           color: AppTheme.green
-                              .withOpacity(0.20),
+                              .withValues(alpha: 0.20),
                           blurRadius: 18,
                           offset:
                               const Offset(0, 8),
@@ -915,7 +921,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                           decoration:
                               BoxDecoration(
                             color: Colors.white
-                                .withOpacity(0.12),
+                                .withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
