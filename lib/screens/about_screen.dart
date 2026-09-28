@@ -258,8 +258,7 @@ class AboutScreen extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(17),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -270,7 +269,7 @@ class AboutScreen extends StatelessWidget {
                     color: AppTheme.green.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     icon,
                     color: AppTheme.green,
                     size: 21,
@@ -306,8 +305,7 @@ class AboutScreen extends StatelessWidget {
         bottom: 12,
       ),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
@@ -336,8 +334,7 @@ class AboutScreen extends StatelessWidget {
     String value,
   ) {
     return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 40,
@@ -355,8 +352,7 @@ class AboutScreen extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
