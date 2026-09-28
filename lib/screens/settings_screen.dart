@@ -27,7 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text(settings.isBangla ? 'বাংলা' : 'English'),
             trailing: Switch(
               value: settings.isBangla,
-              activeColor: AppTheme.gold,
+              activeTrackColor: AppTheme.gold,
               onChanged: (val) {
                 setState(() {
                   settings.toggleLanguage();
@@ -40,7 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text(settings.isBangla ? 'ডার্ক মোড' : 'Dark Mode'),
             trailing: Switch(
               value: settings.isDarkMode,
-              activeColor: AppTheme.gold,
+              activeTrackColor: AppTheme.gold,
               onChanged: (val) {
                 setState(() {
                   settings.toggleTheme();
