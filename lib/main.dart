@@ -41,15 +41,18 @@ class _AmarHisabAppState extends State<AmarHisabApp> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = AppSettings.instance;
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
 
-      title: AppSettings.instance.t('appName'),
+      title: settings.t('appName'),
 
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.light(),
 
-      themeMode: AppSettings.instance.isDarkMode
+      darkTheme: AppTheme.dark(),
+
+      themeMode: settings.isDarkMode
           ? ThemeMode.dark
           : ThemeMode.light,
 
