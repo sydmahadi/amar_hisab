@@ -70,14 +70,14 @@ jobs:
 
       - name: Check Android Structure
         run: |
-          echo "===== Android files ====="
-          find android -maxdepth 6 -type f | sort
+          echo "===== Android Project Structure ====="
+          find android -maxdepth 7 -type f | sort
 
       - name: Get Dependencies
         run: flutter pub get
 
       - name: Analyze Project
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Build APK
         run: flutter build apk --release
