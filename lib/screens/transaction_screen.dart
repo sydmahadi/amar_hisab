@@ -174,12 +174,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       );
   }
 
-  String _formatDate(String? value) {
+  DateTime? _parseDate(String? value) {
     if (value == null || value.isEmpty) {
-      return '';
+      return null;
     }
 
-    final date = DateTime.tryParse(value);
+    return DateTime.tryParse(value);
+  }
+
+  String _formatDate(String? value) {
+    final date = _parseDate(value);
 
     if (date == null) {
       return '';
@@ -188,6 +192,155 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
         '${date.year}';
+  }
+
+  String _dateKey(Map<String, dynamic> item) {
+    final date = _parseDate(
+      item['transaction_date']?.toString(),
+    );
+
+    if (date == null) {
+      return 'unknown';
+    }
+
+    return '${date.year}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _dateHeader(String key) {
+    if (key == 'unknown') {
+      return settings.isBangla
+          ? 'তারিখ নেই'
+          : 'No Date';
+    }
+
+    final parts = key.split('-');
+
+    if (parts.length != 3) {
+      return key;
+    }
+
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+
+    if (year == null || month == null || day == null) {
+      return key;
+    }
+
+    final date = DateTime(year, month, day);
+    final now = DateTime.now();
+
+    final today = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final yesterday = today.subtract(
+      const Duration(days: 1),
+    );
+
+    final onlyDate = DateTime(
+      date.year,
+      date.month,
+      date.day,
+    );
+
+    if (onlyDate == today) {
+      return settings.isBangla ? 'আজ' : 'Today';
+    }
+
+    if (onlyDate == yesterday) {
+      return settings.isBangla ? 'গতকাল' : 'Yesterday';
+    }
+
+    const bnMonths = [
+      'জানুয়ারি',
+      'ফেব্রুয়ারি',
+      'মার্চ',
+      'এপ্রিল',
+      'মে',
+      'জুন',
+      'জুলাই',
+      'আগস্ট',
+      'সেপ্টেম্বর',
+      'অক্টোবর',
+      'নভেম্বর',
+      'ডিসেম্বর',
+    ];
+
+    const enMonths = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    final monthName = settings.isBangla
+        ? bnMonths[month - 1]
+        : enMonths[month - 1];
+
+    if (settings.isBangla) {
+      return '$day $monthName, $year';
+    }
+
+    return '$monthName $day, $year';
+  }
+
+  Map<String, List<Map<String, dynamic>>> _groupTransactionsByDate() {
+    final groups = <String, List<Map<String, dynamic>>>{};
+
+    for (final item in _transactions) {
+      final key = _dateKey(item);
+
+      groups.putIfAbsent(key, () => []);
+      groups[key]!.add(item);
+    }
+
+    final entries = groups.entries.toList();
+
+    entries.sort((a, b) {
+      if (a.key == 'unknown') return 1;
+      if (b.key == 'unknown') return -1;
+
+      return b.key.compareTo(a.key);
+    });
+
+    return Map.fromEntries(entries);
+  }
+
+  double _dailyIncome(List<Map<String, dynamic>> items) {
+    double total = 0;
+
+    for (final item in items) {
+      if (item['type']?.toString() == 'income') {
+        total += (item['amount'] as num?)?.toDouble() ?? 0;
+      }
+    }
+
+    return total;
+  }
+
+  double _dailyExpense(List<Map<String, dynamic>> items) {
+    double total = 0;
+
+    for (final item in items) {
+      if (item['type']?.toString() == 'expense') {
+        total += (item['amount'] as num?)?.toDouble() ?? 0;
+      }
+    }
+
+    return total;
   }
 
   String _formatAmount(dynamic value) {
@@ -241,18 +394,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         return note;
       }
 
-      return _formatDate(
-        item['transaction_date']?.toString(),
-      );
+      return '';
     }
 
     final account =
         item['account_name']?.toString() ?? '';
 
     final note = item['note']?.toString() ?? '';
-
-    final date =
-        _formatDate(item['transaction_date']?.toString());
 
     if (note.isNotEmpty && account.isNotEmpty) {
       return '$account • $note';
@@ -262,7 +410,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       return account;
     }
 
-    return date;
+    return note;
   }
 
   Color _amountColor(String type) {
@@ -361,6 +509,92 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
+  Widget _buildDateHeader(
+    String dateKey,
+    List<Map<String, dynamic>> items,
+  ) {
+    final income = _dailyIncome(items);
+    final expense = _dailyExpense(items);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        2,
+        18,
+        2,
+        10,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: AppTheme.gold,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _dateHeader(dateKey),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${items.length} ${settings.isBangla ? 'টি লেনদেন' : 'transactions'}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          if (income > 0 || expense > 0)
+            Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.end,
+              children: [
+                if (income > 0)
+                  Text(
+                    '+ ${_formatAmount(income)}',
+                    style: TextStyle(
+                      color: Colors.green.shade600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                if (expense > 0)
+                  Text(
+                    '- ${_formatAmount(expense)}',
+                    style: TextStyle(
+                      color: Colors.red.shade600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTransactionCard(
     Map<String, dynamic> item,
   ) {
@@ -376,13 +610,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     final subtitle = _transactionSubtitle(item);
 
-    final date =
-        _formatDate(item['transaction_date']?.toString());
-
     final id = item['id'] as int;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       child: InkWell(
         onTap: () => _editTransaction(id),
@@ -422,38 +653,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 4),
-
-                    Text(
-                      subtitle.isEmpty
-                          ? date
-                          : subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.color,
-                      ),
-                    ),
-
-                    const SizedBox(height: 3),
-
-                    if (subtitle != date &&
-                        date.isNotEmpty)
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        date,
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           color: Theme.of(context)
                               .textTheme
                               .bodySmall
-                              ?.color
-                              ?.withValues(alpha: 0.7),
+                              ?.color,
                         ),
                       ),
+                    ],
                   ],
                 ),
               ),
@@ -623,6 +837,38 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
+  Widget _buildGroupedTransactions() {
+    final groups = _groupTransactionsByDate();
+
+    final children = <Widget>[];
+
+    for (final entry in groups.entries) {
+      children.add(
+        _buildDateHeader(
+          entry.key,
+          entry.value,
+        ),
+      );
+
+      for (final transaction in entry.value) {
+        children.add(
+          _buildTransactionCard(transaction),
+        );
+      }
+    }
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        4,
+        16,
+        100,
+      ),
+      children: children,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -667,22 +913,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     )
                   : _transactions.isEmpty
                       ? _buildEmptyState()
-                      : ListView.builder(
-                          physics:
-                              const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(
-                            16,
-                            4,
-                            16,
-                            90,
-                          ),
-                          itemCount: _transactions.length,
-                          itemBuilder: (context, index) {
-                            return _buildTransactionCard(
-                              _transactions[index],
-                            );
-                          },
-                        ),
+                      : _buildGroupedTransactions(),
             ),
           ),
         ],
