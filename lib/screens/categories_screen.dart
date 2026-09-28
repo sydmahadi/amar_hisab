@@ -387,8 +387,15 @@ class _CategoriesScreenState extends State<CategoriesScreen>
     dynamic rawIcon,
     String type,
   ) {
+    int? codePoint;
     if (rawIcon is int) {
-      return IconData(rawIcon, fontFamily: 'MaterialIcons');
+      codePoint = rawIcon;
+    } else {
+      codePoint = int.tryParse(rawIcon?.toString() ?? '');
+    }
+
+    if (codePoint != null) {
+      return IconData(codePoint, fontFamily: 'MaterialIcons');
     }
 
     final iconStr = rawIcon?.toString();
