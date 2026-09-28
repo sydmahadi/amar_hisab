@@ -82,9 +82,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     DropdownButtonFormField<String>(
                       initialValue: selectedType,
                       decoration: InputDecoration(
@@ -116,9 +114,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         DropdownMenuItem(
                           value: 'other',
                           child: Text(
-                            settings.isBangla
-                                ? 'অন্যান্য'
-                                : 'Other',
+                            settings.isBangla ? 'অন্যান্য' : 'Other',
                           ),
                         ),
                       ],
@@ -130,13 +126,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         });
                       },
                     ),
-
                     const SizedBox(height: 16),
-
                     TextField(
                       controller: balanceController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(
+                      keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
                       decoration: InputDecoration(
@@ -160,25 +153,21 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    final name =
-                        nameController.text.trim();
+                    final name = nameController.text.trim();
 
                     if (name.isEmpty) {
-                      ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              settings.t('enterName'),
-                            ),
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            settings.t('enterName'),
                           ),
-                        );
+                        ),
+                      );
                       return;
                     }
 
                     final balance = double.tryParse(
-                          balanceController.text
-                              .trim()
-                              .replaceAll(',', ''),
+                          balanceController.text.trim().replaceAll(',', ''),
                         ) ??
                         0;
 
@@ -187,12 +176,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         name: name,
                         type: selectedType,
                         balance: balance,
-                        icon: _iconNameForType(
-                          selectedType,
-                        ),
-                        color: _colorForType(
-                          selectedType,
-                        ).toARGB32(),
+                        icon: null,
+                        color: _colorForType(selectedType).toARGB32(),
                       );
 
                       if (!context.mounted) return;
@@ -201,17 +186,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     } catch (e) {
                       if (!context.mounted) return;
 
-                      ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              e.toString().replaceFirst(
-                                    'Exception: ',
-                                    '',
-                                  ),
-                            ),
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            e.toString().replaceFirst(
+                                  'Exception: ',
+                                  '',
+                                ),
                           ),
-                        );
+                        ),
+                      );
                     }
                   },
                   child: Text(settings.t('save')),
@@ -243,9 +227,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
     Map<String, dynamic> account,
   ) async {
     final rawId = account['id'];
-    final int id = rawId is int
-        ? rawId
-        : int.tryParse(rawId.toString()) ?? 0;
+    final int id =
+        rawId is int ? rawId : int.tryParse(rawId.toString()) ?? 0;
 
     final nameController = TextEditingController(
       text: account['name']?.toString() ?? '',
@@ -255,8 +238,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
       text: _formatNumber(account['balance']),
     );
 
-    String selectedType =
-        account['type']?.toString() ?? 'other';
+    String selectedType = account['type']?.toString() ?? 'other';
 
     final result = await showDialog<bool>(
       context: context,
@@ -279,13 +261,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     DropdownButtonFormField<String>(
-                      initialValue: _validAccountType(
-                        selectedType,
-                      ),
+                      initialValue: _validAccountType(selectedType),
                       decoration: InputDecoration(
                         labelText: settings.isBangla
                             ? 'অ্যাকাউন্টের ধরন'
@@ -315,9 +293,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         DropdownMenuItem(
                           value: 'other',
                           child: Text(
-                            settings.isBangla
-                                ? 'অন্যান্য'
-                                : 'Other',
+                            settings.isBangla ? 'অন্যান্য' : 'Other',
                           ),
                         ),
                       ],
@@ -329,13 +305,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         });
                       },
                     ),
-
                     const SizedBox(height: 16),
-
                     TextField(
                       controller: balanceController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(
+                      keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
                       decoration: InputDecoration(
@@ -346,11 +319,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                       ),
                     ),
-
                     if ((account['is_default'] ?? 0) == 1)
                       Padding(
-                        padding:
-                            const EdgeInsets.only(top: 12),
+                        padding: const EdgeInsets.only(top: 12),
                         child: Text(
                           settings.isBangla
                               ? 'এটি ডিফল্ট অ্যাকাউন্ট'
@@ -373,12 +344,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    final name =
-                        nameController.text.trim();
+                    final name = nameController.text.trim();
 
                     if (name.isEmpty) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
                             settings.t('enterName'),
@@ -389,9 +358,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     }
 
                     final balance = double.tryParse(
-                          balanceController.text
-                              .trim()
-                              .replaceAll(',', ''),
+                          balanceController.text.trim().replaceAll(',', ''),
                         ) ??
                         0;
 
@@ -401,15 +368,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         name: name,
                         type: selectedType,
                         balance:
-                            (account['is_default'] ?? 0) == 1
-                                ? null
-                                : balance,
-                        icon: _iconNameForType(
-                          selectedType,
-                        ),
-                        color: _colorForType(
-                          selectedType,
-                        ).toARGB32(),
+                            (account['is_default'] ?? 0) == 1 ? null : balance,
+                        icon: null,
+                        color: _colorForType(selectedType).toARGB32(),
                       );
 
                       if (!context.mounted) return;
@@ -418,8 +379,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     } catch (e) {
                       if (!context.mounted) return;
 
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
                             e.toString().replaceFirst(
@@ -449,9 +409,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
       if (!mounted) return;
 
       _showMessage(
-        settings.isBangla
-            ? 'অ্যাকাউন্ট আপডেট হয়েছে'
-            : 'Account updated',
+        settings.isBangla ? 'অ্যাকাউন্ট আপডেট হয়েছে' : 'Account updated',
       );
     }
   }
@@ -460,9 +418,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
     Map<String, dynamic> account,
   ) async {
     final rawId = account['id'];
-    final int id = rawId is int
-        ? rawId
-        : int.tryParse(rawId.toString()) ?? 0;
+    final int id =
+        rawId is int ? rawId : int.tryParse(rawId.toString()) ?? 0;
 
     if ((account['is_default'] ?? 0) == 1) {
       _showMessage(
@@ -546,43 +503,18 @@ class _AccountsScreenState extends State<AccountsScreen> {
     return 'other';
   }
 
-  String _iconNameForType(String type) {
-    switch (type) {
-      case 'cash':
-        return 'account_balance_wallet';
-
-      case 'bkash':
-      case 'nagad':
-        return 'phone_android';
-
-      case 'bank':
-        return 'account_balance';
-
-      case 'card':
-        return 'credit_card';
-
-      default:
-        return 'wallet';
-    }
-  }
-
   Color _colorForType(String type) {
     switch (type) {
       case 'bkash':
         return const Color(0xFFE2136E);
-
       case 'nagad':
         return const Color(0xFFF7941D);
-
       case 'bank':
         return const Color(0xFF246B4A);
-
       case 'card':
         return const Color(0xFFC9A45C);
-
       case 'cash':
         return const Color(0xFF176B45);
-
       default:
         return const Color(0xFF607D8B);
     }
@@ -592,17 +524,13 @@ class _AccountsScreenState extends State<AccountsScreen> {
     switch (type) {
       case 'cash':
         return Icons.account_balance_wallet_outlined;
-
       case 'bkash':
       case 'nagad':
         return Icons.phone_android_rounded;
-
       case 'bank':
         return Icons.account_balance_outlined;
-
       case 'card':
         return Icons.credit_card_outlined;
-
       default:
         return Icons.wallet_outlined;
     }
@@ -628,8 +556,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   String _formatNumber(dynamic value) {
-    final number =
-        (value as num?)?.toDouble() ?? 0;
+    final number = (value as num?)?.toDouble() ?? 0;
 
     if (number == number.toInt()) {
       return number.toInt().toString();
@@ -642,23 +569,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
     switch (type) {
       case 'cash':
         return settings.t('cash');
-
       case 'bkash':
         return settings.t('bkash');
-
       case 'nagad':
         return settings.t('nagad');
-
       case 'bank':
         return settings.t('bankAccount');
-
       case 'card':
         return settings.t('card');
-
       default:
-        return settings.isBangla
-            ? 'অন্যান্য'
-            : 'Other';
+        return settings.isBangla ? 'অন্যান্য' : 'Other';
     }
   }
 
@@ -683,20 +603,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Widget _buildAccountCard(
     Map<String, dynamic> account,
   ) {
-    final name =
-        account['name']?.toString() ?? '';
-
-    final type =
-        account['type']?.toString() ?? 'other';
-
-    final balance =
-        (account['balance'] as num?)?.toDouble() ?? 0;
-
-    final color =
-        _colorFromValue(account['color']);
-
-    final isDefault =
-        (account['is_default'] ?? 0) == 1;
+    final name = account['name']?.toString() ?? '';
+    final type = account['type']?.toString() ?? 'other';
+    final balance = (account['balance'] as num?)?.toDouble() ?? 0;
+    final color = _colorFromValue(account['color']);
+    final isDefault = (account['is_default'] ?? 0) == 1;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -709,8 +620,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
               height: 52,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.13),
-                borderRadius:
-                    BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
                 _iconForType(type),
@@ -718,65 +628,46 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 size: 27,
               ),
             ),
-
             const SizedBox(width: 13),
-
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     name,
                     maxLines: 1,
-                    overflow:
-                        TextOverflow.ellipsis,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 4),
-
                   Text(
                     _displayType(type),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.color,
+                      color: Theme.of(context).textTheme.bodySmall?.color,
                     ),
                   ),
-
                   if (isDefault)
                     Padding(
-                      padding:
-                          const EdgeInsets.only(
-                        top: 5,
-                      ),
+                      padding: const EdgeInsets.only(top: 5),
                       child: Text(
-                        settings.isBangla
-                            ? 'ডিফল্ট'
-                            : 'Default',
+                        settings.isBangla ? 'ডিফল্ট' : 'Default',
                         style: TextStyle(
                           fontSize: 10,
                           color: AppTheme.gold,
-                          fontWeight:
-                              FontWeight.w600,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                 ],
               ),
             ),
-
             const SizedBox(width: 8),
-
             Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   _formatNumber(balance),
@@ -788,24 +679,17 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         : AppTheme.green,
                   ),
                 ),
-
                 const SizedBox(height: 4),
-
                 Text(
                   settings.t('balance'),
                   style: TextStyle(
                     fontSize: 10,
-                    color: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.color,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
                   ),
                 ),
               ],
             ),
-
             const SizedBox(width: 5),
-
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'edit') {
@@ -843,8 +727,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                           Text(
                             settings.t('delete'),
                             style: TextStyle(
-                              color:
-                                  Colors.red.shade600,
+                              color: Colors.red.shade600,
                             ),
                           ),
                         ],
@@ -864,10 +747,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
     final totalBalance = _accounts.fold<double>(
       0,
       (sum, account) =>
-          sum +
-          ((account['balance'] as num?)
-                  ?.toDouble() ??
-              0),
+          sum + ((account['balance'] as num?)?.toDouble() ?? 0),
     );
 
     return Scaffold(
@@ -888,8 +768,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
           : RefreshIndicator(
               onRefresh: _loadAccounts,
               child: ListView(
-                physics:
-                    const AlwaysScrollableScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(
                   16,
                   16,
@@ -908,15 +787,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius:
-                          BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.green
-                              .withValues(alpha: 0.20),
+                          color: AppTheme.green.withValues(alpha: 0.20),
                           blurRadius: 18,
-                          offset:
-                              const Offset(0, 8),
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
@@ -925,15 +801,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         Container(
                           width: 52,
                           height: 52,
-                          decoration:
-                              BoxDecoration(
-                            color: Colors.white
-                                .withValues(alpha: 0.12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
-                            Icons
-                                .account_balance_wallet_rounded,
+                            Icons.account_balance_wallet_rounded,
                             color: AppTheme.gold,
                             size: 27,
                           ),
@@ -941,31 +814,22 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                settings.t(
-                                  'totalBalance',
-                                ),
+                                settings.t('totalBalance'),
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 13,
                                 ),
                               ),
-                              const SizedBox(
-                                height: 5,
-                              ),
+                              const SizedBox(height: 5),
                               Text(
-                                _formatNumber(
-                                  totalBalance,
-                                ),
-                                style:
-                                    const TextStyle(
+                                _formatNumber(totalBalance),
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 25,
-                                  fontWeight:
-                                      FontWeight.bold,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
@@ -974,9 +838,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   Row(
                     children: [
                       Expanded(
@@ -984,8 +846,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                           settings.t('accounts'),
                           style: const TextStyle(
                             fontSize: 18,
-                            fontWeight:
-                                FontWeight.bold,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -993,23 +854,17 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         '${_accounts.length}',
                         style: TextStyle(
                           color: AppTheme.gold,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 12),
-
-                  ..._accounts.map(
-                    _buildAccountCard,
-                  ),
+                  ..._accounts.map(_buildAccountCard),
                 ],
               ),
             ),
-      floatingActionButton:
-          FloatingActionButton(
+      floatingActionButton: FloatingActionButton(
         onPressed: _showAddAccountDialog,
         backgroundColor: AppTheme.green,
         foregroundColor: Colors.white,
