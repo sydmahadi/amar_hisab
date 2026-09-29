@@ -57,6 +57,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
   static const Color _green = Color(0xFF176B45);
   static const Color _gold = Color(0xFFC9A45C);
+
   static const Color _incomeColor = Color(0xFF287A55);
   static const Color _expenseColor = Color(0xFFC35E5E);
 
@@ -108,10 +109,14 @@ class _ReportScreenState extends State<ReportScreen> {
       ]);
 
       final transactions =
-          List<Map<String, dynamic>>.from(results[2] as List);
+          List<Map<String, dynamic>>.from(
+        results[2] as List,
+      );
 
       final loans =
-          List<Map<String, dynamic>>.from(results[5] as List);
+          List<Map<String, dynamic>>.from(
+        results[5] as List,
+      );
 
       final loanTransactions = transactions.where((tx) {
         final type = tx['type']?.toString() ?? '';
@@ -131,10 +136,14 @@ class _ReportScreenState extends State<ReportScreen> {
         _transactions = transactions;
 
         _incomeCategories =
-            List<Map<String, dynamic>>.from(results[3] as List);
+            List<Map<String, dynamic>>.from(
+          results[3] as List,
+        );
 
         _expenseCategories =
-            List<Map<String, dynamic>>.from(results[4] as List);
+            List<Map<String, dynamic>>.from(
+          results[4] as List,
+        );
 
         _loans = loans;
         _loanPeriodTransactions = loanTransactions;
@@ -470,10 +479,12 @@ class _ReportScreenState extends State<ReportScreen> {
     final Map<String, Map<String, dynamic>> data = {};
 
     for (final tx in _loanPeriodTransactions) {
+      final rawPerson = _loanPerson(tx).trim();
+
       final person =
-          _loanPerson(tx).trim().isEmpty
+          rawPerson.isEmpty
               ? 'নাম উল্লেখ নেই'
-              : _loanPerson(tx).trim();
+              : rawPerson;
 
       final item = data.putIfAbsent(
         person,
@@ -567,24 +578,31 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ============================================================
-  // SCREENSHOT
+  // FULL LONG IMAGE CAPTURE
   // ============================================================
 
   Future<Uint8List> _captureReport() async {
-    return _screenshotController.captureFromWidget(
-      Material(
-        color: Colors.white,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: _buildVoucher(
-            exportMode: true,
+    return _screenshotController.captureFromLongWidget(
+      InheritedTheme.captureAll(
+        context,
+        Material(
+          color: Colors.white,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: _buildVoucher(
+              exportMode: true,
+            ),
           ),
         ),
       ),
       delay: const Duration(
-        milliseconds: 300,
+        milliseconds: 500,
       ),
+      context: context,
       pixelRatio: 2,
+      constraints: const BoxConstraints(
+        maxWidth: 850,
+      ),
     );
   }
 
@@ -641,7 +659,7 @@ class _ReportScreenState extends State<ReportScreen> {
         SnackBar(
           content: Text(
             result == true
-                ? 'JPG রিপোর্ট Gallery-তে সংরক্ষণ হয়েছে।'
+                ? 'সম্পূর্ণ JPG রিপোর্ট Gallery-তে সংরক্ষণ হয়েছে।'
                 : 'JPG সংরক্ষণ করা যায়নি।',
           ),
         ),
@@ -711,31 +729,10 @@ class _ReportScreenState extends State<ReportScreen> {
             return _buildPdfOverview(font);
           },
           footer: (context) {
-            return pw.Container(
-              margin: const pw.EdgeInsets.only(top: 12),
-              child: pw.Row(
-                mainAxisAlignment:
-                    pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    'আমার হিসাব অ্যাপ',
-                    style: pw.TextStyle(
-                      font: font,
-                      fontSize: 9,
-                      color: PdfColors.grey600,
-                    ),
-                  ),
-                  pw.Text(
-                    'পৃষ্ঠা ${context.pageNumber} / '
-                    '${context.pagesCount}',
-                    style: pw.TextStyle(
-                      font: font,
-                      fontSize: 9,
-                      color: PdfColors.grey600,
-                    ),
-                  ),
-                ],
-              ),
+            return _pdfFooter(
+              font,
+              context.pageNumber,
+              context.pagesCount,
             );
           },
         ),
@@ -754,31 +751,10 @@ class _ReportScreenState extends State<ReportScreen> {
               ];
             },
             footer: (context) {
-              return pw.Container(
-                margin: const pw.EdgeInsets.only(top: 12),
-                child: pw.Row(
-                  mainAxisAlignment:
-                      pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      'আমার হিসাব অ্যাপ',
-                      style: pw.TextStyle(
-                        font: font,
-                        fontSize: 9,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                    pw.Text(
-                      'পৃষ্ঠা ${context.pageNumber} / '
-                      '${context.pagesCount}',
-                      style: pw.TextStyle(
-                        font: font,
-                        fontSize: 9,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                  ],
-                ),
+              return _pdfFooter(
+                font,
+                context.pageNumber,
+                context.pagesCount,
               );
             },
           ),
@@ -839,10 +815,74 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ============================================================
+  // PDF FOOTER
+  // ============================================================
+
+  pw.Widget _pdfFooter(
+    pw.Font font,
+    int pageNumber,
+    int pagesCount,
+  ) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(
+        top: 10,
+      ),
+      child: pw.Row(
+        mainAxisAlignment:
+            pw.MainAxisAlignment.spaceBetween,
+        crossAxisAlignment:
+            pw.CrossAxisAlignment.end,
+        children: [
+          pw.Column(
+            crossAxisAlignment:
+                pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'আমার হিসাব অ্যাপ',
+                style: pw.TextStyle(
+                  font: font,
+                  fontSize: 9,
+                  color: PdfColors.grey600,
+                ),
+              ),
+              pw.Text(
+                'Developed by Sayeed Mahadi',
+                style: pw.TextStyle(
+                  font: font,
+                  fontSize: 8,
+                  color: PdfColors.grey600,
+                ),
+              ),
+              pw.Text(
+                'mahadisayeed@gmail.com',
+                style: pw.TextStyle(
+                  font: font,
+                  fontSize: 8,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ],
+          ),
+          pw.Text(
+            'পৃষ্ঠা $pageNumber / $pagesCount',
+            style: pw.TextStyle(
+              font: font,
+              fontSize: 9,
+              color: PdfColors.grey600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
   // PDF OVERVIEW
   // ============================================================
 
-  List<pw.Widget> _buildPdfOverview(pw.Font font) {
+  List<pw.Widget> _buildPdfOverview(
+    pw.Font font,
+  ) {
     return [
       pw.Center(
         child: pw.Text(
@@ -868,7 +908,8 @@ class _ReportScreenState extends State<ReportScreen> {
       pw.SizedBox(height: 4),
       pw.Center(
         child: pw.Text(
-          '${_dateText(_startDate)} - ${_dateText(_endDate)}',
+          '${_dateText(_startDate)} - '
+          '${_dateText(_endDate)}',
           style: pw.TextStyle(
             font: font,
             fontSize: 12,
@@ -942,7 +983,9 @@ class _ReportScreenState extends State<ReportScreen> {
               pw.Expanded(
                 child: _pdfAmountBox(
                   font,
-                  _isSurplus ? 'উদ্বৃত্ত' : 'ঘাটতি',
+                  _isSurplus
+                      ? 'উদ্বৃত্ত'
+                      : 'ঘাটতি',
                   _difference.abs(),
                   _isSurplus
                       ? PdfColors.green700
@@ -1101,7 +1144,9 @@ class _ReportScreenState extends State<ReportScreen> {
   // PDF LOAN REPORT
   // ============================================================
 
-  pw.Widget _pdfLoanReport(pw.Font font) {
+  pw.Widget _pdfLoanReport(
+    pw.Font font,
+  ) {
     final people = _loanPersonSummary;
 
     return pw.Container(
@@ -1171,7 +1216,7 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ],
           ),
-          pw.SizedBox(height: 10),
+          pw.SizedBox(height: 6),
           pw.Row(
             children: [
               pw.Expanded(
@@ -1204,7 +1249,10 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             pw.SizedBox(height: 6),
-            _pdfLoanPeopleTable(font, people),
+            _pdfLoanPeopleTable(
+              font,
+              people,
+            ),
           ],
         ],
       ),
@@ -1306,30 +1354,36 @@ class _ReportScreenState extends State<ReportScreen> {
               children: [
                 _pdfCell(
                   font,
-                  person['person']?.toString() ?? '',
+                  person['person']
+                          ?.toString() ??
+                      '',
                 ),
                 _pdfCell(
                   font,
                   _money(
-                    person['given'] as double,
+                    person['given']
+                        as double,
                   ),
                 ),
                 _pdfCell(
                   font,
                   _money(
-                    person['taken'] as double,
+                    person['taken']
+                        as double,
                   ),
                 ),
                 _pdfCell(
                   font,
                   _money(
-                    person['receivable'] as double,
+                    person['receivable']
+                        as double,
                   ),
                 ),
                 _pdfCell(
                   font,
                   _money(
-                    person['payable'] as double,
+                    person['payable']
+                        as double,
                   ),
                 ),
               ],
@@ -1364,7 +1418,9 @@ class _ReportScreenState extends State<ReportScreen> {
   // PDF TRANSACTIONS
   // ============================================================
 
-  pw.Widget _pdfTransactionTitle(pw.Font font) {
+  pw.Widget _pdfTransactionTitle(
+    pw.Font font,
+  ) {
     return pw.Column(
       crossAxisAlignment:
           pw.CrossAxisAlignment.start,
@@ -1379,7 +1435,8 @@ class _ReportScreenState extends State<ReportScreen> {
         ),
         pw.SizedBox(height: 4),
         pw.Text(
-          '${_dateText(_startDate)} - ${_dateText(_endDate)}',
+          '${_dateText(_startDate)} - '
+          '${_dateText(_endDate)}',
           style: pw.TextStyle(
             font: font,
             fontSize: 12,
@@ -1450,13 +1507,13 @@ class _ReportScreenState extends State<ReportScreen> {
         if (type == 'transfer') {
           final from =
               tx['from_account_name']
-                  ?.toString() ??
-              '';
+                      ?.toString() ??
+                  '';
 
           final to =
               tx['to_account_name']
-                  ?.toString() ??
-              '';
+                      ?.toString() ??
+                  '';
 
           details =
               'From: $from  →  To: $to';
@@ -1599,13 +1656,35 @@ class _ReportScreenState extends State<ReportScreen> {
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 8),
+
+            // REPORT FOOTER
             Center(
-              child: Text(
-                'আমার হিসাব অ্যাপ',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade600,
-                ),
+              child: Column(
+                children: [
+                  Text(
+                    'আমার হিসাব অ্যাপ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Developed by Sayeed Mahadi',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'mahadisayeed@gmail.com',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -2230,13 +2309,13 @@ class _ReportScreenState extends State<ReportScreen> {
     if (type == 'transfer') {
       final from =
           tx['from_account_name']
-              ?.toString() ??
-          '';
+                  ?.toString() ??
+              '';
 
       final to =
           tx['to_account_name']
-              ?.toString() ??
-          '';
+                  ?.toString() ??
+              '';
 
       subtitle =
           '$from → $to';
@@ -2522,9 +2601,8 @@ class _ReportScreenState extends State<ReportScreen> {
         actions: [
           IconButton(
             tooltip: 'Export',
-            onPressed: _saving
-                ? null
-                : _showExportMenu,
+            onPressed:
+                _saving ? null : _showExportMenu,
             icon: const Icon(
               Icons.file_download_outlined,
             ),
