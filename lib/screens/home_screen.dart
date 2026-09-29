@@ -21,12 +21,15 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver {
   final MoneyDb _db = MoneyDb.instance;
+  final AppSettings _settings = AppSettings.instance;
 
   double _income = 0;
   double _expense = 0;
   double _difference = 0;
+  double _totalAccountBalance = 0;
 
   List<Map<String, dynamic>> _accounts = [];
   List<Map<String, dynamic>> _recentTransactions = [];
@@ -36,12 +39,22 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
   }
 
-  // =========================================================
-  // DATA
-  // =========================================================
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
+  }
 
   Future<void> _loadData() async {
     if (mounted) {
@@ -53,45 +66,44 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final now = DateTime.now();
 
-      // চলতি মাসের শুরু
       final startDate = DateTime(
         now.year,
         now.month,
         1,
       );
 
-      // পরের মাসের শুরু
-      // End date হিসেবে exclusive boundary ব্যবহার করছি।
       final endDate = DateTime(
         now.year,
         now.month + 1,
         1,
-      );
+      ).subtract(const Duration(microseconds: 1));
 
       final period = await _db.getPeriodTotals(
         startDate: startDate,
         endDate: endDate,
       );
 
+      final totalAccountBalance = await _db.getTotalBalance();
       final accounts = await _db.getAccounts();
-
       final transactions = await _db.getTransactions();
+
+      final income =
+          (period['income'] as num?)?.toDouble() ?? 0.0;
+
+      final expense =
+          (period['expense'] as num?)?.toDouble() ?? 0.0;
+
+      final difference = income - expense;
 
       if (!mounted) return;
 
       setState(() {
-        _income = _toDouble(period['income']);
-        _expense = _toDouble(period['expense']);
-        _difference = _toDouble(period['difference']);
-
-        _accounts = List<Map<String, dynamic>>.from(
-          accounts,
-        );
-
-        _recentTransactions = transactions
-            .take(5)
-            .toList();
-
+        _income = income;
+        _expense = expense;
+        _difference = difference;
+        _totalAccountBalance = totalAccountBalance;
+        _accounts = accounts;
+        _recentTransactions = transactions.take(6).toList();
         _loading = false;
       });
     } catch (_) {
@@ -103,35 +115,123 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  double _toDouble(dynamic value) {
-    if (value is num) {
-      return value.toDouble();
+  bool get _isBangla => _settings.isBangla;
+
+  String _t(String key) {
+    return _settings.t(key);
+  }
+
+  String _monthName(int month) {
+    const banglaMonths = [
+      'জানুয়ারি',
+      'ফেব্রুয়ারি',
+      'মার্চ',
+      'এপ্রিল',
+      'মে',
+      'জুন',
+      'জুলাই',
+      'আগস্ট',
+      'সেপ্টেম্বর',
+      'অক্টোবর',
+      'নভেম্বর',
+      'ডিসেম্বর',
+    ];
+
+    const englishMonths = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    return _isBangla
+        ? banglaMonths[month - 1]
+        : englishMonths[month - 1];
+  }
+
+  String _currentMonthLabel() {
+    final now = DateTime.now();
+    return '${_monthName(now.month)} ${now.year}';
+  }
+
+  String _formatMoney(double amount) {
+    final value = amount.abs();
+
+    if (value == value.roundToDouble()) {
+      return '৳ ${value.toStringAsFixed(0)}';
     }
 
-    return double.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        0;
+    return '৳ ${value.toStringAsFixed(2)}';
   }
 
-  String _money(double value) {
-    return value.toStringAsFixed(2);
+  String _formatDate(dynamic value) {
+    if (value == null) return '';
+
+    DateTime? date;
+
+    if (value is DateTime) {
+      date = value;
+    } else {
+      date = DateTime.tryParse(value.toString());
+    }
+
+    if (date == null) return value.toString();
+
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+
+    return '$day/$month/$year';
   }
 
-  Color _alpha(
-    Color color,
-    double opacity,
+  String _formatShortMoney(double amount) {
+    final value = amount.abs();
+
+    if (value >= 10000000) {
+      return '৳ ${(value / 10000000).toStringAsFixed(1)}Cr';
+    }
+
+    if (value >= 100000) {
+      return '৳ ${(value / 100000).toStringAsFixed(1)}L';
+    }
+
+    if (value >= 1000) {
+      return '৳ ${(value / 1000).toStringAsFixed(1)}K';
+    }
+
+    return _formatMoney(amount);
+  }
+
+  String _transactionType(dynamic type) {
+    final value = type?.toString().toLowerCase() ?? '';
+
+    if (value == 'income') {
+      return _isBangla ? 'আয়' : 'Income';
+    }
+
+    if (value == 'expense') {
+      return _isBangla ? 'ব্যয়' : 'Expense';
+    }
+
+    if (value == 'transfer') {
+      return _isBangla ? 'ট্রান্সফার' : 'Transfer';
+    }
+
+    return value;
+  }
+
+  Color _transactionColor(
+    String type,
+    ThemeData theme,
   ) {
-    return color.withValues(
-      alpha: opacity,
-    );
-  }
-
-  // =========================================================
-  // TRANSACTION HELPERS
-  // =========================================================
-
-  Color _transactionColor(String type) {
     switch (type.toLowerCase()) {
       case 'income':
         return AppTheme.incomeColor;
@@ -159,1145 +259,867 @@ class _HomeScreenState extends State<HomeScreen> {
         return Icons.swap_horiz_rounded;
 
       default:
-        return Icons.account_balance_wallet_outlined;
+        return Icons.receipt_long_rounded;
     }
   }
 
-  String _transactionTitle(
-    Map<String, dynamic> item,
-  ) {
-    final settings = AppSettings.instance;
-
-    final note = item['note']
-        ?.toString()
-        .trim();
+  String _transactionTitle(Map<String, dynamic> item) {
+    final note = item['note']?.toString().trim();
 
     if (note != null && note.isNotEmpty) {
       return note;
     }
 
-    final category = item['category_name'] ??
-        item['categoryName'] ??
-        item['category'];
-
-    if (category != null &&
-        category.toString().trim().isNotEmpty) {
-      return category.toString();
-    }
-
-    final type = item['type']
-        ?.toString()
-        .toLowerCase();
-
-    switch (type) {
-      case 'income':
-        return settings.isBangla
-            ? 'আয়'
-            : 'Income';
-
-      case 'expense':
-        return settings.isBangla
-            ? 'ব্যয়'
-            : 'Expense';
-
-      case 'transfer':
-        return settings.isBangla
-            ? 'ট্রান্সফার'
-            : 'Transfer';
-
-      default:
-        return settings.isBangla
-            ? 'লেনদেন'
-            : 'Transaction';
-    }
-  }
-
-  String _transactionSubtitle(
-    Map<String, dynamic> item,
-  ) {
-    final type = item['type']
-        ?.toString()
-        .toLowerCase();
-
-    final settings = AppSettings.instance;
+    final type = item['type']?.toString().toLowerCase() ?? '';
 
     if (type == 'transfer') {
-      final from = item['from_account_name']
-          ?.toString()
-          .trim();
+      final from =
+          item['from_account_name']?.toString().trim() ?? '';
 
-      final to = item['to_account_name']
-          ?.toString()
-          .trim();
+      final to =
+          item['to_account_name']?.toString().trim() ?? '';
 
-      if (from != null &&
-          from.isNotEmpty &&
-          to != null &&
-          to.isNotEmpty) {
+      if (from.isNotEmpty && to.isNotEmpty) {
         return '$from → $to';
       }
 
-      return settings.isBangla
-          ? 'অ্যাকাউন্ট ট্রান্সফার'
-          : 'Account transfer';
+      return _isBangla ? 'অ্যাকাউন্ট ট্রান্সফার' : 'Account Transfer';
     }
 
-    final account = item['account_name']
-        ?.toString()
-        .trim();
+    final category =
+        item['category_name']?.toString().trim();
+
+    if (category != null && category.isNotEmpty) {
+      return category;
+    }
+
+    return _transactionType(type);
+  }
+
+  String _transactionAccount(Map<String, dynamic> item) {
+    final type = item['type']?.toString().toLowerCase() ?? '';
+
+    if (type == 'transfer') {
+      final from =
+          item['from_account_name']?.toString().trim() ?? '';
+
+      final to =
+          item['to_account_name']?.toString().trim() ?? '';
+
+      if (from.isNotEmpty && to.isNotEmpty) {
+        return '$from → $to';
+      }
+    }
+
+    final account =
+        item['account_name']?.toString().trim();
 
     if (account != null && account.isNotEmpty) {
       return account;
     }
 
-    return settings.isBangla
-        ? 'লেনদেন'
-        : 'Transaction';
+    return '';
   }
 
-  String _formatDate(
-    dynamic value,
-  ) {
-    final date = DateTime.tryParse(
-      value?.toString() ?? '',
-    );
+  IconData _accountIcon(Map<String, dynamic> account) {
+    final raw = account['icon'];
 
-    if (date == null) {
-      return '';
+    if (raw is int) {
+      return IconData(
+        raw,
+        fontFamily: 'MaterialIcons',
+      );
     }
 
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
+    final codePoint = int.tryParse(raw?.toString() ?? '');
+
+    if (codePoint != null) {
+      return IconData(
+        codePoint,
+        fontFamily: 'MaterialIcons',
+      );
+    }
+
+    return Icons.account_balance_wallet_outlined;
   }
 
-  String _currentMonthName() {
-    const monthsBn = [
-      'জানুয়ারি',
-      'ফেব্রুয়ারি',
-      'মার্চ',
-      'এপ্রিল',
-      'মে',
-      'জুন',
-      'জুলাই',
-      'আগস্ট',
-      'সেপ্টেম্বর',
-      'অক্টোবর',
-      'নভেম্বর',
-      'ডিসেম্বর',
-    ];
+  Color _accountColor(
+    Map<String, dynamic> account,
+    ThemeData theme,
+  ) {
+    final raw = account['color'];
 
-    const monthsEn = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
+    if (raw is int) {
+      return Color(raw);
+    }
 
-    final month = DateTime.now().month;
+    final value = int.tryParse(raw?.toString() ?? '');
 
-    return AppSettings.instance.isBangla
-        ? monthsBn[month - 1]
-        : monthsEn[month - 1];
+    if (value != null) {
+      return Color(value);
+    }
+
+    return AppTheme.green;
   }
-
-  // =========================================================
-  // NAVIGATION
-  // =========================================================
 
   Future<void> _openAddTransaction() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const AddTransactionScreen(),
+        builder: (_) => const AddTransactionScreen(),
       ),
     );
 
-    if (mounted) {
-      await _loadData();
-    }
+    await _loadData();
   }
 
   Future<void> _openTransactions() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const TransactionsScreen(),
+        builder: (_) => const TransactionScreen(),
       ),
     );
 
-    if (mounted) {
-      await _loadData();
-    }
+    await _loadData();
   }
 
   Future<void> _openAccounts() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const AccountsScreen(),
+        builder: (_) => const AccountsScreen(),
       ),
     );
 
-    if (mounted) {
-      await _loadData();
-    }
+    await _loadData();
   }
 
   Future<void> _openCategories() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const CategoriesScreen(),
+        builder: (_) => const CategoriesScreen(),
       ),
     );
 
-    if (mounted) {
-      await _loadData();
-    }
+    await _loadData();
   }
 
   Future<void> _openStatistics() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const StatisticsScreen(),
+        builder: (_) => const StatisticsScreen(),
       ),
     );
 
-    if (mounted) {
-      await _loadData();
-    }
+    await _loadData();
   }
 
   Future<void> _openReport() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const ReportScreen(),
+        builder: (_) => const ReportScreen(),
       ),
     );
 
-    if (mounted) {
-      await _loadData();
-    }
+    await _loadData();
   }
 
   Future<void> _openSettings() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const SettingsScreen(),
+        builder: (_) => const SettingsScreen(),
       ),
     );
 
-    if (mounted) {
-      setState(() {});
-      await _loadData();
-    }
+    if (!mounted) return;
+
+    setState(() {});
+
+    await _loadData();
   }
 
   Future<void> _openAbout() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            const AboutScreen(),
+        builder: (_) => const AboutScreen(),
       ),
     );
   }
 
-  // =========================================================
-  // BUILD
-  // =========================================================
+  Future<void> _editTransaction(
+    Map<String, dynamic> transaction,
+  ) async {
+    final id = transaction['id'];
+
+    if (id == null) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddTransactionScreen(
+          transactionId: id as int,
+        ),
+      ),
+    );
+
+    await _loadData();
+  }
+
+  Future<void> _deleteTransaction(
+    Map<String, dynamic> transaction,
+  ) async {
+    final id = transaction['id'];
+
+    if (id == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+
+        return AlertDialog(
+          title: Text(
+            _isBangla
+                ? 'লেনদেন মুছে ফেলবেন?'
+                : 'Delete transaction?',
+          ),
+          content: Text(
+            _isBangla
+                ? 'এই লেনদেনটি স্থায়ীভাবে মুছে যাবে।'
+                : 'This transaction will be permanently deleted.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: Text(
+                _isBangla ? 'না' : 'Cancel',
+              ),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.expenseColor,
+              ),
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: Text(
+                _isBangla ? 'মুছে ফেলুন' : 'Delete',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _db.deleteTransaction(id as int);
+
+      await _loadData();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isBangla
+                ? 'লেনদেন মুছে ফেলা হয়েছে'
+                : 'Transaction deleted',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isBangla
+                ? 'লেনদেন মুছে ফেলা যায়নি'
+                : 'Could not delete transaction',
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showTransactionMenu(
+    Map<String, dynamic> transaction,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(
+                    Icons.edit_rounded,
+                  ),
+                  title: Text(
+                    _isBangla
+                        ? 'লেনদেন এডিট করুন'
+                        : 'Edit transaction',
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _editTransaction(transaction);
+                  },
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppTheme.expenseColor,
+                  ),
+                  title: Text(
+                    _isBangla
+                        ? 'লেনদেন মুছে ফেলুন'
+                        : 'Delete transaction',
+                    style: TextStyle(
+                      color: AppTheme.expenseColor,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _deleteTransaction(transaction);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openDrawer() {
+    Scaffold.of(context).openDrawer();
+  }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final settings = AppSettings.instance;
 
     return Scaffold(
-      backgroundColor:
-          theme.scaffoldBackgroundColor,
-
+      backgroundColor: theme.scaffoldBackgroundColor,
       drawer: _buildDrawer(theme),
-
-      floatingActionButton:
-          _buildFloatingButton(),
-
       body: Stack(
         children: [
           Positioned.fill(
-            child: _PremiumBackground(
-              isDark: settings.isDarkMode,
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _HomeBackgroundPainter(
+                  isDark: theme.brightness == Brightness.dark,
+                ),
+              ),
             ),
           ),
-
           SafeArea(
             child: RefreshIndicator(
-              color: AppTheme.green,
               onRefresh: _loadData,
               child: CustomScrollView(
-                physics:
-                    const AlwaysScrollableScrollPhysics(
-                  parent:
-                      BouncingScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
                   SliverToBoxAdapter(
-                    child:
-                        _buildTopBar(theme),
+                    child: _buildTopBar(theme),
                   ),
-
-                  SliverPadding(
-                    padding:
-                        const EdgeInsets.fromLTRB(
-                      18,
-                      4,
-                      18,
-                      110,
-                    ),
-                    sliver: SliverList(
-                      delegate:
-                          SliverChildListDelegate([
-                        _buildMainBalanceCard(
-                          theme,
-                        ),
-
-                        const SizedBox(
-                          height: 18,
-                        ),
-
-                        _buildIncomeExpenseCards(
-                          theme,
-                        ),
-
-                        const SizedBox(
-                          height: 18,
-                        ),
-
-                        _buildQuickActions(
-                          theme,
-                        ),
-
-                        const SizedBox(
-                          height: 26,
-                        ),
-
-                        _buildSectionTitle(
-                          theme,
-                          settings.isBangla
-                              ? 'সাম্প্রতিক লেনদেন'
-                              : 'Recent Transactions',
-                          actionText:
-                              settings.isBangla
-                                  ? 'সব দেখুন'
-                                  : 'View All',
-                          onAction:
-                              _openTransactions,
-                        ),
-
-                        const SizedBox(
-                          height: 12,
-                        ),
-
-                        _buildRecentTransactions(
-                          theme,
-                        ),
-
-                        const SizedBox(
-                          height: 26,
-                        ),
-
-                        _buildSectionTitle(
-                          theme,
-                          settings.isBangla
-                              ? 'অ্যাকাউন্টসমূহ'
-                              : 'Accounts',
-                          actionText:
-                              settings.isBangla
-                                  ? 'সব দেখুন'
-                                  : 'View All',
-                          onAction:
-                              _openAccounts,
-                        ),
-
-                        const SizedBox(
-                          height: 12,
-                        ),
-
-                        _buildAccounts(
-                          theme,
-                        ),
-
-                        const SizedBox(
-                          height: 26,
-                        ),
-
-                        _buildSectionTitle(
-                          theme,
-                          settings.isBangla
-                              ? 'প্রয়োজনীয় টুল'
-                              : 'Useful Tools',
-                        ),
-
-                        const SizedBox(
-                          height: 12,
-                        ),
-
-                        _buildTools(
-                          theme,
-                        ),
-                      ]),
-                    ),
+                  SliverToBoxAdapter(
+                    child: _buildMainSummary(theme),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _buildSummaryCards(theme),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _buildQuickActions(theme),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _buildAccountsSection(theme),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _buildRecentTransactions(theme),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _buildToolsSection(theme),
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 100),
                   ),
                 ],
               ),
             ),
           ),
-
           if (_loading)
             Positioned.fill(
-              child: IgnorePointer(
-                child: Container(
-                  color: theme
-                      .scaffoldBackgroundColor
-                      .withValues(
-                    alpha: 0.25,
-                  ),
-                  child: const Center(
-                    child:
-                        CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                    ),
-                  ),
+              child: Container(
+                color: theme.scaffoldBackgroundColor
+                    .withValues(alpha: 0.35),
+                child: const Center(
+                  child: CircularProgressIndicator(),
                 ),
               ),
             ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openAddTransaction,
+        backgroundColor: AppTheme.gold,
+        foregroundColor: AppTheme.darkGreen,
+        icon: const Icon(
+          Icons.add_rounded,
+        ),
+        label: Text(
+          _isBangla ? 'লেনদেন' : 'Transaction',
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 
-  // =========================================================
-  // TOP BAR
-  // =========================================================
-
-  Widget _buildTopBar(
-    ThemeData theme,
-  ) {
-    final settings = AppSettings.instance;
-
+  Widget _buildTopBar(ThemeData theme) {
     return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(
-        14,
+      padding: const EdgeInsets.fromLTRB(
+        16,
         10,
-        14,
-        10,
+        16,
+        8,
       ),
       child: Row(
         children: [
-          Builder(
-            builder: (context) {
-              return _topActionButton(
-                theme,
-                icon:
-                    Icons.menu_rounded,
-                onTap: () {
-                  Scaffold.of(
-                    context,
-                  ).openDrawer();
-                },
-              );
-            },
+          _topIconButton(
+            theme,
+            Icons.menu_rounded,
+            _openDrawer,
           ),
-
           const SizedBox(width: 12),
-
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  settings.t('appName'),
+                  _isBangla ? 'আমার হিসাব' : 'Amar Hisab',
                   maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: theme
-                        .colorScheme
-                        .onSurface,
-                    fontSize: 20,
-                    fontWeight:
-                        FontWeight.w900,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
                     letterSpacing: -0.3,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  settings.isBangla
-                      ? 'আপনার হিসাব, এক জায়গায়'
-                      : 'Your finances, all in one place',
-                  maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: theme
-                        .colorScheme
-                        .onSurfaceVariant,
-                    fontSize: 10.5,
+                  _currentMonthLabel(),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.textTheme.bodySmall?.color
+                        ?.withValues(alpha: 0.65),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-
-          _topActionButton(
+          _topIconButton(
             theme,
-            icon:
-                Icons.bar_chart_rounded,
-            onTap:
-                _openStatistics,
+            Icons.bar_chart_rounded,
+            _openStatistics,
           ),
-
           const SizedBox(width: 8),
-
-          _topActionButton(
+          _topIconButton(
             theme,
-            icon:
-                Icons.settings_outlined,
-            onTap:
-                _openSettings,
+            Icons.settings_outlined,
+            _openSettings,
           ),
         ],
       ),
     );
   }
 
-  Widget _topActionButton(
-    ThemeData theme, {
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+  Widget _topIconButton(
+    ThemeData theme,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return Material(
-      color: Colors.transparent,
+      color: theme.cardColor.withValues(alpha: 0.82),
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius:
-            BorderRadius.circular(14),
-        child: Ink(
-          width: 43,
-          height: 43,
-          decoration:
-              BoxDecoration(
-            color: theme
-                .colorScheme
-                .surface
-                .withValues(
-              alpha: theme.brightness ==
-                      Brightness.dark
-                  ? 0.78
-                  : 0.88,
-            ),
-            borderRadius:
-                BorderRadius.circular(
-              14,
-            ),
-            border: Border.all(
-              color: theme
-                  .colorScheme
-                  .onSurface
-                  .withValues(
-                alpha: 0.07,
-              ),
-            ),
-          ),
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: 44,
+          height: 44,
           child: Icon(
             icon,
-            size: 20,
-            color: theme
-                .colorScheme
-                .onSurface,
+            size: 22,
           ),
         ),
       ),
     );
   }
 
-  // =========================================================
-  // MAIN BALANCE CARD
-  // =========================================================
+  Widget _buildMainSummary(ThemeData theme) {
+    final positive = _difference >= 0;
 
-  Widget _buildMainBalanceCard(
-    ThemeData theme,
-  ) {
-    final settings =
-        AppSettings.instance;
-
-    final isSurplus =
-        _difference >= 0;
-
-    final statusColor = isSurplus
-        ? AppTheme.incomeColor
-        : AppTheme.expenseColor;
-
-    final statusText =
-        isSurplus
-            ? (settings.isBangla
-                ? 'উদ্বৃত্ত'
-                : 'Surplus')
-            : (settings.isBangla
-                ? 'ঘাটি'
-                : 'Deficit');
-
-    return Container(
-      padding:
-          const EdgeInsets.all(22),
-      decoration:
-          BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(30),
-        gradient:
-            const LinearGradient(
-          begin:
-              Alignment.topLeft,
-          end:
-              Alignment.bottomRight,
-          colors: [
-            AppTheme.darkGreen,
-            AppTheme.green,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        14,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.darkGreen,
+              AppTheme.green,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+              color: AppTheme.darkGreen.withValues(
+                alpha: 0.25,
+              ),
+            ),
           ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.green
-                .withValues(
-              alpha: 0.20,
-            ),
-            blurRadius: 30,
-            offset:
-                const Offset(0, 15),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -45,
-            top: -45,
-            child: Container(
-              width: 155,
-              height: 155,
-              decoration:
-                  BoxDecoration(
-                shape:
-                    BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white
-                      .withValues(
-                    alpha: 0.07,
-                  ),
-                  width: 22,
-                ),
-              ),
-            ),
-          ),
-
-          Positioned(
-            right: 15,
-            bottom: -65,
-            child: Container(
-              width: 130,
-              height: 130,
-              decoration:
-                  BoxDecoration(
-                shape:
-                    BoxShape.circle,
-                color: AppTheme.gold
-                    .withValues(
-                  alpha: 0.08,
-                ),
-              ),
-            ),
-          ),
-
-          Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration:
-                        BoxDecoration(
-                      color: Colors
-                          .white
-                          .withValues(
-                        alpha: 0.10,
-                      ),
-                      borderRadius:
-                          BorderRadius
-                              .circular(
-                        12,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppTheme.gold.withValues(
+                      alpha: 0.18,
+                    ),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: AppTheme.gold.withValues(
+                        alpha: 0.28,
                       ),
                     ),
-                    child:
-                        const Icon(
-                      Icons
-                          .account_balance_wallet_outlined,
-                      color:
-                          AppTheme.goldLight,
-                      size: 20,
-                    ),
                   ),
-
-                  const SizedBox(
-                    width: 11,
+                  child: Icon(
+                    positive
+                        ? Icons.trending_up_rounded
+                        : Icons.trending_down_rounded,
+                    color: AppTheme.goldLight,
+                    size: 23,
                   ),
-
-                  Column(
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
+                        CrossAxisAlignment.start,
                     children: [
                       Text(
-                        settings
-                                .isBangla
-                            ? 'চলতি মাসের অবস্থা'
-                            : 'Current Month',
-                        style:
-                            TextStyle(
-                          color: Colors
-                              .white
-                              .withValues(
-                            alpha:
-                                0.70,
+                        _isBangla
+                            ? 'এই মাসের হিসাব'
+                            : 'This month',
+                        style: TextStyle(
+                          color: Colors.white.withValues(
+                            alpha: 0.72,
                           ),
-                          fontSize: 11,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(
-                        height: 2,
-                      ),
+                      const SizedBox(height: 3),
                       Text(
-                        _currentMonthName(),
-                        style:
-                            const TextStyle(
-                          color:
-                              Colors.white,
-                          fontSize: 14,
-                          fontWeight:
-                              FontWeight.w800,
+                        positive
+                            ? (_isBangla
+                                ? 'বর্তমান উদ্বৃত্ত'
+                                : 'Current Surplus')
+                            : (_isBangla
+                                ? 'বর্তমান ঘাটি'
+                                : 'Current Deficit'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              Text(
-                statusText,
-                style: TextStyle(
-                  color: Colors.white
-                      .withValues(
-                    alpha: 0.72,
-                  ),
-                  fontSize: 13,
-                  fontWeight:
-                      FontWeight.w600,
                 ),
-              ),
-
-              const SizedBox(
-                height: 5,
-              ),
-
-              Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .end,
-                children: [
-                  Text(
-                    '৳ ${_money(_difference.abs())}',
-                    style:
-                        const TextStyle(
-                      color:
-                          Colors.white,
-                      fontSize: 32,
-                      fontWeight:
-                          FontWeight.w900,
-                      letterSpacing:
-                          -0.8,
-                    ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
                   ),
-                  const SizedBox(
-                    width: 9,
-                  ),
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(
-                      bottom: 6,
-                    ),
-                    child:
-                        Container(
-                      padding:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal:
-                            9,
-                        vertical:
-                            5,
-                      ),
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            statusColor
-                                .withValues(
-                          alpha: 0.18,
-                        ),
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          20,
-                        ),
-                      ),
-                      child: Text(
-                        isSurplus
-                            ? '+'
-                            : '-',
-                        style:
-                            TextStyle(
-                          color:
-                              statusColor,
-                          fontWeight:
-                              FontWeight
-                                  .w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(
-                height: 20,
-              ),
-
-              Container(
-                height: 1,
-                color: Colors.white
-                    .withValues(
-                  alpha: 0.10,
-                ),
-              ),
-
-              const SizedBox(
-                height: 16,
-              ),
-
-              Row(
-                children: [
-                  Expanded(
-                    child:
-                        _mainCardStat(
-                      icon: Icons
-                          .arrow_downward_rounded,
-                      title: settings
-                              .isBangla
-                          ? 'আয়'
-                          : 'Income',
-                      value:
-                          '৳ ${_money(_income)}',
-                    ),
-                  ),
-                  Container(
-                    width: 1,
-                    height: 40,
-                    color: Colors.white
-                        .withValues(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
                       alpha: 0.10,
                     ),
+                    borderRadius: BorderRadius.circular(30),
                   ),
-                  Expanded(
-                    child:
-                        Padding(
-                      padding:
-                          const EdgeInsets
-                              .only(
-                        left: 18,
+                  child: Text(
+                    _monthName(DateTime.now().month),
+                    style: TextStyle(
+                      color: Colors.white.withValues(
+                        alpha: 0.85,
                       ),
-                      child:
-                          _mainCardStat(
-                        icon: Icons
-                            .arrow_upward_rounded,
-                        title: settings
-                                .isBangla
-                            ? 'ব্যয়'
-                            : 'Expense',
-                        value:
-                            '৳ ${_money(_expense)}',
-                      ),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              _formatMoney(_difference),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.8,
               ),
-            ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _isBangla
+                  ? 'এই মাসের আয় − এই মাসের ব্যয়'
+                  : 'This month income − this month expense',
+              style: TextStyle(
+                color: Colors.white.withValues(
+                  alpha: 0.66,
+                ),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: _mainSummaryMini(
+                    icon: Icons.south_west_rounded,
+                    title: _isBangla ? 'আয়' : 'Income',
+                    amount: _income,
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 42,
+                  color: Colors.white.withValues(
+                    alpha: 0.12,
+                  ),
+                ),
+                Expanded(
+                  child: _mainSummaryMini(
+                    icon: Icons.north_east_rounded,
+                    title: _isBangla ? 'ব্যয়' : 'Expense',
+                    amount: _expense,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mainSummaryMini({
+    required IconData icon,
+    required String title,
+    required double amount,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: AppTheme.goldLight,
+            size: 19,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white.withValues(
+                      alpha: 0.60,
+                    ),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _formatShortMoney(amount),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _mainCardStat({
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 30,
-          height: 30,
-          decoration:
-              BoxDecoration(
-            color: Colors.white
-                .withValues(
-              alpha: 0.10,
+  Widget _buildSummaryCards(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        18,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _summaryCard(
+              theme: theme,
+              icon: Icons.south_west_rounded,
+              title: _isBangla ? 'আয়' : 'Income',
+              subtitle: _isBangla ? 'এই মাস' : 'This month',
+              amount: _income,
+              color: AppTheme.incomeColor,
             ),
-            shape:
-                BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            color: Colors.white
-                .withValues(
-              alpha: 0.85,
+          const SizedBox(width: 10),
+          Expanded(
+            child: _summaryCard(
+              theme: theme,
+              icon: Icons.north_east_rounded,
+              title: _isBangla ? 'ব্যয়' : 'Expense',
+              subtitle: _isBangla ? 'এই মাস' : 'This month',
+              amount: _expense,
+              color: AppTheme.expenseColor,
             ),
-            size: 16,
           ),
-        ),
-        const SizedBox(
-          width: 9,
-        ),
-        Flexible(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.white
-                      .withValues(
-                    alpha: 0.62,
-                  ),
-                  fontSize: 10,
-                ),
-              ),
-              const SizedBox(
-                height: 2,
-              ),
-              Text(
-                value,
-                maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
-                style:
-                    const TextStyle(
-                  color:
-                      Colors.white,
-                  fontSize: 13,
-                  fontWeight:
-                      FontWeight.w800,
-                ),
-              ),
-            ],
+          const SizedBox(width: 10),
+          Expanded(
+            child: _summaryCard(
+              theme: theme,
+              icon: _difference >= 0
+                  ? Icons.add_circle_outline_rounded
+                  : Icons.remove_circle_outline_rounded,
+              title: _difference >= 0
+                  ? (_isBangla ? 'উদ্বৃত্ত' : 'Surplus')
+                  : (_isBangla ? 'ঘাটি' : 'Deficit'),
+              subtitle: _isBangla ? 'এই মাস' : 'This month',
+              amount: _difference,
+              color: _difference >= 0
+                  ? AppTheme.incomeColor
+                  : AppTheme.expenseColor,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // =========================================================
-  // INCOME / EXPENSE / DIFFERENCE
-  // =========================================================
-
-  Widget _buildIncomeExpenseCards(
-    ThemeData theme,
-  ) {
-    final settings =
-        AppSettings.instance;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _metricCard(
-            theme,
-            icon:
-                Icons.south_west_rounded,
-            title: settings.isBangla
-                ? 'মোট আয়'
-                : 'Income',
-            value:
-                '৳ ${_money(_income)}',
-            color:
-                AppTheme.incomeColor,
-          ),
-        ),
-        const SizedBox(
-          width: 10,
-        ),
-        Expanded(
-          child: _metricCard(
-            theme,
-            icon:
-                Icons.north_east_rounded,
-            title: settings.isBangla
-                ? 'মোট ব্যয়'
-                : 'Expense',
-            value:
-                '৳ ${_money(_expense)}',
-            color:
-                AppTheme.expenseColor,
-          ),
-        ),
-        const SizedBox(
-          width: 10,
-        ),
-        Expanded(
-          child: _metricCard(
-            theme,
-            icon: _difference >= 0
-                ? Icons
-                    .trending_up_rounded
-                : Icons
-                    .trending_down_rounded,
-            title: _difference >= 0
-                ? (settings.isBangla
-                    ? 'উদ্বৃত্ত'
-                    : 'Surplus')
-                : (settings.isBangla
-                    ? 'ঘাটি'
-                    : 'Deficit'),
-            value:
-                '৳ ${_money(_difference.abs())}',
-            color: _difference >= 0
-                ? AppTheme.incomeColor
-                : AppTheme.expenseColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _metricCard(
-    ThemeData theme, {
+  Widget _summaryCard({
+    required ThemeData theme,
     required IconData icon,
     required String title,
-    required String value,
+    required String subtitle,
+    required double amount,
     required Color color,
   }) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 14,
+      constraints: const BoxConstraints(
+        minHeight: 132,
       ),
-      decoration:
-          BoxDecoration(
-        color: theme.cardColor,
-        borderRadius:
-            BorderRadius.circular(19),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: theme.cardColor.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: theme
-              .colorScheme
-              .onSurface
-              .withValues(
-            alpha: 0.055,
-          ),
+          color: color.withValues(alpha: 0.14),
         ),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 34,
             height: 34,
-            decoration:
-                BoxDecoration(
-              color: color.withValues(
-                alpha: 0.10,
-              ),
-              borderRadius:
-                  BorderRadius.circular(
-                10,
-              ),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               icon,
               color: color,
-              size: 19,
+              size: 18,
             ),
           ),
-          const SizedBox(
-            height: 10,
-          ),
+          const Spacer(),
           Text(
             title,
             maxLines: 1,
-            overflow:
-                TextOverflow.ellipsis,
-            style: TextStyle(
-              color: theme
-                  .colorScheme
-                  .onSurfaceVariant,
-              fontSize: 9.5,
-              fontWeight:
-                  FontWeight.w600,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(
-            height: 3,
-          ),
+          const SizedBox(height: 2),
           Text(
-            value,
+            subtitle,
             maxLines: 1,
-            overflow:
-                TextOverflow.ellipsis,
-            style: TextStyle(
-              color: theme
-                  .colorScheme
-                  .onSurface,
-              fontSize: 12,
-              fontWeight:
-                  FontWeight.w900,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 9,
+              color: theme.textTheme.bodySmall?.color
+                  ?.withValues(alpha: 0.55),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            _formatShortMoney(amount),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: color,
             ),
           ),
         ],
@@ -1305,154 +1127,103 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // =========================================================
-  // QUICK ACTIONS
-  // =========================================================
-
-  Widget _buildQuickActions(
-    ThemeData theme,
-  ) {
-    final settings =
-        AppSettings.instance;
-
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle(
-          theme,
-          settings.isBangla
-              ? 'দ্রুত লেনদেন'
-              : 'Quick Actions',
-        ),
-
-        const SizedBox(
-          height: 12,
-        ),
-
-        Row(
-          children: [
-            Expanded(
-              child: _quickAction(
-                theme,
-                icon: Icons
-                    .add_circle_outline_rounded,
-                title: settings.isBangla
-                    ? 'আয় যোগ করুন'
-                    : 'Add Income',
-                color:
-                    AppTheme.incomeColor,
+  Widget _buildQuickActions(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        22,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(
+            theme,
+            _isBangla ? 'দ্রুত লেনদেন' : 'Quick Actions',
+            null,
+          ),
+          const SizedBox(height: 11),
+          Row(
+            children: [
+              Expanded(
+                child: _quickAction(
+                  theme: theme,
+                  icon: Icons.add_rounded,
+                  title: _isBangla ? 'আয়' : 'Income',
+                  color: AppTheme.incomeColor,
+                  onTap: _openAddTransaction,
+                ),
               ),
-            ),
-
-            const SizedBox(
-              width: 10,
-            ),
-
-            Expanded(
-              child: _quickAction(
-                theme,
-                icon: Icons
-                    .remove_circle_outline_rounded,
-                title: settings.isBangla
-                    ? 'ব্যয় যোগ করুন'
-                    : 'Add Expense',
-                color:
-                    AppTheme.expenseColor,
+              const SizedBox(width: 10),
+              Expanded(
+                child: _quickAction(
+                  theme: theme,
+                  icon: Icons.remove_rounded,
+                  title: _isBangla ? 'ব্যয়' : 'Expense',
+                  color: AppTheme.expenseColor,
+                  onTap: _openAddTransaction,
+                ),
               ),
-            ),
-
-            const SizedBox(
-              width: 10,
-            ),
-
-            Expanded(
-              child: _quickAction(
-                theme,
-                icon: Icons
-                    .swap_horiz_rounded,
-                title: settings.isBangla
-                    ? 'ট্রান্সফার'
-                    : 'Transfer',
-                color:
-                    AppTheme.transferColor,
+              const SizedBox(width: 10),
+              Expanded(
+                child: _quickAction(
+                  theme: theme,
+                  icon: Icons.swap_horiz_rounded,
+                  title: _isBangla ? 'ট্রান্সফার' : 'Transfer',
+                  color: AppTheme.transferColor,
+                  onTap: _openAddTransaction,
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _quickAction(
-    ThemeData theme, {
+  Widget _quickAction({
+    required ThemeData theme,
     required IconData icon,
     required String title,
     required Color color,
+    required VoidCallback onTap,
   }) {
     return Material(
-      color: Colors.transparent,
+      color: theme.cardColor.withValues(alpha: 0.90),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        onTap:
-            _openAddTransaction,
-        borderRadius:
-            BorderRadius.circular(20),
-        child: Ink(
-          padding:
-              const EdgeInsets.symmetric(
-            vertical: 15,
-            horizontal: 5,
-          ),
-          decoration:
-              BoxDecoration(
-            color: theme.cardColor,
-            borderRadius:
-                BorderRadius.circular(
-              20,
-            ),
-            border: Border.all(
-              color: theme
-                  .colorScheme
-                  .onSurface
-                  .withValues(
-                alpha: 0.055,
-              ),
-            ),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: 17,
+            horizontal: 8,
           ),
           child: Column(
             children: [
               Container(
-                width: 44,
-                height: 44,
-                decoration:
-                    BoxDecoration(
-                  color: color.withValues(
-                    alpha: 0.10,
-                  ),
-                  shape:
-                      BoxShape.circle,
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
                 ),
                 child: Icon(
                   icon,
                   color: color,
-                  size: 22,
+                  size: 23,
                 ),
               ),
-              const SizedBox(
-                height: 8,
-              ),
+              const SizedBox(height: 9),
               Text(
                 title,
                 maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: theme
-                      .colorScheme
-                      .onSurface,
-                  fontSize: 10.5,
-                  fontWeight:
-                      FontWeight.w800,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
                 ),
               ),
             ],
@@ -1462,570 +1233,623 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // =========================================================
-  // SECTION TITLE
-  // =========================================================
-
-  Widget _buildSectionTitle(
-    ThemeData theme,
-    String title, {
-    String? actionText,
-    VoidCallback? onAction,
-  }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              color: theme
-                  .colorScheme
-                  .onSurface,
-              fontSize: 17,
-              fontWeight:
-                  FontWeight.w900,
-            ),
-          ),
-        ),
-        if (actionText != null &&
-            onAction != null)
-          TextButton(
-            onPressed: onAction,
-            style: TextButton.styleFrom(
-              padding:
-                  const EdgeInsets
-                      .symmetric(
-                horizontal: 6,
-              ),
-            ),
-            child: Text(
-              actionText,
-              style:
-                  const TextStyle(
-                color:
-                    AppTheme.gold,
-                fontSize: 11,
-                fontWeight:
-                    FontWeight.w800,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  // =========================================================
-  // RECENT TRANSACTIONS
-  // =========================================================
-
-  Widget _buildRecentTransactions(
-    ThemeData theme,
-  ) {
-    final settings =
-        AppSettings.instance;
-
-    if (_recentTransactions.isEmpty) {
-      return _emptyCard(
-        theme,
-        icon:
-            Icons.receipt_long_outlined,
-        text: settings.isBangla
-            ? 'এখনও কোনো লেনদেন নেই'
-            : 'No transactions yet',
-      );
-    }
-
-    return Container(
-      decoration:
-          BoxDecoration(
-        color: theme.cardColor,
-        borderRadius:
-            BorderRadius.circular(23),
-        border: Border.all(
-          color: theme
-              .colorScheme
-              .onSurface
-              .withValues(
-            alpha: 0.055,
-          ),
-        ),
+  Widget _buildAccountsSection(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 24,
       ),
       child: Column(
-        children: List.generate(
-          _recentTransactions.length,
-          (index) {
-            final item =
-                _recentTransactions[
-                    index];
-
-            final type =
-                item['type']
-                        ?.toString() ??
-                    '';
-
-            final color =
-                _transactionColor(
-              type,
-            );
-
-            final amount =
-                _toDouble(
-              item['amount'],
-            );
-
-            final date =
-                item['transaction_date'] ??
-                    item['transactionDate'];
-
-            final isExpense =
-                type.toLowerCase() ==
-                    'expense';
-
-            final isTransfer =
-                type.toLowerCase() ==
-                    'transfer';
-
-            return Column(
-              children: [
-                ListTile(
-                  contentPadding:
-                      const EdgeInsets
-                          .symmetric(
-                    horizontal: 14,
-                    vertical: 4,
-                  ),
-                  leading: Container(
-                    width: 43,
-                    height: 43,
-                    decoration:
-                        BoxDecoration(
-                      color: color
-                          .withValues(
-                        alpha: 0.10,
-                      ),
-                      shape:
-                          BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _transactionIcon(
-                        type,
-                      ),
-                      color: color,
-                      size: 20,
-                    ),
-                  ),
-                  title: Text(
-                    _transactionTitle(
-                      item,
-                    ),
-                    maxLines: 1,
-                    overflow:
-                        TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: theme
-                          .colorScheme
-                          .onSurface,
-                      fontSize: 13,
-                      fontWeight:
-                          FontWeight.w800,
-                    ),
-                  ),
-                  subtitle:
-                      Padding(
-                    padding:
-                        const EdgeInsets
-                            .only(
-                      top: 3,
-                    ),
-                    child: Text(
-                      '${_transactionSubtitle(item)} • ${_formatDate(date)}',
-                      maxLines: 1,
-                      overflow:
-                          TextOverflow
-                              .ellipsis,
-                      style:
-                          TextStyle(
-                        color: theme
-                            .colorScheme
-                            .onSurfaceVariant,
-                        fontSize: 9.5,
-                      ),
-                    ),
-                  ),
-                  trailing: Text(
-                    isTransfer
-                        ? '৳ ${_money(amount)}'
-                        : isExpense
-                            ? '-৳ ${_money(amount)}'
-                            : '+৳ ${_money(amount)}',
-                    style:
-                        TextStyle(
-                      color: color,
-                      fontSize: 12.5,
-                      fontWeight:
-                          FontWeight.w900,
-                    ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+            ),
+            child: _sectionHeader(
+              theme,
+              _isBangla
+                  ? 'অ্যাকাউন্ট ব্যালেন্স'
+                  : 'Account Balances',
+              () {
+                _openAccounts();
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 13,
+              ),
+              decoration: BoxDecoration(
+                color: theme.cardColor.withValues(alpha: 0.78),
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(
+                    alpha: 0.08,
                   ),
                 ),
-                if (index !=
-                    _recentTransactions
-                            .length -
-                        1)
-                  Divider(
-                    height: 1,
-                    indent: 70,
-                    endIndent: 14,
-                    color: theme
-                        .colorScheme
-                        .onSurface
-                        .withValues(
-                      alpha: 0.055,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppTheme.gold.withValues(
+                        alpha: 0.12,
+                      ),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: AppTheme.gold,
+                      size: 19,
                     ),
                   ),
-              ],
-            );
-          },
-        ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isBangla
+                              ? 'সব অ্যাকাউন্টের বর্তমান ব্যালেন্স'
+                              : 'Current balance of all accounts',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _isBangla
+                              ? 'ট্রান্সফারসহ'
+                              : 'Including transfers',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 9,
+                            color: theme
+                                .textTheme.bodySmall?.color
+                                ?.withValues(alpha: 0.50),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    _formatMoney(_totalAccountBalance),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.gold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 11),
+          if (_accounts.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+              ),
+              child: _emptyCard(
+                theme,
+                _isBangla
+                    ? 'কোনো অ্যাকাউন্ট পাওয়া যায়নি'
+                    : 'No accounts found',
+              ),
+            )
+          else
+            SizedBox(
+              height: 135,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                ),
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _accounts.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  return _buildAccountCard(
+                    theme,
+                    _accounts[index],
+                  );
+                },
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  // =========================================================
-  // ACCOUNTS
-  // =========================================================
-
-  Widget _buildAccounts(
+  Widget _buildAccountCard(
     ThemeData theme,
+    Map<String, dynamic> account,
   ) {
-    final settings =
-        AppSettings.instance;
+    final balance =
+        (account['balance'] as num?)?.toDouble() ?? 0;
 
-    if (_accounts.isEmpty) {
-      return _emptyCard(
-        theme,
-        icon:
-            Icons.account_balance_outlined,
-        text: settings.isBangla
-            ? 'কোনো অ্যাকাউন্ট নেই'
-            : 'No accounts',
-      );
-    }
+    final color = _accountColor(
+      account,
+      theme,
+    );
+
+    final icon = _accountIcon(account);
+
+    final name =
+        account['name']?.toString() ??
+        (_isBangla ? 'অ্যাকাউন্ট' : 'Account');
 
     return SizedBox(
-      height: 142,
-      child: ListView.separated(
-        scrollDirection:
-            Axis.horizontal,
-        physics:
-            const BouncingScrollPhysics(),
-        itemCount:
-            _accounts.length,
-        separatorBuilder:
-            (_, __) =>
-                const SizedBox(
-          width: 10,
-        ),
-        itemBuilder:
-            (context, index) {
-          final account =
-              _accounts[index];
-
-          final balance =
-              _toDouble(
-            account['balance'],
-          );
-
-          final accountColor =
-              _accountColor(
-            account,
-          );
-
-          return Container(
-            width: 166,
-            padding:
-                const EdgeInsets.all(
-              15,
-            ),
-            decoration:
-                BoxDecoration(
-              color:
-                  theme.cardColor,
-              borderRadius:
-                  BorderRadius.circular(
-                21,
-              ),
-              border: Border.all(
-                color: theme
-                    .colorScheme
-                    .onSurface
-                    .withValues(
-                  alpha: 0.055,
-                ),
-              ),
-            ),
+      width: 170,
+      child: Material(
+        color: theme.cardColor.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(21),
+        child: InkWell(
+          onTap: _openAccounts,
+          borderRadius: BorderRadius.circular(21),
+          child: Padding(
+            padding: const EdgeInsets.all(15),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Container(
-                      width: 37,
-                      height: 37,
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            accountColor
-                                .withValues(
-                          alpha:
-                              0.10,
-                        ),
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          11,
-                        ),
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.13),
+                        borderRadius: BorderRadius.circular(11),
                       ),
                       child: Icon(
-                        _accountIcon(
-                          account,
-                        ),
-                        color:
-                            accountColor,
+                        icon,
+                        color: color,
                         size: 19,
                       ),
                     ),
                     const Spacer(),
                     Icon(
-                      Icons
-                          .chevron_right_rounded,
+                      Icons.chevron_right_rounded,
                       size: 18,
-                      color: theme
-                          .colorScheme
-                          .onSurfaceVariant,
+                      color: theme.iconTheme.color
+                          ?.withValues(alpha: 0.35),
                     ),
                   ],
                 ),
-
                 const Spacer(),
-
                 Text(
-                  account['name']
-                          ?.toString() ??
-                      (settings.isBangla
-                          ? 'অ্যাকাউন্ট'
-                          : 'Account'),
+                  name,
                   maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: theme
-                        .colorScheme
-                        .onSurfaceVariant,
-                    fontSize: 10.5,
-                    fontWeight:
-                        FontWeight.w600,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-
-                const SizedBox(
-                  height: 3,
-                ),
-
+                const SizedBox(height: 3),
                 Text(
-                  '৳ ${_money(balance)}',
+                  _formatShortMoney(balance),
                   maxLines: 1,
-                  overflow:
-                      TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: theme
-                        .colorScheme
-                        .onSurface,
-                    fontSize: 15,
-                    fontWeight:
-                        FontWeight.w900,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: balance < 0
+                        ? AppTheme.expenseColor
+                        : color,
                   ),
                 ),
               ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
-  Color _accountColor(
-    Map<String, dynamic> account,
-  ) {
-    final value =
-        account['color'];
-
-    if (value is int) {
-      return Color(value);
-    }
-
-    if (value is num) {
-      return Color(
-        value.toInt(),
-      );
-    }
-
-    return AppTheme.gold;
-  }
-
-  IconData _accountIcon(
-    Map<String, dynamic> account,
-  ) {
-    final value =
-        account['icon'];
-
-    if (value is int) {
-      return IconData(
-        value,
-        fontFamily:
-            'MaterialIcons',
-      );
-    }
-
-    if (value is num) {
-      return IconData(
-        value.toInt(),
-        fontFamily:
-            'MaterialIcons',
-      );
-    }
-
-    return Icons
-        .account_balance_wallet_outlined;
-  }
-
-  // =========================================================
-  // TOOLS
-  // =========================================================
-
-  Widget _buildTools(
-    ThemeData theme,
-  ) {
-    final settings =
-        AppSettings.instance;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _toolCard(
+  Widget _buildRecentTransactions(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        24,
+      ),
+      child: Column(
+        children: [
+          _sectionHeader(
             theme,
-            icon:
-                Icons.category_outlined,
-            title: settings.isBangla
-                ? 'খাত'
-                : 'Categories',
-            onTap:
-                _openCategories,
+            _isBangla
+                ? 'সাম্প্রতিক লেনদেন'
+                : 'Recent Transactions',
+            _recentTransactions.isEmpty
+                ? null
+                : _openTransactions,
           ),
-        ),
-        const SizedBox(
-          width: 10,
-        ),
-        Expanded(
-          child: _toolCard(
-            theme,
-            icon:
-                Icons.description_outlined,
-            title: settings.isBangla
-                ? 'রিপোর্ট'
-                : 'Report',
-            onTap: _openReport,
-          ),
-        ),
-        const SizedBox(
-          width: 10,
-        ),
-        Expanded(
-          child: _toolCard(
-            theme,
-            icon:
-                Icons.info_outline_rounded,
-            title: settings.isBangla
-                ? 'তথ্য'
-                : 'About',
-            onTap: _openAbout,
-          ),
-        ),
-      ],
+          const SizedBox(height: 10),
+          if (_recentTransactions.isEmpty)
+            _emptyTransactions(theme)
+          else
+            Container(
+              decoration: BoxDecoration(
+                color: theme.cardColor.withValues(
+                  alpha: 0.88,
+                ),
+                borderRadius: BorderRadius.circular(23),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: List.generate(
+                  _recentTransactions.length,
+                  (index) {
+                    final transaction =
+                        _recentTransactions[index];
+
+                    return _buildTransactionTile(
+                      theme,
+                      transaction,
+                      index ==
+                          _recentTransactions.length - 1,
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _toolCard(
-    ThemeData theme, {
+  Widget _buildTransactionTile(
+    ThemeData theme,
+    Map<String, dynamic> transaction,
+    bool last,
+  ) {
+    final type =
+        transaction['type']?.toString() ?? '';
+
+    final color = _transactionColor(
+      type,
+      theme,
+    );
+
+    final amount =
+        (transaction['amount'] as num?)?.toDouble() ?? 0;
+
+    final title = _transactionTitle(
+      transaction,
+    );
+
+    final account = _transactionAccount(
+      transaction,
+    );
+
+    final date =
+        _formatDate(transaction['transaction_date']);
+
+    String amountText;
+
+    if (type.toLowerCase() == 'income') {
+      amountText = '+${_formatMoney(amount)}';
+    } else if (type.toLowerCase() == 'expense') {
+      amountText = '-${_formatMoney(amount)}';
+    } else {
+      amountText = '⇄ ${_formatMoney(amount)}';
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          _editTransaction(transaction);
+        },
+        onLongPress: () {
+          _showTransactionMenu(transaction);
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            14,
+            13,
+            12,
+            13,
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 43,
+                    height: 43,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.11),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(
+                      _transactionIcon(type),
+                      color: color,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (account.isNotEmpty) ...[
+                              Flexible(
+                                child: Text(
+                                  account,
+                                  maxLines: 1,
+                                  overflow:
+                                      TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(
+                                    fontSize: 10,
+                                    color: theme
+                                        .textTheme.bodySmall?.color
+                                        ?.withValues(alpha: 0.55),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '•',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: theme
+                                      .textTheme.bodySmall?.color
+                                      ?.withValues(alpha: 0.35),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              date,
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(
+                                fontSize: 10,
+                                color: theme
+                                    .textTheme.bodySmall?.color
+                                    ?.withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        amountText,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        _transactionType(type),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 9,
+                          color: theme.textTheme.bodySmall?.color
+                              ?.withValues(alpha: 0.45),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 3),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 17,
+                    color: theme.iconTheme.color
+                        ?.withValues(alpha: 0.28),
+                  ),
+                ],
+              ),
+              if (!last)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 54,
+                    top: 12,
+                  ),
+                  child: Divider(
+                    height: 1,
+                    color: theme.dividerColor.withValues(
+                      alpha: 0.08,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyTransactions(ThemeData theme) {
+    return _emptyCard(
+      theme,
+      _isBangla
+          ? 'এখনও কোনো লেনদেন যোগ করা হয়নি'
+          : 'No transactions yet',
+      icon: Icons.receipt_long_outlined,
+      action: _openAddTransaction,
+    );
+  }
+
+  Widget _emptyCard(
+    ThemeData theme,
+    String text, {
+    IconData icon = Icons.info_outline_rounded,
+    VoidCallback? action,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 25,
+      ),
+      decoration: BoxDecoration(
+        color: theme.cardColor.withValues(
+          alpha: 0.82,
+        ),
+        borderRadius: BorderRadius.circular(21),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 31,
+            color: theme.iconTheme.color?.withValues(
+              alpha: 0.38,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.textTheme.bodyMedium?.color
+                  ?.withValues(alpha: 0.62),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (action != null) ...[
+            const SizedBox(height: 13),
+            OutlinedButton(
+              onPressed: action,
+              child: Text(
+                _isBangla
+                    ? 'প্রথম লেনদেন যোগ করুন'
+                    : 'Add first transaction',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolsSection(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        20,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(
+            theme,
+            _isBangla ? 'প্রয়োজনীয় টুল' : 'Useful Tools',
+            null,
+          ),
+          const SizedBox(height: 11),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1.08,
+            children: [
+              _toolCard(
+                theme: theme,
+                icon: Icons.category_outlined,
+                title: _isBangla ? 'খাত' : 'Categories',
+                onTap: _openCategories,
+              ),
+              _toolCard(
+                theme: theme,
+                icon: Icons.assessment_outlined,
+                title: _isBangla ? 'রিপোর্ট' : 'Report',
+                onTap: _openReport,
+              ),
+              _toolCard(
+                theme: theme,
+                icon: Icons.bar_chart_outlined,
+                title: _isBangla ? 'পরিসংখ্যান' : 'Statistics',
+                onTap: _openStatistics,
+              ),
+              _toolCard(
+                theme: theme,
+                icon: Icons.account_balance_wallet_outlined,
+                title: _isBangla ? 'অ্যাকাউন্ট' : 'Accounts',
+                onTap: _openAccounts,
+              ),
+              _toolCard(
+                theme: theme,
+                icon: Icons.receipt_long_outlined,
+                title: _isBangla ? 'সব লেনদেন' : 'Transactions',
+                onTap: _openTransactions,
+              ),
+              _toolCard(
+                theme: theme,
+                icon: Icons.info_outline_rounded,
+                title: _isBangla ? 'সম্পর্কে' : 'About',
+                onTap: _openAbout,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _toolCard({
+    required ThemeData theme,
     required IconData icon,
     required String title,
     required VoidCallback onTap,
   }) {
     return Material(
-      color: Colors.transparent,
+      color: theme.cardColor.withValues(alpha: 0.88),
+      borderRadius: BorderRadius.circular(19),
       child: InkWell(
         onTap: onTap,
-        borderRadius:
-            BorderRadius.circular(18),
-        child: Ink(
-          padding:
-              const EdgeInsets.symmetric(
-            vertical: 16,
-            horizontal: 5,
-          ),
-          decoration:
-              BoxDecoration(
-            color: theme.cardColor,
-            borderRadius:
-                BorderRadius.circular(
-              18,
-            ),
-            border: Border.all(
-              color: theme
-                  .colorScheme
-                  .onSurface
-                  .withValues(
-                alpha: 0.055,
-              ),
-            ),
-          ),
+        borderRadius: BorderRadius.circular(19),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration:
-                    BoxDecoration(
-                  color: AppTheme.gold
-                      .withValues(
-                    alpha: 0.09,
-                  ),
-                  shape:
-                      BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color:
-                      AppTheme.gold,
-                  size: 20,
-                ),
+              Icon(
+                icon,
+                size: 25,
+                color: AppTheme.gold,
               ),
-              const SizedBox(
-                height: 8,
-              ),
+              const SizedBox(height: 9),
               Text(
                 title,
                 maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: theme
-                      .colorScheme
-                      .onSurface,
-                  fontSize: 10.5,
-                  fontWeight:
-                      FontWeight.w800,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 10,
                 ),
               ),
             ],
@@ -2035,365 +1859,263 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // =========================================================
-  // EMPTY
-  // =========================================================
-
-  Widget _emptyCard(
-    ThemeData theme, {
-    required IconData icon,
-    required String text,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding:
-          const EdgeInsets.symmetric(
-        vertical: 28,
-      ),
-      decoration:
-          BoxDecoration(
-        color: theme.cardColor,
-        borderRadius:
-            BorderRadius.circular(22),
-        border: Border.all(
-          color: theme
-              .colorScheme
-              .onSurface
-              .withValues(
-            alpha: 0.055,
+  Widget _sectionHeader(
+    ThemeData theme,
+    String title,
+    VoidCallback? onViewAll,
+  ) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            color: AppTheme.gold,
+            borderRadius: BorderRadius.circular(4),
           ),
         ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            size: 30,
-            color: theme
-                .colorScheme
-                .onSurfaceVariant,
-          ),
-          const SizedBox(
-            height: 8,
-          ),
-          Text(
-            text,
-            style: TextStyle(
-              color: theme
-                  .colorScheme
-                  .onSurfaceVariant,
-              fontSize: 12,
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  // =========================================================
-  // FLOATING BUTTON
-  // =========================================================
-
-  Widget _buildFloatingButton() {
-    final settings =
-        AppSettings.instance;
-
-    return Padding(
-      padding:
-          const EdgeInsets.only(
-        bottom: 8,
-      ),
-      child: FloatingActionButton.extended(
-        heroTag:
-            'amar_hisab_home_add',
-        onPressed:
-            _openAddTransaction,
-        backgroundColor:
-            AppTheme.green,
-        foregroundColor:
-            Colors.white,
-        elevation: 8,
-        icon: const Icon(
-          Icons.add_rounded,
-          size: 24,
         ),
-        label: Text(
-          settings.isBangla
-              ? 'নতুন লেনদেন'
-              : 'New Transaction',
-          style: const TextStyle(
-            fontWeight:
-                FontWeight.w800,
+        if (onViewAll != null)
+          TextButton(
+            onPressed: onViewAll,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 7,
+                vertical: 4,
+              ),
+              minimumSize: Size.zero,
+              tapTargetSize:
+                  MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              _isBangla ? 'সব দেখুন' : 'View all',
+              style: TextStyle(
+                color: AppTheme.gold,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
-        ),
-      ),
+      ],
     );
   }
 
-  // =========================================================
-  // DRAWER
-  // =========================================================
-
-  Drawer _buildDrawer(
-    ThemeData theme,
-  ) {
-    final settings =
-        AppSettings.instance;
-
+  Widget _buildDrawer(ThemeData theme) {
     return Drawer(
-      backgroundColor:
-          theme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       child: SafeArea(
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
-              padding:
-                  const EdgeInsets.fromLTRB(
-                22,
-                28,
-                22,
-                24,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                18,
+                18,
+                18,
+                16,
               ),
-              decoration:
-                  const BoxDecoration(
-                gradient:
-                    LinearGradient(
-                  colors: [
-                    AppTheme.darkGreen,
-                    AppTheme.green,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppTheme.darkGreen,
+                      AppTheme.green,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(23),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: AppTheme.gold.withValues(
+                          alpha: 0.16,
+                        ),
+                        borderRadius:
+                            BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.account_balance_wallet_rounded,
+                        color: AppTheme.goldLight,
+                        size: 27,
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'আমার হিসাব',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _isBangla
+                                ? 'সহজে আপনার হিসাব রাখুন'
+                                : 'Manage your money simply',
+                            style: TextStyle(
+                              color: Colors.white.withValues(
+                                alpha: 0.65,
+                              ),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration:
-                        BoxDecoration(
-                      color: Colors.white
-                          .withValues(
-                        alpha: 0.10,
-                      ),
-                      borderRadius:
-                          BorderRadius
-                              .circular(
-                        16,
-                      ),
-                    ),
-                    child:
-                        const Icon(
-                      Icons
-                          .account_balance_wallet_outlined,
-                      color:
-                          AppTheme.goldLight,
-                      size: 27,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 15,
-                  ),
-
-                  Text(
-                    settings
-                        .t('appName'),
-                    style:
-                        const TextStyle(
-                      color:
-                          Colors.white,
-                      fontSize: 23,
-                      fontWeight:
-                          FontWeight.w900,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 4,
-                  ),
-
-                  Text(
-                    settings.isBangla
-                        ? 'সহজে আপনার হিসাব রাখুন'
-                        : 'Manage your money simply',
-                    style:
-                        TextStyle(
-                      color: Colors
-                          .white
-                          .withValues(
-                        alpha: 0.68,
-                      ),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
             ),
-
             Expanded(
               child: ListView(
-                padding:
-                    const EdgeInsets
-                        .symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 12,
                 ),
                 children: [
                   _drawerItem(
                     theme,
-                    icon: Icons
-                        .dashboard_outlined,
-                    title: settings
-                            .isBangla
-                        ? 'হোম'
-                        : 'Home',
+                    icon: Icons.home_rounded,
+                    title: _isBangla ? 'হোম' : 'Home',
+                    selected: true,
                     onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.pop(context);
                     },
                   ),
-
                   _drawerItem(
                     theme,
-                    icon: Icons
-                        .receipt_long_outlined,
-                    title: settings
-                            .isBangla
-                        ? 'লেনদেন'
+                    icon: Icons.receipt_long_outlined,
+                    title: _isBangla
+                        ? 'সব লেনদেন'
                         : 'Transactions',
                     onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.pop(context);
                       _openTransactions();
                     },
                   ),
-
                   _drawerItem(
                     theme,
-                    icon: Icons
-                        .account_balance_wallet_outlined,
-                    title: settings
-                            .isBangla
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: _isBangla
                         ? 'অ্যাকাউন্ট'
                         : 'Accounts',
                     onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.pop(context);
                       _openAccounts();
                     },
                   ),
-
                   _drawerItem(
                     theme,
-                    icon: Icons
-                        .category_outlined,
-                    title: settings
-                            .isBangla
-                        ? 'খাত'
-                        : 'Categories',
+                    icon: Icons.category_outlined,
+                    title: _isBangla ? 'খাত' : 'Categories',
                     onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.pop(context);
                       _openCategories();
                     },
                   ),
-
+                  const SizedBox(height: 8),
+                  _drawerDivider(theme),
                   _drawerItem(
                     theme,
-                    icon: Icons
-                        .bar_chart_rounded,
-                    title: settings
-                            .isBangla
+                    icon: Icons.bar_chart_outlined,
+                    title: _isBangla
                         ? 'পরিসংখ্যান'
                         : 'Statistics',
                     onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.pop(context);
                       _openStatistics();
                     },
                   ),
-
                   _drawerItem(
                     theme,
-                    icon: Icons
-                        .description_outlined,
-                    title: settings
-                            .isBangla
-                        ? 'রিপোর্ট'
-                        : 'Report',
+                    icon: Icons.assessment_outlined,
+                    title: _isBangla ? 'রিপোর্ট' : 'Report',
                     onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.pop(context);
                       _openReport();
                     },
                   ),
-
+                  const SizedBox(height: 8),
+                  _drawerDivider(theme),
                   _drawerItem(
                     theme,
-                    icon: Icons
-                        .settings_outlined,
-                    title: settings
-                            .isBangla
+                    icon: Icons.settings_outlined,
+                    title: _isBangla
                         ? 'সেটিংস'
                         : 'Settings',
                     onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.pop(context);
                       _openSettings();
                     },
                   ),
-
                   _drawerItem(
                     theme,
-                    icon: Icons
-                        .info_outline_rounded,
-                    title: settings
-                            .isBangla
+                    icon: Icons.info_outline_rounded,
+                    title: _isBangla
                         ? 'অ্যাপ সম্পর্কে'
                         : 'About',
                     onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.pop(context);
                       _openAbout();
                     },
                   ),
                 ],
               ),
             ),
-
             Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(
+              padding: const EdgeInsets.fromLTRB(
                 20,
                 8,
                 20,
-                20,
+                18,
               ),
               child: Text(
-                settings.isBangla
-                    ? 'আমার হিসাব'
-                    : 'Amar Hisab',
-                style: TextStyle(
-                  color: theme
-                      .colorScheme
-                      .onSurfaceVariant,
-                  fontSize: 11,
+                _isBangla
+                    ? 'আপনার হিসাব, আপনার নিয়ন্ত্রণ'
+                    : 'Your money, your control',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.textTheme.bodySmall?.color
+                      ?.withValues(alpha: 0.45),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerDivider(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 5,
+      ),
+      child: Divider(
+        color: theme.dividerColor.withValues(
+          alpha: 0.08,
         ),
       ),
     );
@@ -2403,86 +2125,72 @@ class _HomeScreenState extends State<HomeScreen> {
     ThemeData theme, {
     required IconData icon,
     required String title,
+    bool selected = false,
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding:
-          const EdgeInsets.only(
-        bottom: 3,
+      padding: const EdgeInsets.symmetric(
+        vertical: 2,
       ),
-      child: ListTile(
-        onTap: onTap,
-        shape:
-            RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(
-            14,
+      child: Material(
+        color: selected
+            ? AppTheme.green.withValues(alpha: 0.12)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(15),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(15),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 13,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 21,
+                  color: selected
+                      ? AppTheme.gold
+                      : theme.iconTheme.color
+                          ?.withValues(alpha: 0.70),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: selected
+                          ? FontWeight.w900
+                          : FontWeight.w600,
+                      color: selected
+                          ? AppTheme.gold
+                          : null,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.gold,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-        leading: Icon(
-          icon,
-          size: 21,
-          color: theme
-              .colorScheme
-              .onSurfaceVariant,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: theme
-                .colorScheme
-                .onSurface,
-            fontSize: 13,
-            fontWeight:
-                FontWeight.w600,
-          ),
-        ),
-        trailing: Icon(
-          Icons.chevron_right_rounded,
-          size: 19,
-          color: theme
-              .colorScheme
-              .onSurfaceVariant,
         ),
       ),
     );
   }
 }
 
-// ===========================================================
-// PREMIUM BACKGROUND
-// ===========================================================
-
-class _PremiumBackground
-    extends StatelessWidget {
+class _HomeBackgroundPainter extends CustomPainter {
   final bool isDark;
 
-  const _PremiumBackground({
-    required this.isDark,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return IgnorePointer(
-      child: CustomPaint(
-        painter:
-            _PremiumBackgroundPainter(
-          isDark: isDark,
-        ),
-        child:
-            const SizedBox.expand(),
-      ),
-    );
-  }
-}
-
-class _PremiumBackgroundPainter
-    extends CustomPainter {
-  final bool isDark;
-
-  _PremiumBackgroundPainter({
+  _HomeBackgroundPainter({
     required this.isDark,
   });
 
@@ -2491,220 +2199,61 @@ class _PremiumBackgroundPainter
     Canvas canvas,
     Size size,
   ) {
-    final bgPaint = Paint()
-      ..style =
-          PaintingStyle.fill
-      ..color = isDark
-          ? const Color(
-              0xFF08120F,
-            )
-          : const Color(
-              0xFFF4F1E9,
-            );
+    final paint = Paint()
+      ..style = PaintingStyle.fill;
 
-    canvas.drawRect(
-      Offset.zero & size,
-      bgPaint,
+    final opacity = isDark ? 0.055 : 0.035;
+
+    paint.color = AppTheme.green.withValues(
+      alpha: opacity,
     );
 
-    final greenPaint = Paint()
-      ..color = isDark
-          ? const Color(
-              0x121F7655,
-            )
-          : const Color(
-              0x0D176B45,
-            )
-      ..style =
-          PaintingStyle.fill;
-
-    canvas.drawCircle(
-      Offset(
-        size.width * 0.98,
-        size.height * 0.15,
-      ),
-      size.width * 0.62,
-      greenPaint,
-    );
-
-    final goldPaint = Paint()
-      ..color = isDark
-          ? const Color(
-              0x0CC9A45C,
-            )
-          : const Color(
-              0x0FC9A45C,
-            )
-      ..style =
-          PaintingStyle.fill;
-
-    canvas.drawCircle(
-      Offset(
-        size.width * 0.04,
-        size.height * 0.52,
-      ),
-      size.width * 0.38,
-      goldPaint,
-    );
-
-    final ringPaint = Paint()
-      ..color = isDark
-          ? const Color(
-              0x102D8A63,
-            )
-          : const Color(
-              0x0A176B45,
-            )
-      ..style =
-          PaintingStyle.stroke
-      ..strokeWidth = 34;
-
-    canvas.drawCircle(
-      Offset(
-        size.width * 0.90,
-        size.height * 0.74,
-      ),
-      size.width * 0.45,
-      ringPaint,
-    );
-
-    final thinRingPaint = Paint()
-      ..color = isDark
-          ? const Color(
-              0x0CC9A45C,
-            )
-          : const Color(
-              0x0AC9A45C,
-            )
-      ..style =
-          PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    canvas.drawCircle(
-      Offset(
-        size.width * 0.08,
-        size.height * 0.20,
-      ),
-      90,
-      thinRingPaint,
-    );
-
-    final dotPaint = Paint()
-      ..color = isDark
-          ? const Color(
-              0x16C9A45C,
-            )
-          : const Color(
-              0x14B99550,
-            )
-      ..style =
-          PaintingStyle.fill;
-
-    canvas.drawCircle(
-      Offset(
-        size.width * 0.82,
-        size.height * 0.34,
-      ),
-      5,
-      dotPaint,
+    final circleOne = Offset(
+      size.width * 0.90,
+      size.height * 0.10,
     );
 
     canvas.drawCircle(
-      Offset(
-        size.width * 0.88,
-        size.height * 0.37,
-      ),
-      3,
-      dotPaint,
+      circleOne,
+      math.min(size.width, size.height) * 0.34,
+      paint,
+    );
+
+    paint.color = AppTheme.gold.withValues(
+      alpha: isDark ? 0.035 : 0.025,
+    );
+
+    final circleTwo = Offset(
+      size.width * 0.05,
+      size.height * 0.42,
     );
 
     canvas.drawCircle(
-      Offset(
-        size.width * 0.15,
-        size.height * 0.67,
-      ),
-      4,
-      dotPaint,
+      circleTwo,
+      math.min(size.width, size.height) * 0.25,
+      paint,
     );
 
-    final path = Path();
-
-    path.moveTo(
-      size.width * 0.65,
-      0,
+    paint.color = AppTheme.green.withValues(
+      alpha: isDark ? 0.035 : 0.022,
     );
 
-    path.cubicTo(
-      size.width * 0.80,
-      size.height * 0.08,
-      size.width * 0.78,
-      size.height * 0.20,
-      size.width * 0.98,
-      size.height * 0.27,
+    final circleThree = Offset(
+      size.width * 0.95,
+      size.height * 0.76,
     );
 
-    path.lineTo(
-      size.width,
-      size.height * 0.34,
-    );
-
-    path.lineTo(
-      size.width,
-      0,
-    );
-
-    path.close();
-
-    final shapePaint = Paint()
-      ..color = isDark
-          ? const Color(
-              0x071F7655,
-            )
-          : const Color(
-              0x08176B45,
-            )
-      ..style =
-          PaintingStyle.fill;
-
-    canvas.drawPath(
-      path,
-      shapePaint,
-    );
-
-    final arcPaint = Paint()
-      ..color = isDark
-          ? const Color(
-              0x18C9A45C,
-            )
-          : const Color(
-              0x12C9A45C,
-            )
-      ..style =
-          PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    canvas.drawArc(
-      Rect.fromCircle(
-        center: Offset(
-          size.width * 0.12,
-          size.height * 0.82,
-        ),
-        radius: 48,
-      ),
-      -math.pi * 0.25,
-      math.pi * 0.95,
-      false,
-      arcPaint,
+    canvas.drawCircle(
+      circleThree,
+      math.min(size.width, size.height) * 0.30,
+      paint,
     );
   }
 
   @override
   bool shouldRepaint(
-    covariant
-        _PremiumBackgroundPainter
-            oldDelegate,
+    covariant _HomeBackgroundPainter oldDelegate,
   ) {
-    return oldDelegate.isDark !=
-        isDark;
+    return oldDelegate.isDark != isDark;
   }
 }
