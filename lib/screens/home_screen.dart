@@ -680,6 +680,13 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor:
           theme.scaffoldBackgroundColor,
       drawer: _buildDrawer(),
+
+      // নতুন: সবসময় নিচে ভাসমান "লেনদেন যোগ" বাটন
+      floatingActionButton: _buildFloatingAddButton(),
+
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.endFloat,
+
       body: Stack(
         children: [
           Positioned.fill(
@@ -724,15 +731,94 @@ class _HomeScreenState extends State<HomeScreen> {
                           child:
                               _buildToolsSection(),
                         ),
+
+                        // FAB-এর জন্য নিচে অতিরিক্ত জায়গা
                         const SliverToBoxAdapter(
                           child:
-                              SizedBox(height: 30),
+                              SizedBox(height: 90),
                         ),
                       ],
                     ),
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingAddButton() {
+    final theme = Theme.of(context);
+
+    final label = _settings.isBangla
+        ? 'লেনদেন যোগ'
+        : 'Add transaction';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openAddTransaction,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          height: 56,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 18,
+          ),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppTheme.green,
+                AppTheme.darkGreen,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppTheme.goldLight
+                  .withValues(alpha: .65),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.darkGreen
+                    .withValues(alpha: .35),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.goldLight
+                      .withValues(alpha: .16),
+                  border: Border.all(
+                    color: AppTheme.goldLight
+                        .withValues(alpha: .55),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: AppTheme.goldLight,
+                  size: 23,
+                ),
+              ),
+              const SizedBox(width: 9),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
