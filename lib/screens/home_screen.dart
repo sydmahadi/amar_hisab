@@ -72,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _income = _toDouble(period['income']);
         _expense = _toDouble(period['expense']);
         _difference = _toDouble(period['difference']);
+
         _accountBalance = _toDouble(totalBalance);
 
         _accounts = accounts;
@@ -106,7 +107,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return (item['type'] ?? '').toString().toLowerCase();
   }
 
-  String _transactionTitle(Map<String, dynamic> item) {
+  String _transactionTitle(
+    Map<String, dynamic> item,
+  ) {
     final type = _type(item);
 
     if (type == 'transfer') {
@@ -306,10 +309,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showSettings() {
     Navigator.pop(context);
 
-    final theme = Theme.of(context);
-    final dark =
-        theme.brightness == Brightness.dark;
-
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -367,7 +366,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
-
                       Row(
                         children: [
                           Container(
@@ -405,9 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 18),
-
                       _settingTile(
                         icon: currentDark
                             ? Icons.dark_mode_rounded
@@ -426,14 +422,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             if (!mounted) return;
 
                             setState(() {});
-
                             setSheetState(() {});
                           },
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
                       _settingTile(
                         icon:
                             Icons.language_rounded,
@@ -458,7 +451,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 if (!mounted) return;
 
                                 setState(() {});
-
                                 setSheetState(() {});
                               },
                             ),
@@ -476,14 +468,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 if (!mounted) return;
 
                                 setState(() {});
-
                                 setSheetState(() {});
                               },
                             ),
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 10),
                     ],
                   ),
@@ -626,7 +616,6 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor:
           theme.scaffoldBackgroundColor,
       drawer: _buildDrawer(),
-
       body: Stack(
         children: [
           Positioned.fill(
@@ -636,7 +625,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
           SafeArea(
             child: _loading
                 ? const Center(
@@ -673,7 +661,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               _buildToolsSection(),
                         ),
                         const SliverToBoxAdapter(
-                          child: SizedBox(height: 30),
+                          child:
+                              SizedBox(height: 30),
                         ),
                       ],
                     ),
@@ -1880,7 +1869,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             _buildDrawerHeader(),
-
             Expanded(
               child: ListView(
                 padding:
@@ -1912,8 +1900,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   _drawerItem(
-                    icon: Icons
-                        .account_balance_wallet_rounded,
+                    icon:
+                        Icons.account_balance_wallet_rounded,
                     title: 'অ্যাকাউন্ট',
                     onTap: () {
                       _openScreen(
@@ -1951,7 +1939,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
-
                   Padding(
                     padding:
                         const EdgeInsets.symmetric(
@@ -1967,7 +1954,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-
                   _drawerItem(
                     icon:
                         Icons.settings_rounded,
@@ -1987,7 +1973,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-
             Padding(
               padding:
                   const EdgeInsets.fromLTRB(
