@@ -20,14 +20,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   bool _loading = true;
 
-  double _totalIncome = 0;
-  double _totalExpense = 0;
+  double _totalIncome = 0.0;
+  double _totalExpense = 0.0;
 
-  // তুমি অন্যের কাছ থেকে নিয়েছ - যত টাকা শোধ করেছ
-  double _myDebt = 0;
+  // অন্যের কাছ থেকে নেওয়া লোন, এখনো যত টাকা শোধ করা হয়নি।
+  double _myDebt = 0.0;
 
-  // তুমি অন্যকে দিয়েছ - যত টাকা ফেরত পেয়েছ
-  double _myReceivable = 0;
+  // অন্যকে দেওয়া টাকা, এখনো যত টাকা ফেরত পাওয়া হয়নি।
+  double _myReceivable = 0.0;
 
   List<Map<String, dynamic>> _incomeCategories = [];
   List<Map<String, dynamic>> _expenseCategories = [];
@@ -49,7 +49,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
     switch (_period) {
       case 'daily':
-        _startDate = DateTime(now.year, now.month, now.day);
+        _startDate = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        );
+
         _endDate = DateTime(
           now.year,
           now.month,
@@ -61,12 +66,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         break;
 
       case 'weekly':
-        final today = DateTime(now.year, now.month, now.day);
+        final today = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        );
+
         final monday = today.subtract(
           Duration(days: today.weekday - 1),
         );
 
         _startDate = monday;
+
         _endDate = DateTime(
           monday.year,
           monday.month,
@@ -78,7 +89,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         break;
 
       case 'yearly':
-        _startDate = DateTime(now.year, 1, 1);
+        _startDate = DateTime(
+          now.year,
+          1,
+          1,
+        );
+
         _endDate = DateTime(
           now.year,
           12,
@@ -91,7 +107,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
       case 'monthly':
       default:
-        _startDate = DateTime(now.year, now.month, 1);
+        _startDate = DateTime(
+          now.year,
+          now.month,
+          1,
+        );
+
         _endDate = DateTime(
           now.year,
           now.month + 1,
@@ -117,26 +138,46 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       final periodTransactions = transactions.where((tx) {
         final date = _transactionDate(tx);
 
-        if (date == null) return false;
+        if (date == null) {
+          return false;
+        }
 
         return !date.isBefore(_startDate!) &&
             !date.isAfter(_endDate!);
       }).toList();
 
-      double income = 0;
-      double expense = 0;
+      double income = 0.0;
+      double expense = 0.0;
 
       final Map<int, Map<String, dynamic>> incomeMap = {};
       final Map<int, Map<String, dynamic>> expenseMap = {};
 
-      // সব লোনের current outstanding হিসাব
-      double debt = 0;
-      double receivable = 0;
+      // ------------------------------------------------------------
+      // CURRENT LOAN BALANCE
+      //
+      // loan_taken   = আমরা অন্যের কাছ থেকে নিয়েছি
+      // loan_paid    = সেই লোন শোধ করেছি
+      //
+      // তাই:
+      // আমার দেনা = loan_taken - loan_paid
+      //
+      // loan_given     = আমরা অন্যকে দিয়েছি
+      // loan_received  = অন্যের কাছ থেকে ফেরত পেয়েছি
+      //
+      // আমার পাওনা = loan_given - loan_received
+      // ------------------------------------------------------------
 
-      // সব transaction থেকে current loan balance
+      double debt = 0.0;
+      double receivable = 0.0;
+
       for (final tx in transactions) {
-        final type = _stringValue(tx['type']).toLowerCase();
-        final amount = _doubleValue(tx['amount']);
+        final type = _stringValue(
+          tx['type'],
+        ).toLowerCase();
+
+        final amount = _doubleValue(
+          tx['amount'],
+        );
 
         switch (type) {
           case 'loan_taken':
@@ -157,18 +198,34 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         }
       }
 
-      if (debt < 0) debt = 0;
-      if (receivable < 0) receivable = 0;
+      if (debt < 0) {
+        debt = 0.0;
+      }
 
-      // বর্তমান selected period-এর income/expense
+      if (receivable < 0) {
+        receivable = 0.0;
+      }
+
+      // ------------------------------------------------------------
+      // INCOME / EXPENSE FOR SELECTED PERIOD
+      // ------------------------------------------------------------
+
       for (final tx in periodTransactions) {
-        final type = _stringValue(tx['type']).toLowerCase();
-        final amount = _doubleValue(tx['amount']);
+        final type = _stringValue(
+          tx['type'],
+        ).toLowerCase();
+
+        final amount = _doubleValue(
+          tx['amount'],
+        );
 
         if (type == 'income') {
           income += amount;
 
-          final categoryId = _intValue(tx['category_id']);
+          final categoryId = _intValue(
+            tx['category_id'],
+          );
+
           final categoryName = _categoryName(tx);
 
           if (!incomeMap.containsKey(categoryId)) {
@@ -180,12 +237,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             };
           }
 
+          final oldAmount = _doubleValue(
+            incomeMap[categoryId]!['amount'],
+          );
+
           incomeMap[categoryId]!['amount'] =
-              _doubleValue(incomeMap[categoryId]!['amount']) + amount;
+              oldAmount + amount;
         } else if (type == 'expense') {
           expense += amount;
 
-          final categoryId = _intValue(tx['category_id']);
+          final categoryId = _intValue(
+            tx['category_id'],
+          );
+
           final categoryName = _categoryName(tx);
 
           if (!expenseMap.containsKey(categoryId)) {
@@ -197,8 +261,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             };
           }
 
+          final oldAmount = _doubleValue(
+            expenseMap[categoryId]!['amount'],
+          );
+
           expenseMap[categoryId]!['amount'] =
-              _doubleValue(expenseMap[categoryId]!['amount']) + amount;
+              oldAmount + amount;
         }
       }
 
@@ -206,18 +274,28 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       final expenseCategories = expenseMap.values.toList();
 
       incomeCategories.sort(
-        (a, b) => _doubleValue(b['amount']).compareTo(
-          _doubleValue(a['amount']),
+        (a, b) => _doubleValue(
+          b['amount'],
+        ).compareTo(
+          _doubleValue(
+            a['amount'],
+          ),
         ),
       );
 
       expenseCategories.sort(
-        (a, b) => _doubleValue(b['amount']).compareTo(
-          _doubleValue(a['amount']),
+        (a, b) => _doubleValue(
+          b['amount'],
+        ).compareTo(
+          _doubleValue(
+            a['amount'],
+          ),
         ),
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _loading = false;
@@ -234,7 +312,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         _expenseCategories = expenseCategories;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _loading = false;
@@ -252,55 +332,96 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
   }
 
-  DateTime? _transactionDate(Map<String, dynamic> tx) {
-    final value =
-        tx['date'] ?? tx['transaction_date'] ?? tx['created_at'];
+  DateTime? _transactionDate(
+    Map<String, dynamic> tx,
+  ) {
+    final value = tx['date'] ??
+        tx['transaction_date'] ??
+        tx['created_at'];
 
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
 
-    if (value is DateTime) return value;
+    if (value is DateTime) {
+      return value;
+    }
 
-    return DateTime.tryParse(value.toString());
+    return DateTime.tryParse(
+      value.toString(),
+    );
   }
 
-  String _stringValue(dynamic value) {
-    if (value == null) return '';
-    return value.toString();
-  }
-
-  double _doubleValue(dynamic value) {
-    if (value == null) return 0;
-
-    if (value is num) return value.toDouble();
-
-    return double.tryParse(value.toString()) ?? 0;
-  }
-
-  int _intValue(dynamic value) {
-    if (value == null) return 0;
-
-    if (value is int) return value;
-
-    return int.tryParse(value.toString()) ?? 0;
-  }
-
-  String _categoryName(Map<String, dynamic> tx) {
-    final value = tx['category_name'] ??
-        tx['category'] ??
-        tx['name'];
-
-    if (value == null || value.toString().trim().isEmpty) {
-      return _settings.isBangla ? 'অন্যান্য' : 'Other';
+  String _stringValue(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return '';
     }
 
     return value.toString();
   }
 
-  String _money(double value) {
+  double _doubleValue(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return 0.0;
+    }
+
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+          value.toString(),
+        ) ??
+        0.0;
+  }
+
+  int _intValue(
+    dynamic value,
+  ) {
+    if (value == null) {
+      return 0;
+    }
+
+    if (value is int) {
+      return value;
+    }
+
+    return int.tryParse(
+          value.toString(),
+        ) ??
+        0;
+  }
+
+  String _categoryName(
+    Map<String, dynamic> tx,
+  ) {
+    final value = tx['category_name'] ??
+        tx['category'] ??
+        tx['name'];
+
+    if (value == null ||
+        value.toString().trim().isEmpty) {
+      return _settings.isBangla
+          ? 'অন্যান্য'
+          : 'Other';
+    }
+
+    return value.toString();
+  }
+
+  String _money(
+    double value,
+  ) {
     return '৳${_formatNumber(value)}';
   }
 
-  String _formatNumber(double value) {
+  String _formatNumber(
+    double value,
+  ) {
     final rounded = value.round();
     final text = rounded.toString();
 
@@ -308,9 +429,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final length = text.length;
 
     for (int i = 0; i < length; i++) {
-      if (i > 0 && (length - i) % 3 == 0) {
+      if (i > 0 &&
+          (length - i) % 3 == 0) {
         buffer.write(',');
       }
+
       buffer.write(text[i]);
     }
 
@@ -322,10 +445,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       switch (_period) {
         case 'daily':
           return 'Today';
+
         case 'weekly':
           return 'This Week';
+
         case 'yearly':
           return 'This Year';
+
         case 'monthly':
         default:
           return 'This Month';
@@ -335,17 +461,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     switch (_period) {
       case 'daily':
         return 'আজ';
+
       case 'weekly':
         return 'এই সপ্তাহ';
+
       case 'yearly':
         return 'এই বছর';
+
       case 'monthly':
       default:
         return 'এই মাস';
     }
   }
 
-  void _changePeriod(String period) {
+  void _changePeriod(
+    String period,
+  ) {
     setState(() {
       _period = period;
     });
@@ -360,7 +491,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   ) {
     final rawColor = category['color'];
 
-    if (rawColor is int && rawColor != 0) {
+    if (rawColor is int &&
+        rawColor != 0) {
       return Color(rawColor);
     }
 
@@ -377,28 +509,38 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       Color(0xFF8E44AD),
     ];
 
-    return colors[index % colors.length];
+    return colors[
+      index % colors.length
+    ];
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor:
+          theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          _settings.isBangla ? 'পরিসংখ্যান' : 'Statistics',
+          _settings.isBangla
+              ? 'পরিসংখ্যান'
+              : 'Statistics',
           style: const TextStyle(
             fontWeight: FontWeight.w700,
           ),
         ),
         actions: [
           IconButton(
-            tooltip: _settings.isBangla ? 'রিফ্রেশ' : 'Refresh',
+            tooltip: _settings.isBangla
+                ? 'রিফ্রেশ'
+                : 'Refresh',
             onPressed: _loadStatistics,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(
+              Icons.refresh_rounded,
+            ),
           ),
         ],
       ),
@@ -409,8 +551,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           : RefreshIndicator(
               onRefresh: _loadStatistics,
               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
+                physics:
+                    const AlwaysScrollableScrollPhysics(),
+                padding:
+                    const EdgeInsets.fromLTRB(
                   16,
                   12,
                   16,
@@ -424,18 +568,20 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   _buildTabSelector(theme),
                   const SizedBox(height: 18),
                   if (_selectedTab == 'income')
-                    _buildIncomeSection(theme, isDark)
+                    _buildIncomeSection(theme)
                   else if (_selectedTab == 'expense')
-                    _buildExpenseSection(theme, isDark)
+                    _buildExpenseSection(theme)
                   else
-                    _buildLoanSection(theme, isDark),
+                    _buildLoanSection(theme),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildPeriodSelector(ThemeData theme) {
+  Widget _buildPeriodSelector(
+    ThemeData theme,
+  ) {
     final periods = [
       {
         'key': 'daily',
@@ -467,23 +613,31 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.green.withValues(alpha: 0.15),
+          color: AppTheme.green.withValues(
+            alpha: 0.15,
+          ),
         ),
       ),
       child: Row(
         children: periods.map((item) {
-          final selected = _period == item['key'];
+          final selected =
+              _period == item['key'];
 
           return Expanded(
             child: GestureDetector(
-              onTap: () => _changePeriod(
-                item['key'].toString(),
-              ),
+              onTap: () {
+                _changePeriod(
+                  item['key'].toString(),
+                );
+              },
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(
+                duration:
+                    const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(
                   vertical: 10,
                   horizontal: 4,
                 ),
@@ -491,10 +645,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   color: selected
                       ? AppTheme.green
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius:
+                      BorderRadius.circular(12),
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize:
+                      MainAxisSize.min,
                   children: [
                     Icon(
                       item['icon'] as IconData,
@@ -515,7 +671,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             : FontWeight.w500,
                         color: selected
                             ? Colors.white
-                            : theme.textTheme.bodyMedium?.color,
+                            : theme.textTheme
+                                .bodyMedium
+                                ?.color,
                       ),
                     ),
                   ],
@@ -528,9 +686,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildSummaryGrid(ThemeData theme) {
-    final difference = _totalIncome - _totalExpense;
-    final isSurplus = difference >= 0;
+  Widget _buildSummaryGrid(
+    ThemeData theme,
+  ) {
+    final difference =
+        _totalIncome - _totalExpense;
+
+    final isSurplus =
+        difference >= 0;
 
     return Column(
       children: [
@@ -539,7 +702,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             Expanded(
               child: _summaryCard(
                 theme: theme,
-                title: _settings.isBangla ? 'মোট আয়' : 'Total Income',
+                title: _settings.isBangla
+                    ? 'মোট আয়'
+                    : 'Total Income',
                 amount: _totalIncome,
                 icon: Icons.arrow_downward_rounded,
                 iconColor: Colors.green,
@@ -550,7 +715,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             Expanded(
               child: _summaryCard(
                 theme: theme,
-                title: _settings.isBangla ? 'মোট ব্যয়' : 'Total Expense',
+                title: _settings.isBangla
+                    ? 'মোট ব্যয়'
+                    : 'Total Expense',
                 amount: _totalExpense,
                 icon: Icons.arrow_upward_rounded,
                 iconColor: Colors.redAccent,
@@ -566,14 +733,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               child: _summaryCard(
                 theme: theme,
                 title: _settings.isBangla
-                    ? (isSurplus ? 'উদ্বৃত্ত' : 'ঘাটতি')
-                    : (isSurplus ? 'Surplus' : 'Deficit'),
+                    ? (isSurplus
+                        ? 'উদ্বৃত্ত'
+                        : 'ঘাটতি')
+                    : (isSurplus
+                        ? 'Surplus'
+                        : 'Deficit'),
                 amount: difference.abs(),
                 icon: isSurplus
                     ? Icons.trending_up_rounded
                     : Icons.trending_down_rounded,
-                iconColor:
-                    isSurplus ? Colors.green : Colors.redAccent,
+                iconColor: isSurplus
+                    ? Colors.green
+                    : Colors.redAccent,
                 subtitle: _periodLabel(),
               ),
             ),
@@ -581,7 +753,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             Expanded(
               child: _summaryCard(
                 theme: theme,
-                title: _settings.isBangla ? 'মোট লোন' : 'My Loan',
+                title: _settings.isBangla
+                    ? 'মোট লোন'
+                    : 'My Loan',
                 amount: _myDebt,
                 icon: Icons.handshake_rounded,
                 iconColor: AppTheme.gold,
@@ -608,20 +782,26 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(18),
         border: Border.all(
-          color: iconColor.withValues(alpha: 0.18),
+          color: iconColor.withValues(
+            alpha: 0.18,
+          ),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(
+              alpha: 0.04,
+            ),
             blurRadius: 12,
             offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -629,7 +809,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
+                  color: iconColor.withValues(
+                    alpha: 0.12,
+                  ),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -643,12 +825,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 child: Text(
                   title,
                   textAlign: TextAlign.end,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: theme.textTheme.bodyMedium?.color
-                        ?.withValues(alpha: 0.72),
+                    fontWeight:
+                        FontWeight.w600,
+                    color: theme.textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withValues(
+                          alpha: 0.72,
+                        ),
                   ),
                 ),
               ),
@@ -657,13 +845,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           const SizedBox(height: 12),
           FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
+            alignment:
+                Alignment.centerLeft,
             child: Text(
               _money(amount),
               style: TextStyle(
                 fontSize: 21,
-                fontWeight: FontWeight.w800,
-                color: theme.textTheme.bodyLarge?.color,
+                fontWeight:
+                    FontWeight.w800,
+                color: theme.textTheme
+                    .bodyLarge
+                    ?.color,
               ),
             ),
           ),
@@ -671,11 +863,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Text(
             subtitle,
             maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            overflow:
+                TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 10,
-              color: theme.textTheme.bodySmall?.color
-                  ?.withValues(alpha: 0.55),
+              color: theme.textTheme
+                  .bodySmall
+                  ?.color
+                  ?.withValues(
+                    alpha: 0.55,
+                  ),
             ),
           ),
         ],
@@ -683,7 +880,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildTabSelector(ThemeData theme) {
+  Widget _buildTabSelector(
+    ThemeData theme,
+  ) {
     final tabs = [
       {
         'key': 'income',
@@ -709,32 +908,39 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius:
+            BorderRadius.circular(17),
       ),
       child: Row(
         children: tabs.map((tab) {
-          final selected = _selectedTab == tab['key'];
+          final selected =
+              _selectedTab == tab['key'];
 
           return Expanded(
             child: GestureDetector(
               onTap: () {
                 setState(() {
-                  _selectedTab = tab['key'].toString();
+                  _selectedTab =
+                      tab['key'].toString();
                 });
               },
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                padding: const EdgeInsets.symmetric(
+                duration:
+                    const Duration(milliseconds: 220),
+                padding:
+                    const EdgeInsets.symmetric(
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
                   color: selected
                       ? AppTheme.green
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius:
+                      BorderRadius.circular(13),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment:
+                      MainAxisAlignment.center,
                   children: [
                     Icon(
                       tab['icon'] as IconData,
@@ -754,7 +960,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             : FontWeight.w500,
                         color: selected
                             ? Colors.white
-                            : theme.textTheme.bodyMedium?.color,
+                            : theme.textTheme
+                                .bodyMedium
+                                ?.color,
                       ),
                     ),
                   ],
@@ -769,7 +977,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Widget _buildIncomeSection(
     ThemeData theme,
-    bool isDark,
   ) {
     if (_incomeCategories.isEmpty) {
       return _emptyState(
@@ -782,7 +989,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         _sectionTitle(
           theme,
@@ -812,7 +1020,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Widget _buildExpenseSection(
     ThemeData theme,
-    bool isDark,
   ) {
     if (_expenseCategories.isEmpty) {
       return _emptyState(
@@ -825,7 +1032,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         _sectionTitle(
           theme,
@@ -868,9 +1076,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       ),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius:
+            BorderRadius.circular(22),
         border: Border.all(
-          color: AppTheme.green.withValues(alpha: 0.12),
+          color: AppTheme.green.withValues(
+            alpha: 0.12,
+          ),
         ),
       ),
       child: Column(
@@ -885,45 +1096,61 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     sectionsSpace: 3,
                     centerSpaceRadius: 65,
                     startDegreeOffset: -90,
-                    borderData: FlBorderData(show: false),
+                    borderData:
+                        FlBorderData(
+                      show: false,
+                    ),
                     sections: List.generate(
                       categories.length,
                       (index) {
                         final value =
-                            _doubleValue(categories[index]['amount']);
+                            _doubleValue(
+                          categories[index]
+                              ['amount'],
+                        );
 
-                        final percentage = total <= 0
-                            ? 0
-                            : (value / total) * 100;
+                        final double percentage =
+                            total <= 0.0
+                                ? 0.0
+                                : (value /
+                                        total) *
+                                    100.0;
 
                         return PieChartSectionData(
                           value: value,
-                          color: _categoryColor(
+                          color:
+                              _categoryColor(
                             categories[index],
                             index,
                           ),
                           radius: 72,
-                          title: percentage >= 5
+                          title: percentage >= 5.0
                               ? '${percentage.toStringAsFixed(0)}%'
                               : '',
-                          titleStyle: const TextStyle(
+                          titleStyle:
+                              const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                            fontWeight:
+                                FontWeight.w800,
                           ),
-                          titlePositionPercentageOffset: 0.55,
+                          titlePositionPercentageOffset:
+                              0.55,
                         );
                       },
                     ),
                   ),
                 ),
                 Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize:
+                      MainAxisSize.min,
                   children: [
                     Icon(
                       isIncome
-                          ? Icons.account_balance_wallet_rounded
-                          : Icons.payments_rounded,
+                          ? Icons
+                              .account_balance_wallet_rounded
+                          : Icons
+                              .payments_rounded,
                       color: isIncome
                           ? Colors.green
                           : Colors.redAccent,
@@ -932,20 +1159,31 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     const SizedBox(height: 5),
                     Text(
                       _settings.isBangla
-                          ? (isIncome ? 'মোট আয়' : 'মোট ব্যয়')
-                          : (isIncome ? 'Total Income' : 'Total Expense'),
+                          ? (isIncome
+                              ? 'মোট আয়'
+                              : 'মোট ব্যয়')
+                          : (isIncome
+                              ? 'Total Income'
+                              : 'Total Expense'),
                       style: TextStyle(
                         fontSize: 11,
-                        color: theme.textTheme.bodySmall?.color
-                            ?.withValues(alpha: 0.65),
+                        color: theme
+                            .textTheme
+                            .bodySmall
+                            ?.color
+                            ?.withValues(
+                              alpha: 0.65,
+                            ),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       _money(total),
-                      style: const TextStyle(
+                      style:
+                          const TextStyle(
                         fontSize: 19,
-                        fontWeight: FontWeight.w800,
+                        fontWeight:
+                            FontWeight.w800,
                       ),
                     ),
                   ],
@@ -955,34 +1193,46 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           ),
           const SizedBox(height: 4),
           Wrap(
-            alignment: WrapAlignment.center,
+            alignment:
+                WrapAlignment.center,
             spacing: 12,
             runSpacing: 8,
             children: List.generate(
-              categories.length > 8 ? 8 : categories.length,
+              categories.length > 8
+                  ? 8
+                  : categories.length,
               (index) {
-                final category = categories[index];
+                final category =
+                    categories[index];
 
                 return Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize:
+                      MainAxisSize.min,
                   children: [
                     Container(
                       width: 9,
                       height: 9,
-                      decoration: BoxDecoration(
-                        color: _categoryColor(
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            _categoryColor(
                           category,
                           index,
                         ),
-                        shape: BoxShape.circle,
+                        shape:
+                            BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      category['category_name'].toString(),
-                      style: const TextStyle(
+                      category[
+                              'category_name']
+                          .toString(),
+                      style:
+                          const TextStyle(
                         fontSize: 10,
-                        fontWeight: FontWeight.w500,
+                        fontWeight:
+                            FontWeight.w500,
                       ),
                     ),
                   ],
@@ -1001,7 +1251,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     required bool isIncome,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Text(
           _settings.isBangla
@@ -1016,16 +1267,26 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         ...List.generate(
           categories.length,
           (index) {
-            final category = categories[index];
-            final amount =
-                _doubleValue(category['amount']);
+            final category =
+                categories[index];
 
-            final total =
-                isIncome ? _totalIncome : _totalExpense;
+            final double amount =
+                _doubleValue(
+              category['amount'],
+            );
 
-            final percentage = total > 0
-                ? (amount / total) * 100
-                : 0;
+            final double total =
+                isIncome
+                    ? _totalIncome
+                    : _totalExpense;
+
+            // Explicit double type:
+            // এতে num -> double analyzer error হবে না।
+            final double percentage =
+                total > 0.0
+                    ? (amount / total) *
+                        100.0
+                    : 0.0;
 
             return _categoryTile(
               theme,
@@ -1049,34 +1310,54 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     int index,
     bool isIncome,
   ) {
-    final color = _categoryColor(category, index);
+    final color =
+        _categoryColor(
+      category,
+      index,
+    );
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding:
+          const EdgeInsets.only(
+        bottom: 9,
+      ),
       child: Material(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _showCategoryTransactions(
-            category,
-            isIncome,
-          ),
+          borderRadius:
+              BorderRadius.circular(16),
+          onTap: () {
+            _showCategoryTransactions(
+              category,
+              isIncome,
+            );
+          },
           child: Padding(
-            padding: const EdgeInsets.all(13),
+            padding:
+                const EdgeInsets.all(13),
             child: Row(
               children: [
                 Container(
                   width: 42,
                   height: 42,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(13),
+                  decoration:
+                      BoxDecoration(
+                    color: color.withValues(
+                      alpha: 0.12,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(
+                      13,
+                    ),
                   ),
                   child: Icon(
                     isIncome
-                        ? Icons.arrow_downward_rounded
-                        : Icons.arrow_upward_rounded,
+                        ? Icons
+                            .arrow_downward_rounded
+                        : Icons
+                            .arrow_upward_rounded,
                     color: color,
                     size: 21,
                   ),
@@ -1085,27 +1366,42 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
                     children: [
                       Text(
-                        category['category_name'].toString(),
+                        category[
+                                'category_name']
+                            .toString(),
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
+                        overflow:
+                            TextOverflow
+                                .ellipsis,
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(
+                        height: 5,
+                      ),
                       ClipRRect(
                         borderRadius:
-                            BorderRadius.circular(20),
-                        child: LinearProgressIndicator(
-                          value: percentage / 100,
+                            BorderRadius
+                                .circular(20),
+                        child:
+                            LinearProgressIndicator(
+                          value: percentage /
+                              100.0,
                           minHeight: 5,
                           backgroundColor:
-                              color.withValues(alpha: 0.10),
+                              color.withValues(
+                            alpha: 0.10,
+                          ),
                           valueColor:
-                              AlwaysStoppedAnimation<Color>(
+                              AlwaysStoppedAnimation<
+                                  Color>(
                             color,
                           ),
                         ),
@@ -1116,22 +1412,31 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment:
-                      CrossAxisAlignment.end,
+                      CrossAxisAlignment
+                          .end,
                   children: [
                     Text(
                       _money(amount),
                       style: TextStyle(
-                        fontWeight: FontWeight.w800,
+                        fontWeight:
+                            FontWeight.w800,
                         color: color,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(
+                      height: 3,
+                    ),
                     Text(
                       '${percentage.toStringAsFixed(1)}%',
                       style: TextStyle(
                         fontSize: 10,
-                        color: theme.textTheme.bodySmall?.color
-                            ?.withValues(alpha: 0.6),
+                        color: theme
+                            .textTheme
+                            .bodySmall
+                            ?.color
+                            ?.withValues(
+                              alpha: 0.6,
+                            ),
                       ),
                     ),
                   ],
@@ -1151,12 +1456,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Widget _buildLoanSection(
     ThemeData theme,
-    bool isDark,
   ) {
-    final totalLoan = _myDebt + _myReceivable;
+    final double totalLoan =
+        _myDebt + _myReceivable;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         _sectionTitle(
           theme,
@@ -1169,121 +1475,176 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         ),
         const SizedBox(height: 14),
 
-        // Loan visualization
         Container(
-          padding: const EdgeInsets.fromLTRB(
+          padding:
+              const EdgeInsets.fromLTRB(
             12,
             20,
             12,
             18,
           ),
-          decoration: BoxDecoration(
+          decoration:
+              BoxDecoration(
             color: theme.cardColor,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius:
+                BorderRadius.circular(22),
             border: Border.all(
-              color: AppTheme.gold.withValues(alpha: 0.18),
+              color:
+                  AppTheme.gold.withValues(
+                alpha: 0.18,
+              ),
             ),
           ),
           child: Column(
             children: [
               SizedBox(
                 height: 230,
-                child: totalLoan <= 0
+                child: totalLoan <= 0.0
                     ? Center(
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisSize:
+                              MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.handshake_outlined,
+                              Icons
+                                  .handshake_outlined,
                               size: 60,
-                              color: AppTheme.gold
-                                  .withValues(alpha: 0.65),
+                              color: AppTheme
+                                  .gold
+                                  .withValues(
+                                alpha: 0.65,
+                              ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(
+                              height: 10,
+                            ),
                             Text(
-                              _settings.isBangla
+                              _settings
+                                      .isBangla
                                   ? 'বর্তমানে কোনো বাকি লোন নেই'
                                   : 'No outstanding loans',
                               style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: theme.textTheme
-                                    .bodyMedium?.color
-                                    ?.withValues(alpha: 0.65),
+                                fontWeight:
+                                    FontWeight.w600,
+                                color: theme
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color
+                                    ?.withValues(
+                                  alpha: 0.65,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       )
                     : Stack(
-                        alignment: Alignment.center,
+                        alignment:
+                            Alignment.center,
                         children: [
                           PieChart(
                             PieChartData(
                               sectionsSpace: 4,
-                              centerSpaceRadius: 64,
-                              startDegreeOffset: -90,
+                              centerSpaceRadius:
+                                  64,
+                              startDegreeOffset:
+                                  -90,
                               borderData:
-                                  FlBorderData(show: false),
+                                  FlBorderData(
+                                show: false,
+                              ),
                               sections: [
                                 PieChartSectionData(
                                   value: _myDebt,
-                                  color: Colors.redAccent,
+                                  color: Colors
+                                      .redAccent,
                                   radius: 72,
-                                  title: _myDebt > 0
-                                      ? '${((_myDebt / totalLoan) * 100).toStringAsFixed(0)}%'
+                                  title: _myDebt >
+                                          0.0
+                                      ? '${((_myDebt / totalLoan) * 100.0).toStringAsFixed(0)}%'
                                       : '',
                                   titleStyle:
                                       const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
+                                    color:
+                                        Colors.white,
+                                    fontSize:
+                                        12,
                                     fontWeight:
-                                        FontWeight.w800,
+                                        FontWeight
+                                            .w800,
                                   ),
                                 ),
                                 PieChartSectionData(
-                                  value: _myReceivable,
-                                  color: AppTheme.green,
+                                  value:
+                                      _myReceivable,
+                                  color:
+                                      AppTheme
+                                          .green,
                                   radius: 72,
-                                  title: _myReceivable > 0
-                                      ? '${((_myReceivable / totalLoan) * 100).toStringAsFixed(0)}%'
-                                      : '',
+                                  title:
+                                      _myReceivable >
+                                              0.0
+                                          ? '${((_myReceivable / totalLoan) * 100.0).toStringAsFixed(0)}%'
+                                          : '',
                                   titleStyle:
                                       const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
+                                    color:
+                                        Colors.white,
+                                    fontSize:
+                                        12,
                                     fontWeight:
-                                        FontWeight.w800,
+                                        FontWeight
+                                            .w800,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           Column(
-                            mainAxisSize: MainAxisSize.min,
+                            mainAxisSize:
+                                MainAxisSize
+                                    .min,
                             children: [
                               const Icon(
-                                Icons.handshake_rounded,
-                                color: AppTheme.gold,
+                                Icons
+                                    .handshake_rounded,
+                                color:
+                                    AppTheme
+                                        .gold,
                                 size: 27,
                               ),
-                              const SizedBox(height: 5),
+                              const SizedBox(
+                                height: 5,
+                              ),
                               Text(
-                                _settings.isBangla
+                                _settings
+                                        .isBangla
                                     ? 'লোন'
                                     : 'Loans',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: theme.textTheme
-                                      .bodySmall?.color
-                                      ?.withValues(alpha: 0.6),
+                                  color: theme
+                                      .textTheme
+                                      .bodySmall
+                                      ?.color
+                                      ?.withValues(
+                                    alpha: 0.6,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(
+                                height: 2,
+                              ),
                               Text(
-                                _money(totalLoan),
-                                style: const TextStyle(
+                                _money(
+                                  totalLoan,
+                                ),
+                                style:
+                                    const TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight:
+                                      FontWeight
+                                          .w800,
                                 ),
                               ),
                             ],
@@ -1295,32 +1656,43 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _loanLegendCard(
+                    child:
+                        _loanLegendCard(
                       theme: theme,
-                      title: _settings.isBangla
+                      title: _settings
+                              .isBangla
                           ? 'আমার দেনা'
                           : 'My Debt',
-                      subtitle: _settings.isBangla
+                      subtitle: _settings
+                              .isBangla
                           ? 'অন্যকে শোধ করতে হবে'
                           : 'I have to repay',
                       amount: _myDebt,
-                      color: Colors.redAccent,
-                      icon: Icons.arrow_upward_rounded,
+                      color:
+                          Colors.redAccent,
+                      icon: Icons
+                          .arrow_upward_rounded,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _loanLegendCard(
+                    child:
+                        _loanLegendCard(
                       theme: theme,
-                      title: _settings.isBangla
+                      title: _settings
+                              .isBangla
                           ? 'আমার পাওনা'
                           : 'My Receivable',
-                      subtitle: _settings.isBangla
+                      subtitle: _settings
+                              .isBangla
                           ? 'অন্যের কাছ থেকে পাব'
                           : 'Others owe me',
-                      amount: _myReceivable,
-                      color: AppTheme.green,
-                      icon: Icons.arrow_downward_rounded,
+                      amount:
+                          _myReceivable,
+                      color:
+                          AppTheme.green,
+                      icon: Icons
+                          .arrow_downward_rounded,
                     ),
                   ),
                 ],
@@ -1331,7 +1703,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
         const SizedBox(height: 18),
 
-        // Four loan movement cards
         Text(
           _settings.isBangla
               ? 'লোনের লেনদেন'
@@ -1341,6 +1712,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             fontWeight: FontWeight.w800,
           ),
         ),
+
         const SizedBox(height: 10),
 
         _buildLoanMovementGrid(theme),
@@ -1357,12 +1729,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding:
+          const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(16),
+        color: color.withValues(
+          alpha: 0.07,
+        ),
+        borderRadius:
+            BorderRadius.circular(16),
         border: Border.all(
-          color: color.withValues(alpha: 0.16),
+          color: color.withValues(
+            alpha: 0.16,
+          ),
         ),
       ),
       child: Column(
@@ -1381,7 +1759,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                     color: color,
                   ),
                 ),
@@ -1400,11 +1779,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Text(
             subtitle,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            overflow:
+                TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 9,
-              color: theme.textTheme.bodySmall?.color
-                  ?.withValues(alpha: 0.6),
+              color: theme.textTheme
+                  .bodySmall
+                  ?.color
+                  ?.withValues(
+                    alpha: 0.6,
+                  ),
             ),
           ),
         ],
@@ -1412,14 +1796,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildLoanMovementGrid(ThemeData theme) {
-    double given = 0;
-    double received = 0;
-    double taken = 0;
-    double paid = 0;
+  Widget _buildLoanMovementGrid(
+    ThemeData theme,
+  ) {
+    double given = 0.0;
+    double received = 0.0;
+    double taken = 0.0;
+    double paid = 0.0;
 
     for (final tx in _allTransactions) {
-      final date = _transactionDate(tx);
+      final date =
+          _transactionDate(tx);
 
       if (date == null ||
           date.isBefore(_startDate!) ||
@@ -1427,8 +1814,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         continue;
       }
 
-      final type = _stringValue(tx['type']).toLowerCase();
-      final amount = _doubleValue(tx['amount']);
+      final type = _stringValue(
+        tx['type'],
+      ).toLowerCase();
+
+      final amount = _doubleValue(
+        tx['amount'],
+      );
 
       switch (type) {
         case 'loan_given':
@@ -1452,7 +1844,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics:
+          const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
       childAspectRatio: 1.7,
@@ -1505,12 +1898,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding:
+          const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         border: Border.all(
-          color: color.withValues(alpha: 0.14),
+          color: color.withValues(
+            alpha: 0.14,
+          ),
         ),
       ),
       child: Row(
@@ -1519,8 +1916,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
+              color: color.withValues(
+                alpha: 0.10,
+              ),
+              borderRadius:
+                  BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
@@ -1539,22 +1939,30 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 Text(
                   title,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                      TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11,
-                    color: theme.textTheme.bodySmall?.color
-                        ?.withValues(alpha: 0.65),
+                    color: theme
+                        .textTheme
+                        .bodySmall
+                        ?.color
+                        ?.withValues(
+                          alpha: 0.65,
+                        ),
                   ),
                 ),
                 const SizedBox(height: 3),
                 FittedBox(
                   fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
+                  alignment:
+                      Alignment.centerLeft,
                   child: Text(
                     _money(amount),
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                      fontWeight:
+                          FontWeight.w800,
                       color: color,
                     ),
                   ),
@@ -1579,7 +1987,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           height: 34,
           decoration: BoxDecoration(
             color: AppTheme.gold,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius:
+                BorderRadius.circular(10),
           ),
         ),
         const SizedBox(width: 10),
@@ -1590,9 +1999,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style:
+                    const TextStyle(
                   fontSize: 19,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 2),
@@ -1600,8 +2011,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 subtitle,
                 style: TextStyle(
                   fontSize: 11,
-                  color: theme.textTheme.bodySmall?.color
-                      ?.withValues(alpha: 0.60),
+                  color: theme
+                      .textTheme
+                      .bodySmall
+                      ?.color
+                      ?.withValues(
+                        alpha: 0.60,
+                      ),
                 ),
               ),
             ],
@@ -1617,29 +2033,40 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     String text,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         vertical: 55,
         horizontal: 20,
       ),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius:
+            BorderRadius.circular(22),
       ),
       child: Column(
         children: [
           Icon(
             icon,
             size: 58,
-            color: AppTheme.gold.withValues(alpha: 0.65),
+            color: AppTheme.gold
+                .withValues(
+              alpha: 0.65,
+            ),
           ),
           const SizedBox(height: 14),
           Text(
             text,
-            textAlign: TextAlign.center,
+            textAlign:
+                TextAlign.center,
             style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: theme.textTheme.bodyMedium?.color
-                  ?.withValues(alpha: 0.65),
+              fontWeight:
+                  FontWeight.w600,
+              color: theme.textTheme
+                  .bodyMedium
+                  ?.color
+                  ?.withValues(
+                    alpha: 0.65,
+                  ),
             ),
           ),
         ],
@@ -1647,22 +2074,31 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Future<void> _showCategoryTransactions(
+  Future<void>
+      _showCategoryTransactions(
     Map<String, dynamic> category,
     bool isIncome,
   ) async {
-    final categoryId = _intValue(
+    final categoryId =
+        _intValue(
       category['category_id'],
     );
 
-    final transactions = _allTransactions.where((tx) {
-      final type = _stringValue(tx['type']).toLowerCase();
+    final transactions =
+        _allTransactions.where((tx) {
+      final type = _stringValue(
+        tx['type'],
+      ).toLowerCase();
 
-      if (type != (isIncome ? 'income' : 'expense')) {
+      if (type !=
+          (isIncome
+              ? 'income'
+              : 'expense')) {
         return false;
       }
 
-      final date = _transactionDate(tx);
+      final date =
+          _transactionDate(tx);
 
       if (date == null ||
           date.isBefore(_startDate!) ||
@@ -1671,38 +2107,65 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       }
 
       if (categoryId != 0) {
-        return _intValue(tx['category_id']) == categoryId;
+        return _intValue(
+              tx['category_id'],
+            ) ==
+            categoryId;
       }
 
       return _categoryName(tx) ==
-          category['category_name'].toString();
+          category['category_name']
+              .toString();
     }).toList();
 
-    transactions.sort((a, b) {
-      final da = _transactionDate(a);
-      final db = _transactionDate(b);
+    transactions.sort(
+      (a, b) {
+        final da =
+            _transactionDate(a);
+        final db =
+            _transactionDate(b);
 
-      if (da == null && db == null) return 0;
-      if (da == null) return 1;
-      if (db == null) return -1;
+        if (da == null &&
+            db == null) {
+          return 0;
+        }
 
-      return db.compareTo(da);
-    });
+        if (da == null) {
+          return 1;
+        }
 
-    if (!mounted) return;
+        if (db == null) {
+          return -1;
+        }
+
+        return db.compareTo(da);
+      },
+    );
+
+    if (!mounted) {
+      return;
+    }
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor:
+          Colors.transparent,
       builder: (sheetContext) {
-        final theme = Theme.of(sheetContext);
+        final theme =
+            Theme.of(sheetContext);
 
         return Container(
-          height: MediaQuery.of(sheetContext).size.height * 0.72,
+          height:
+              MediaQuery.of(
+                sheetContext,
+              ).size.height *
+              0.72,
           decoration: BoxDecoration(
-            color: theme.scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(
+            color: theme
+                .scaffoldBackgroundColor,
+            borderRadius:
+                const BorderRadius.vertical(
               top: Radius.circular(26),
             ),
           ),
@@ -1712,13 +2175,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               Container(
                 width: 42,
                 height: 5,
-                decoration: BoxDecoration(
-                  color: theme.dividerColor,
-                  borderRadius: BorderRadius.circular(10),
+                decoration:
+                    BoxDecoration(
+                  color:
+                      theme.dividerColor,
+                  borderRadius:
+                      BorderRadius.circular(
+                    10,
+                  ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(
+                padding:
+                    const EdgeInsets.fromLTRB(
                   20,
                   16,
                   20,
@@ -1729,26 +2198,36 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                            CrossAxisAlignment
+                                .start,
                         children: [
                           Text(
-                            category['category_name']
+                            category[
+                                    'category_name']
                                 .toString(),
-                            style: const TextStyle(
+                            style:
+                                const TextStyle(
                               fontSize: 19,
-                              fontWeight: FontWeight.w800,
+                              fontWeight:
+                                  FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(
+                            height: 3,
+                          ),
                           Text(
                             _settings.isBangla
                                 ? '${transactions.length}টি লেনদেন'
                                 : '${transactions.length} transactions',
                             style: TextStyle(
                               fontSize: 11,
-                              color: theme.textTheme
-                                  .bodySmall?.color
-                                  ?.withValues(alpha: 0.6),
+                              color: theme
+                                  .textTheme
+                                  .bodySmall
+                                  ?.color
+                                  ?.withValues(
+                                alpha: 0.6,
+                              ),
                             ),
                           ),
                         ],
@@ -1757,12 +2236,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     Text(
                       _money(
                         _doubleValue(
-                          category['amount'],
+                          category[
+                              'amount'],
                         ),
                       ),
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                        fontWeight:
+                            FontWeight.w800,
                         color: isIncome
                             ? Colors.green
                             : Colors.redAccent,
@@ -1771,25 +2252,39 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   ],
                 ),
               ),
-              const Divider(height: 1),
+              const Divider(
+                height: 1,
+              ),
               Expanded(
-                child: transactions.isEmpty
+                child: transactions
+                        .isEmpty
                     ? Center(
                         child: Text(
-                          _settings.isBangla
+                          _settings
+                                  .isBangla
                               ? 'কোনো লেনদেন পাওয়া যায়নি'
                               : 'No transactions found',
                         ),
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: transactions.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (_, index) {
+                    : ListView
+                        .separated(
+                        padding:
+                            const EdgeInsets
+                                .all(16),
+                        itemCount:
+                            transactions
+                                .length,
+                        separatorBuilder:
+                            (_, __) =>
+                                const SizedBox(
+                          height: 8,
+                        ),
+                        itemBuilder:
+                            (_, index) {
                           return _transactionItem(
                             theme,
-                            transactions[index],
+                            transactions[
+                                index],
                             isIncome,
                           );
                         },
@@ -1807,8 +2302,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     Map<String, dynamic> tx,
     bool isIncome,
   ) {
-    final amount = _doubleValue(tx['amount']);
-    final date = _transactionDate(tx);
+    final amount =
+        _doubleValue(
+      tx['amount'],
+    );
+
+    final date =
+        _transactionDate(tx);
 
     final note = tx['note'] ??
         tx['description'] ??
@@ -1825,27 +2325,37 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding:
+          const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius:
+            BorderRadius.circular(15),
       ),
       child: Row(
         children: [
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
+            decoration:
+                BoxDecoration(
               color: (isIncome
                       ? Colors.green
                       : Colors.redAccent)
-                  .withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
+                  .withValues(
+                alpha: 0.10,
+              ),
+              borderRadius:
+                  BorderRadius.circular(
+                12,
+              ),
             ),
             child: Icon(
               isIncome
-                  ? Icons.south_west_rounded
-                  : Icons.north_east_rounded,
+                  ? Icons
+                      .south_west_rounded
+                  : Icons
+                      .north_east_rounded,
               color: isIncome
                   ? Colors.green
                   : Colors.redAccent,
@@ -1859,29 +2369,45 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   CrossAxisAlignment.start,
               children: [
                 Text(
-                  note.toString().trim().isEmpty
+                  note
+                          .toString()
+                          .trim()
+                          .isEmpty
                       ? (isIncome
-                          ? (_settings.isBangla
+                          ? (_settings
+                                  .isBangla
                               ? 'আয়'
                               : 'Income')
-                          : (_settings.isBangla
+                          : (_settings
+                                  .isBangla
                               ? 'ব্যয়'
                               : 'Expense'))
                       : note.toString(),
                   maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(
+                    fontWeight:
+                        FontWeight.w600,
                   ),
                 ),
-                if (dateText.isNotEmpty) ...[
-                  const SizedBox(height: 3),
+                if (dateText
+                    .isNotEmpty) ...[
+                  const SizedBox(
+                    height: 3,
+                  ),
                   Text(
                     dateText,
                     style: TextStyle(
                       fontSize: 10,
-                      color: theme.textTheme.bodySmall?.color
-                          ?.withValues(alpha: 0.55),
+                      color: theme
+                          .textTheme
+                          .bodySmall
+                          ?.color
+                          ?.withValues(
+                        alpha: 0.55,
+                      ),
                     ),
                   ),
                 ],
@@ -1892,7 +2418,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           Text(
             _money(amount),
             style: TextStyle(
-              fontWeight: FontWeight.w800,
+              fontWeight:
+                  FontWeight.w800,
               color: isIncome
                   ? Colors.green
                   : Colors.redAccent,
