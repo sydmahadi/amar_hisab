@@ -36,6 +36,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     super.dispose();
   }
 
+  // ------------------------------------------------------------
+  // LOAD
+  // ------------------------------------------------------------
+
   Future<void> _loadTransactions() async {
     if (mounted) {
       setState(() {
@@ -76,6 +80,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
+  // ------------------------------------------------------------
+  // NAVIGATION
+  // ------------------------------------------------------------
+
   Future<void> _openAddTransaction() async {
     final result = await Navigator.push(
       context,
@@ -103,6 +111,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       await _loadTransactions();
     }
   }
+
+  // ------------------------------------------------------------
+  // DELETE
+  // ------------------------------------------------------------
 
   Future<void> _deleteTransaction(int id) async {
     final confirmed = await showDialog<bool>(
@@ -156,6 +168,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
+  // ------------------------------------------------------------
+  // MESSAGE
+  // ------------------------------------------------------------
+
   void _showMessage(
     String message, {
     bool isError = false,
@@ -173,6 +189,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ),
       );
   }
+
+  // ------------------------------------------------------------
+  // DATE
+  // ------------------------------------------------------------
 
   DateTime? _parseDate(String? value) {
     if (value == null || value.isEmpty) {
@@ -212,6 +232,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final day = int.tryParse(parts[2]);
 
     if (year == null || month == null || day == null) {
+      return key;
+    }
+
+    if (month < 1 || month > 12) {
       return key;
     }
 
@@ -283,8 +307,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return '$monthName $day, $year';
   }
 
-  Map<String, List<Map<String, dynamic>>> _groupTransactionsByDate() {
-    final groups = <String, List<Map<String, dynamic>>>{};
+  Map<String, List<Map<String, dynamic>>>
+      _groupTransactionsByDate() {
+    final groups =
+        <String, List<Map<String, dynamic>>>{};
 
     for (final item in _transactions) {
       final key = _dateKey(item);
@@ -305,28 +331,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return Map.fromEntries(entries);
   }
 
-  double _dailyIncome(List<Map<String, dynamic>> items) {
-    double total = 0;
+  // ------------------------------------------------------------
+  // AMOUNT
+  // ------------------------------------------------------------
 
-    for (final item in items) {
-      if (item['type']?.toString() == 'income') {
-        total += (item['amount'] as num?)?.toDouble() ?? 0;
-      }
-    }
-
-    return total;
-  }
-
-  double _dailyExpense(List<Map<String, dynamic>> items) {
-    double total = 0;
-
-    for (final item in items) {
-      if (item['type']?.toString() == 'expense') {
-        total += (item['amount'] as num?)?.toDouble() ?? 0;
-      }
-    }
-
-    return total;
+  double _amount(Map<String, dynamic> item) {
+    return (item['amount'] as num?)?.toDouble() ?? 0;
   }
 
   String _formatAmount(dynamic value) {
@@ -339,8 +349,218 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return amount.toStringAsFixed(2);
   }
 
-  String _transactionTitle(Map<String, dynamic> item) {
-    final type = item['type']?.toString();
+  double _dailyIncome(
+    List<Map<String, dynamic>> items,
+  ) {
+    double total = 0;
+
+    for (final item in items) {
+      if (item['type']?.toString() == 'income') {
+        total += _amount(item);
+      }
+    }
+
+    return total;
+  }
+
+  double _dailyExpense(
+    List<Map<String, dynamic>> items,
+  ) {
+    double total = 0;
+
+    for (final item in items) {
+      if (item['type']?.toString() == 'expense') {
+        total += _amount(item);
+      }
+    }
+
+    return total;
+  }
+
+  // ------------------------------------------------------------
+  // TYPE HELPERS
+  // ------------------------------------------------------------
+
+  bool _isLoanType(String type) {
+    return type == 'loan_given' ||
+        type == 'loan_taken' ||
+        type == 'loan_received' ||
+        type == 'loan_paid';
+  }
+
+  String _loanTypeTitle(String type) {
+    switch (type) {
+      case 'loan_given':
+        return settings.isBangla
+            ? 'ধার দিয়েছি'
+            : 'Loan Given';
+
+      case 'loan_taken':
+        return settings.isBangla
+            ? 'ধার নিয়েছি'
+            : 'Loan Taken';
+
+      case 'loan_received':
+        return settings.isBangla
+            ? 'ধার ফেরত পেয়েছি'
+            : 'Loan Received';
+
+      case 'loan_paid':
+        return settings.isBangla
+            ? 'ধার শোধ করেছি'
+            : 'Loan Paid';
+
+      default:
+        return settings.isBangla
+            ? 'ধার'
+            : 'Loan';
+    }
+  }
+
+  Color _amountColor(String type) {
+    switch (type) {
+      case 'income':
+        return Colors.green.shade600;
+
+      case 'expense':
+        return Colors.red.shade600;
+
+      case 'loan_given':
+        return Colors.orange.shade700;
+
+      case 'loan_taken':
+        return Colors.blue.shade600;
+
+      case 'loan_received':
+        return Colors.green.shade700;
+
+      case 'loan_paid':
+        return Colors.red.shade700;
+
+      case 'transfer':
+        return AppTheme.gold;
+
+      default:
+        return AppTheme.gold;
+    }
+  }
+
+  IconData _transactionIcon(String type) {
+    switch (type) {
+      case 'income':
+        return Icons.arrow_downward_rounded;
+
+      case 'expense':
+        return Icons.arrow_upward_rounded;
+
+      case 'transfer':
+        return Icons.swap_horiz_rounded;
+
+      case 'loan_given':
+        return Icons.call_made_rounded;
+
+      case 'loan_taken':
+        return Icons.call_received_rounded;
+
+      case 'loan_received':
+        return Icons.assignment_return_rounded;
+
+      case 'loan_paid':
+        return Icons.payments_outlined;
+
+      default:
+        return Icons.receipt_long_rounded;
+    }
+  }
+
+  String _amountPrefix(String type) {
+    switch (type) {
+      case 'income':
+      case 'loan_received':
+        return '+ ';
+
+      case 'expense':
+      case 'loan_given':
+      case 'loan_paid':
+        return '- ';
+
+      default:
+        return '';
+    }
+  }
+
+  // ------------------------------------------------------------
+  // LOAN PERSON
+  // ------------------------------------------------------------
+
+  String _personName(Map<String, dynamic> item) {
+    final possibleKeys = [
+      'person_name',
+      'loan_person_name',
+      'person',
+      'borrower_name',
+      'lender_name',
+    ];
+
+    for (final key in possibleKeys) {
+      final value = item[key]?.toString().trim() ?? '';
+
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+
+    return '';
+  }
+
+  String _loanSubtitle(
+    Map<String, dynamic> item,
+  ) {
+    final person = _personName(item);
+
+    final account =
+        item['account_name']?.toString().trim() ?? '';
+
+    final note =
+        item['note']?.toString().trim() ?? '';
+
+    final parts = <String>[];
+
+    if (person.isNotEmpty) {
+      parts.add(person);
+    }
+
+    if (account.isNotEmpty) {
+      parts.add(account);
+    }
+
+    if (note.isNotEmpty) {
+      parts.add(note);
+    }
+
+    return parts.join(' • ');
+  }
+
+  // ------------------------------------------------------------
+  // TITLE
+  // ------------------------------------------------------------
+
+  String _transactionTitle(
+    Map<String, dynamic> item,
+  ) {
+    final type = item['type']?.toString() ?? '';
+
+    if (_isLoanType(type)) {
+      final person = _personName(item);
+
+      final loanTitle = _loanTypeTitle(type);
+
+      if (person.isNotEmpty) {
+        return '$loanTitle • $person';
+      }
+
+      return loanTitle;
+    }
 
     if (type == 'transfer') {
       final from =
@@ -363,30 +583,44 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       return category;
     }
 
-    return type == 'income'
-        ? settings.t('income')
-        : settings.t('expense');
+    if (type == 'income') {
+      return settings.t('income');
+    }
+
+    if (type == 'expense') {
+      return settings.t('expense');
+    }
+
+    return settings.isBangla
+        ? 'লেনদেন'
+        : 'Transaction';
   }
+
+  // ------------------------------------------------------------
+  // SUBTITLE
+  // ------------------------------------------------------------
 
   String _transactionSubtitle(
     Map<String, dynamic> item,
   ) {
-    final type = item['type']?.toString();
+    final type = item['type']?.toString() ?? '';
+
+    if (_isLoanType(type)) {
+      return _loanSubtitle(item);
+    }
 
     if (type == 'transfer') {
-      final note = item['note']?.toString() ?? '';
+      final note =
+          item['note']?.toString().trim() ?? '';
 
-      if (note.isNotEmpty) {
-        return note;
-      }
-
-      return '';
+      return note;
     }
 
     final account =
-        item['account_name']?.toString() ?? '';
+        item['account_name']?.toString().trim() ?? '';
 
-    final note = item['note']?.toString() ?? '';
+    final note =
+        item['note']?.toString().trim() ?? '';
 
     if (note.isNotEmpty && account.isNotEmpty) {
       return '$account • $note';
@@ -399,41 +633,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return note;
   }
 
-  Color _amountColor(String type) {
-    if (type == 'income') {
-      return Colors.green.shade600;
-    }
-
-    if (type == 'expense') {
-      return Colors.red.shade600;
-    }
-
-    return AppTheme.gold;
-  }
-
-  IconData _transactionIcon(String type) {
-    if (type == 'income') {
-      return Icons.arrow_downward_rounded;
-    }
-
-    if (type == 'expense') {
-      return Icons.arrow_upward_rounded;
-    }
-
-    return Icons.swap_horiz_rounded;
-  }
-
-  String _amountPrefix(String type) {
-    if (type == 'income') {
-      return '+ ';
-    }
-
-    if (type == 'expense') {
-      return '- ';
-    }
-
-    return '';
-  }
+  // ------------------------------------------------------------
+  // FILTER
+  // ------------------------------------------------------------
 
   Widget _buildFilter() {
     return SizedBox(
@@ -446,19 +648,54 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             label: settings.t('transactions'),
           ),
           const SizedBox(width: 8),
+
           _filterButton(
             value: 'income',
             label: settings.t('income'),
           ),
           const SizedBox(width: 8),
+
           _filterButton(
             value: 'expense',
             label: settings.t('expense'),
           ),
           const SizedBox(width: 8),
+
           _filterButton(
             value: 'transfer',
             label: settings.t('transfer'),
+          ),
+          const SizedBox(width: 8),
+
+          _filterButton(
+            value: 'loan_given',
+            label: settings.isBangla
+                ? 'ধার দিয়েছি'
+                : 'Given',
+          ),
+          const SizedBox(width: 8),
+
+          _filterButton(
+            value: 'loan_taken',
+            label: settings.isBangla
+                ? 'ধার নিয়েছি'
+                : 'Taken',
+          ),
+          const SizedBox(width: 8),
+
+          _filterButton(
+            value: 'loan_received',
+            label: settings.isBangla
+                ? 'ফেরত পেয়েছি'
+                : 'Received',
+          ),
+          const SizedBox(width: 8),
+
+          _filterButton(
+            value: 'loan_paid',
+            label: settings.isBangla
+                ? 'ধার শোধ'
+                : 'Paid',
           ),
         ],
       ),
@@ -495,6 +732,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // DATE HEADER
+  // ------------------------------------------------------------
+
   Widget _buildDateHeader(
     String dateKey,
     List<Map<String, dynamic>> items,
@@ -519,7 +760,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   height: 30,
                   decoration: BoxDecoration(
                     color: AppTheme.gold,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius:
+                        BorderRadius.circular(10),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -580,12 +822,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // TRANSACTION CARD
+  // ------------------------------------------------------------
+
   Widget _buildTransactionCard(
     Map<String, dynamic> item,
   ) {
-    final type = item['type']?.toString() ?? 'expense';
+    final type =
+        item['type']?.toString() ?? 'expense';
 
-    final amount = _formatAmount(item['amount']);
+    final amount = _formatAmount(
+      item['amount'],
+    );
 
     final color = _amountColor(type);
 
@@ -593,26 +842,38 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     final title = _transactionTitle(item);
 
-    final subtitle = _transactionSubtitle(item);
+    final subtitle =
+        _transactionSubtitle(item);
 
-    final id = item['id'] as int;
+    final rawId = item['id'];
+
+    final id = rawId is int
+        ? rawId
+        : int.tryParse(rawId.toString()) ?? 0;
+
+    final isLoan = _isLoanType(type);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       child: InkWell(
-        onTap: () => _editTransaction(id),
+        onTap: id > 0
+            ? () => _editTransaction(id)
+            : null,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(13),
           child: Row(
             children: [
+              // ICON
               Container(
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  color:
+                      color.withValues(alpha: 0.12),
+                  borderRadius:
+                      BorderRadius.circular(14),
                 ),
                 child: Icon(
                   icon,
@@ -620,7 +881,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   size: 24,
                 ),
               ),
+
               const SizedBox(width: 12),
+
+              // TITLE + SUBTITLE
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -628,19 +892,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   children: [
                     Text(
                       title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      overflow:
+                          TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
+                        fontWeight:
+                            FontWeight.bold,
                         fontSize: 15,
                       ),
                     ),
+
                     if (subtitle.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
                         maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        overflow:
+                            TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context)
@@ -650,10 +918,43 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         ),
                       ),
                     ],
+
+                    if (isLoan) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration:
+                            BoxDecoration(
+                          color: color.withValues(
+                            alpha: 0.10,
+                          ),
+                          borderRadius:
+                              BorderRadius.circular(
+                            6,
+                          ),
+                        ),
+                        child: Text(
+                          _loanTypeTitle(type),
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 10,
+                            fontWeight:
+                                FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
+
               const SizedBox(width: 8),
+
+              // AMOUNT + MENU
               Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.end,
@@ -663,17 +964,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     style: TextStyle(
                       color: color,
                       fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                      fontWeight:
+                          FontWeight.bold,
                     ),
                   ),
+
                   const SizedBox(height: 6),
+
                   PopupMenuButton<String>(
                     padding: EdgeInsets.zero,
                     iconSize: 21,
                     onSelected: (value) {
                       if (value == 'edit') {
                         _editTransaction(id);
-                      } else if (value == 'delete') {
+                      } else if (value ==
+                          'delete') {
                         _deleteTransaction(id);
                       }
                     },
@@ -687,7 +992,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               size: 20,
                             ),
                             const SizedBox(width: 10),
-                            Text(settings.t('edit')),
+                            Text(
+                              settings.t('edit'),
+                            ),
                           ],
                         ),
                       ),
@@ -698,13 +1005,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             Icon(
                               Icons.delete_outline,
                               size: 20,
-                              color: Colors.red.shade600,
+                              color:
+                                  Colors.red.shade600,
                             ),
                             const SizedBox(width: 10),
                             Text(
                               settings.t('delete'),
                               style: TextStyle(
-                                color: Colors.red.shade600,
+                                color:
+                                    Colors.red.shade600,
                               ),
                             ),
                           ],
@@ -721,10 +1030,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // EMPTY
+  // ------------------------------------------------------------
+
   Widget _buildEmptyState() {
+    final isFiltered =
+        _filter != 'all' ||
+        _searchText.trim().isNotEmpty;
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 30,
         ),
         child: Column(
@@ -735,7 +1053,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                color: AppTheme.green.withValues(alpha: 0.12),
+                color: AppTheme.green.withValues(
+                  alpha: 0.12,
+                ),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -744,20 +1064,33 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 color: AppTheme.gold,
               ),
             ),
+
             const SizedBox(height: 20),
+
             Text(
-              settings.t('noTransactions'),
+              isFiltered
+                  ? (settings.isBangla
+                      ? 'কোনো লেনদেন পাওয়া যায়নি'
+                      : 'No transactions found')
+                  : settings.t('noTransactions'),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 17,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 8),
+
             Text(
-              settings.isBangla
-                  ? 'নতুন আয়, ব্যয় অথবা ট্রান্সফার যোগ করুন'
-                  : 'Add a new income, expense or transfer',
+              isFiltered
+                  ? (settings.isBangla
+                      ? 'অন্য ফিল্টার বা সার্চ ব্যবহার করুন'
+                      : 'Try another filter or search')
+                  : (settings.isBangla
+                      ? 'নতুন আয়, ব্যয়, ট্রান্সফার অথবা ধার যোগ করুন'
+                      : 'Add a new income, expense, transfer or loan'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Theme.of(context)
@@ -766,24 +1099,43 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ?.color,
               ),
             ),
+
             const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _openAddTransaction,
-              icon: const Icon(Icons.add_rounded),
-              label: Text(settings.t('addTransaction')),
-            ),
+
+            if (!isFiltered)
+              ElevatedButton.icon(
+                onPressed:
+                    _openAddTransaction,
+                icon: const Icon(
+                  Icons.add_rounded,
+                ),
+                label: Text(
+                  settings.t(
+                    'addTransaction',
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
+  // ------------------------------------------------------------
+  // SEARCH
+  // ------------------------------------------------------------
+
   Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
       onChanged: (value) async {
         _searchText = value;
+
         await _loadTransactions();
+
+        if (mounted) {
+          setState(() {});
+        }
       },
       decoration: InputDecoration(
         hintText: settings.t('search'),
@@ -791,26 +1143,34 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           Icons.search_rounded,
           color: AppTheme.gold,
         ),
-        suffixIcon: _searchController.text.isNotEmpty
-            ? IconButton(
-                onPressed: () async {
-                  _searchController.clear();
+        suffixIcon:
+            _searchController.text.isNotEmpty
+                ? IconButton(
+                    onPressed: () async {
+                      _searchController.clear();
 
-                  setState(() {
-                    _searchText = '';
-                  });
+                      setState(() {
+                        _searchText = '';
+                      });
 
-                  await _loadTransactions();
-                },
-                icon: const Icon(Icons.clear_rounded),
-              )
-            : null,
+                      await _loadTransactions();
+                    },
+                    icon: const Icon(
+                      Icons.clear_rounded,
+                    ),
+                  )
+                : null,
       ),
     );
   }
 
+  // ------------------------------------------------------------
+  // GROUPED LIST
+  // ------------------------------------------------------------
+
   Widget _buildGroupedTransactions() {
-    final groups = _groupTransactionsByDate();
+    final groups =
+        _groupTransactionsByDate();
 
     final children = <Widget>[];
 
@@ -822,16 +1182,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ),
       );
 
-      for (final transaction in entry.value) {
+      for (final transaction
+          in entry.value) {
         children.add(
-          _buildTransactionCard(transaction),
+          _buildTransactionCard(
+            transaction,
+          ),
         );
       }
     }
 
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
+      physics:
+          const AlwaysScrollableScrollPhysics(),
+      padding:
+          const EdgeInsets.fromLTRB(
         16,
         4,
         16,
@@ -841,23 +1206,35 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // BUILD
+  // ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(settings.t('transactions')),
+        title: Text(
+          settings.t('transactions'),
+        ),
         actions: [
           IconButton(
-            tooltip: settings.t('addTransaction'),
-            onPressed: _openAddTransaction,
-            icon: const Icon(Icons.add_rounded),
+            tooltip:
+                settings.t('addTransaction'),
+            onPressed:
+                _openAddTransaction,
+            icon: const Icon(
+              Icons.add_rounded,
+            ),
           ),
         ],
       ),
+
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding:
+                const EdgeInsets.fromLTRB(
               16,
               12,
               16,
@@ -865,8 +1242,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
             child: _buildSearchField(),
           ),
+
           Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding:
+                const EdgeInsets.fromLTRB(
               16,
               4,
               16,
@@ -874,12 +1253,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
             child: _buildFilter(),
           ),
+
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadTransactions,
               child: _loading
                   ? const Center(
-                      child: CircularProgressIndicator(),
+                      child:
+                          CircularProgressIndicator(),
                     )
                   : _transactions.isEmpty
                       ? _buildEmptyState()
@@ -888,12 +1269,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddTransaction,
-        backgroundColor: AppTheme.green,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: Text(settings.t('addTransaction')),
+
+      floatingActionButton:
+          FloatingActionButton.extended(
+        onPressed:
+            _openAddTransaction,
+        backgroundColor:
+            AppTheme.green,
+        foregroundColor:
+            Colors.white,
+        icon: const Icon(
+          Icons.add_rounded,
+        ),
+        label: Text(
+          settings.t(
+            'addTransaction',
+          ),
+        ),
       ),
     );
   }
