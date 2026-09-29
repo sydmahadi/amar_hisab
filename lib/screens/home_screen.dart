@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../services/app_settings.dart';
-import '../theme/app_theme.dart';
 import '../services/money_db.dart';
+import '../theme/app_theme.dart';
 import 'about_screen.dart';
 import 'accounts_screen.dart';
 import 'add_transaction_screen.dart';
@@ -26,12 +26,28 @@ class _HomeScreenState extends State<HomeScreen> {
   double _income = 0;
   double _expense = 0;
 
-  List<MoneyAccount> _accounts = [];
-  List<MoneyTransaction> _recentTransactions = [];
+  List<Map<String, dynamic>> _accounts = [];
+  List<Map<String, dynamic>> _recentTransactions = [];
 
   bool _loading = true;
 
   AppSettings get settings => AppSettings.instance;
+
+  Color _alpha(Color color, double opacity) {
+    return color.withValues(alpha: opacity);
+  }
+
+  Color _secondaryText(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? AppTheme.secondaryTextDark
+        : AppTheme.secondaryTextLight;
+  }
+
+  Color _cardColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? AppTheme.darkCard
+        : AppTheme.lightCard;
+  }
 
   @override
   void initState() {
@@ -39,15 +55,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-  }
-
   Future<void> _loadData() async {
-    setState(() {
-      _loading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+      });
+    }
 
     try {
       await _db.init();
@@ -58,9 +71,21 @@ class _HomeScreenState extends State<HomeScreen> {
       final accounts = await _db.getAccounts();
       final transactions = await _db.getTransactions();
 
-      transactions.sort((a, b) {
-        final ad = _parseDate(a.transactionDate);
-        final bd = _parseDate(b.transactionDate);
+      final transactionList =
+          transactions.map<Map<String, dynamic>>((item) {
+        return Map<String, dynamic>.from(item);
+      }).toList();
+
+      transactionList.sort((a, b) {
+        final ad = _parseDate(
+          a['transaction_date']?.toString() ??
+              a['transactionDate']?.toString(),
+        );
+
+        final bd = _parseDate(
+          b['transaction_date']?.toString() ??
+              b['transactionDate']?.toString(),
+        );
 
         if (ad == null && bd == null) return 0;
         if (ad == null) return 1;
@@ -69,14 +94,18 @@ class _HomeScreenState extends State<HomeScreen> {
         return bd.compareTo(ad);
       });
 
+      final accountList = accounts.map<Map<String, dynamic>>((item) {
+        return Map<String, dynamic>.from(item);
+      }).toList();
+
       if (!mounted) return;
 
       setState(() {
         _balance = balance;
         _income = income;
         _expense = expense;
-        _accounts = accounts;
-        _recentTransactions = transactions.take(5).toList();
+        _accounts = accountList;
+        _recentTransactions = transactionList.take(5).toList();
         _loading = false;
       });
     } catch (_) {
@@ -94,6 +123,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return DateTime.tryParse(value);
+  }
+
+  String _money(double value) {
+    return value.abs().toStringAsFixed(2);
+  }
+
+  String _dateText(String? value) {
+    final date = _parseDate(value);
+
+    if (date == null) {
+      return '';
+    }
+
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
   }
 
   Future<void> _openAddTransaction() async {
@@ -184,34 +229,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await _loadData();
   }
 
-  String _money(double value) {
-    return value.abs().toStringAsFixed(2);
-  }
-
-  String _dateText(String? value) {
-    final date = _parseDate(value);
-
-    if (date == null) {
-      return '';
-    }
-
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
-  }
-
-  Color _cardColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? AppTheme.darkCard
-        : AppTheme.lightCard;
-  }
-
-  Color _secondaryText(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? AppTheme.secondaryTextDark
-        : AppTheme.secondaryTextLight;
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -222,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
           : AppTheme.lightBackground,
       appBar: _buildAppBar(context),
       drawer: _buildDrawer(context),
-      floatingActionButton: _buildAddButton(context),
+      floatingActionButton: _buildAddButton(),
       body: RefreshIndicator(
         onRefresh: _loadData,
         color: AppTheme.green,
@@ -239,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildBalanceCard(context),
                   const SizedBox(height: 16),
                   _buildIncomeExpenseCards(context),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 22),
                   _buildSectionTitle(
                     context,
                     title: settings.t('quickActions'),
@@ -247,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   _buildQuickActions(context),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 24),
                   _buildSectionTitle(
                     context,
                     title: settings.t('recentTransactions'),
@@ -257,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   _buildRecentTransactions(context),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 24),
                   _buildSectionTitle(
                     context,
                     title: settings.t('accounts'),
@@ -267,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   _buildAccounts(context),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 24),
                   _buildTools(context),
                 ],
               ),
@@ -286,8 +303,8 @@ class _HomeScreenState extends State<HomeScreen> {
       leading: Builder(
         builder: (context) {
           return IconButton(
-            tooltip: settings.t('menu'),
             onPressed: () => Scaffold.of(context).openDrawer(),
+            tooltip: settings.t('menu'),
             icon: Container(
               width: 42,
               height: 42,
@@ -297,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     : AppTheme.lightCard,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: AppTheme.gold.withOpacity(0.25),
+                  color: _alpha(AppTheme.gold, 0.25),
                 ),
               ),
               child: const Icon(
@@ -309,14 +326,13 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       title: const SizedBox.shrink(),
-      centerTitle: false,
       actions: [
         _topActionButton(
           context,
           icon: Icons.bar_chart_rounded,
           onTap: _openStatistics,
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 2),
         _topActionButton(
           context,
           icon: Icons.settings_rounded,
@@ -340,10 +356,12 @@ class _HomeScreenState extends State<HomeScreen> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkCard : AppTheme.lightCard,
+          color: isDark
+              ? AppTheme.darkCard
+              : AppTheme.lightCard,
           borderRadius: BorderRadius.circular(13),
           border: Border.all(
-            color: AppTheme.gold.withOpacity(0.20),
+            color: _alpha(AppTheme.gold, 0.20),
           ),
         ),
         child: Icon(
@@ -358,36 +376,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBalanceCard(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isDark
-              ? [
-                  AppTheme.darkGreen,
-                  AppTheme.green,
-                ]
-              : [
-                  AppTheme.darkGreen,
-                  AppTheme.green,
-                ],
+          colors: [
+            AppTheme.darkGreen,
+            AppTheme.green,
+          ],
         ),
         borderRadius: BorderRadius.circular(26),
         border: Border.all(
-          color: AppTheme.gold.withOpacity(0.45),
-          width: 1,
+          color: _alpha(AppTheme.gold, 0.42),
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.darkGreen.withOpacity(
-              isDark ? 0.28 : 0.16,
-            ),
-            blurRadius: 20,
+            color: _alpha(AppTheme.darkGreen, 0.25),
+            blurRadius: 22,
             offset: const Offset(0, 10),
           ),
         ],
@@ -398,13 +406,13 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 43,
+                height: 43,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(13),
+                  color: _alpha(Colors.white, 0.11),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: AppTheme.goldLight.withOpacity(0.35),
+                    color: _alpha(AppTheme.goldLight, 0.32),
                   ),
                 ),
                 child: const Icon(
@@ -420,23 +428,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(20),
+                  color: _alpha(Colors.white, 0.08),
+                  shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.more_horiz_rounded,
+                  Icons.account_balance_rounded,
                   color: AppTheme.goldLight,
-                  size: 20,
+                  size: 17,
                 ),
               ),
             ],
@@ -455,14 +461,14 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             settings.t('currentBalance'),
             style: TextStyle(
-              color: Colors.white.withOpacity(0.68),
+              color: _alpha(Colors.white, 0.65),
               fontSize: 12,
             ),
           ),
           const SizedBox(height: 20),
           Container(
             height: 1,
-            color: Colors.white.withOpacity(0.12),
+            color: _alpha(Colors.white, 0.12),
           ),
           const SizedBox(height: 14),
           Row(
@@ -477,7 +483,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 width: 1,
                 height: 38,
-                color: Colors.white.withOpacity(0.14),
+                color: _alpha(Colors.white, 0.14),
               ),
               Expanded(
                 child: _balanceMiniInfo(
@@ -516,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.65),
+                  color: _alpha(Colors.white, 0.65),
                   fontSize: 11,
                 ),
               ),
@@ -575,64 +581,69 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onTap,
   }) {
     final cardColor = _cardColor(context);
-    final secondary = _secondaryText(context);
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: iconColor.withOpacity(0.16),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _alpha(iconColor, 0.16),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.10),
-                borderRadius: BorderRadius.circular(13),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _alpha(iconColor, 0.10),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  icon,
+                  color: iconColor,
+                  size: 20,
+                ),
               ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: secondary,
-                      fontSize: 11,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _secondaryText(context),
+                        fontSize: 11,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    _money(amount),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                    const SizedBox(height: 3),
+                    Text(
+                      _money(amount),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -645,20 +656,18 @@ class _HomeScreenState extends State<HomeScreen> {
     String? actionText,
     VoidCallback? onAction,
   }) {
-    final secondary = _secondaryText(context);
-
     return Row(
       children: [
         Container(
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: AppTheme.gold.withOpacity(0.10),
+            color: _alpha(AppTheme.gold, 0.10),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(
-            Icons.circle,
-            size: 8,
+          child: Icon(
+            icon,
+            size: 17,
             color: AppTheme.gold,
           ),
         ),
@@ -667,7 +676,10 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Text(
             title,
             style: TextStyle(
-              color: Theme.of(context).textTheme.titleMedium?.color,
+              color: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.color,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
@@ -742,7 +754,6 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onTap,
   }) {
     final cardColor = _cardColor(context);
-    final secondary = _secondaryText(context);
 
     return Material(
       color: Colors.transparent,
@@ -750,15 +761,13 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(19),
         child: Container(
-          constraints: const BoxConstraints(
-            minHeight: 108,
-          ),
+          height: 108,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(19),
             border: Border.all(
-              color: iconColor.withOpacity(0.15),
+              color: _alpha(iconColor, 0.15),
             ),
           ),
           child: Column(
@@ -768,7 +777,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.10),
+                  color: _alpha(iconColor, 0.10),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -797,7 +806,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: secondary,
+                  color: _secondaryText(context),
                   fontSize: 9.5,
                 ),
               ),
@@ -824,7 +833,7 @@ class _HomeScreenState extends State<HomeScreen> {
         color: _cardColor(context),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: AppTheme.gold.withOpacity(0.12),
+          color: _alpha(AppTheme.gold, 0.12),
         ),
       ),
       child: Column(
@@ -839,7 +848,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 1,
                 indent: 72,
                 endIndent: 16,
-                color: Theme.of(context).dividerColor.withOpacity(0.10),
+                color: _alpha(
+                  Theme.of(context).dividerColor,
+                  0.10,
+                ),
               ),
           ],
         ],
@@ -849,10 +861,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _transactionItem(
     BuildContext context,
-    MoneyTransaction transaction,
+    Map<String, dynamic> transaction,
   ) {
-    final isIncome = transaction.type.toLowerCase() == 'income';
-    final isTransfer = transaction.type.toLowerCase() == 'transfer';
+    final type = (transaction['type'] ?? '').toString().toLowerCase();
+
+    final isIncome = type == 'income';
+    final isTransfer = type == 'transfer';
 
     final color = isIncome
         ? AppTheme.green
@@ -865,6 +879,25 @@ class _HomeScreenState extends State<HomeScreen> {
         : isTransfer
             ? Icons.swap_horiz_rounded
             : Icons.arrow_upward_rounded;
+
+    final amount = _toDouble(transaction['amount']);
+
+    final note = (transaction['note'] ?? '').toString().trim();
+
+    final date = transaction['transaction_date']?.toString() ??
+        transaction['transactionDate']?.toString();
+
+    String title;
+
+    if (note.isNotEmpty) {
+      title = note;
+    } else if (isIncome) {
+      title = settings.t('income');
+    } else if (isTransfer) {
+      title = settings.t('transfer');
+    } else {
+      title = settings.t('expense');
+    }
 
     final amountPrefix = isIncome ? '+' : '-';
 
@@ -881,7 +914,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.10),
+                color: _alpha(color, 0.10),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
@@ -896,13 +929,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    transaction.note?.trim().isNotEmpty == true
-                        ? transaction.note!.trim()
-                        : isIncome
-                            ? settings.t('income')
-                            : isTransfer
-                                ? settings.t('transfer')
-                                : settings.t('expense'),
+                    title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -916,7 +943,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _dateText(transaction.transactionDate),
+                    _dateText(date),
                     style: TextStyle(
                       color: _secondaryText(context),
                       fontSize: 10.5,
@@ -927,7 +954,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              '$amountPrefix${_money(transaction.amount)}',
+              '$amountPrefix${_money(amount)}',
               style: TextStyle(
                 color: color,
                 fontSize: 13,
@@ -938,6 +965,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   Widget _buildAccounts(BuildContext context) {
@@ -958,11 +993,9 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: _accounts.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
-          final account = _accounts[index];
-
           return _accountCard(
             context,
-            account,
+            _accounts[index],
           );
         },
       ),
@@ -971,10 +1004,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _accountCard(
     BuildContext context,
-    MoneyAccount account,
+    Map<String, dynamic> account,
   ) {
-    final cardColor = _cardColor(context);
-    final secondary = _secondaryText(context);
+    final name = (account['name'] ?? '').toString();
+    final balance = _toDouble(account['balance']);
 
     return InkWell(
       onTap: _openAccounts,
@@ -983,10 +1016,10 @@ class _HomeScreenState extends State<HomeScreen> {
         width: 155,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: cardColor,
+          color: _cardColor(context),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppTheme.gold.withOpacity(0.14),
+            color: _alpha(AppTheme.gold, 0.14),
           ),
         ),
         child: Column(
@@ -998,7 +1031,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: AppTheme.green.withOpacity(0.10),
+                    color: _alpha(AppTheme.green, 0.10),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -1017,7 +1050,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const Spacer(),
             Text(
-              account.name,
+              name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -1031,7 +1064,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 3),
             Text(
-              _money(account.balance),
+              _money(balance),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -1044,7 +1077,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               settings.t('balance'),
               style: TextStyle(
-                color: secondary,
+                color: _secondaryText(context),
                 fontSize: 9.5,
               ),
             ),
@@ -1061,7 +1094,7 @@ class _HomeScreenState extends State<HomeScreen> {
         color: _cardColor(context),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: AppTheme.gold.withOpacity(0.12),
+          color: _alpha(AppTheme.gold, 0.12),
         ),
       ),
       child: Column(
@@ -1109,8 +1142,6 @@ class _HomeScreenState extends State<HomeScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-    final secondary = _secondaryText(context);
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
@@ -1125,7 +1156,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: AppTheme.gold.withOpacity(0.09),
+                color: _alpha(AppTheme.gold, 0.09),
                 borderRadius: BorderRadius.circular(13),
               ),
               child: Icon(
@@ -1156,7 +1187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: secondary,
+                      color: _secondaryText(context),
                       fontSize: 10,
                     ),
                   ),
@@ -1178,7 +1209,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Divider(
       height: 1,
       indent: 54,
-      color: Theme.of(context).dividerColor.withOpacity(0.10),
+      color: _alpha(
+        Theme.of(context).dividerColor,
+        0.10,
+      ),
     );
   }
 
@@ -1195,14 +1229,14 @@ class _HomeScreenState extends State<HomeScreen> {
         color: _cardColor(context),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppTheme.gold.withOpacity(0.12),
+          color: _alpha(AppTheme.gold, 0.12),
         ),
       ),
       child: Column(
         children: [
           Icon(
             icon,
-            color: AppTheme.gold.withOpacity(0.75),
+            color: _alpha(AppTheme.gold, 0.75),
             size: 34,
           ),
           const SizedBox(height: 9),
@@ -1225,7 +1259,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: OutlinedButton.styleFrom(
               foregroundColor: AppTheme.gold,
               side: BorderSide(
-                color: AppTheme.gold.withOpacity(0.40),
+                color: _alpha(AppTheme.gold, 0.40),
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(13),
@@ -1237,7 +1271,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAddButton(BuildContext context) {
+  Widget _buildAddButton() {
     return FloatingActionButton(
       heroTag: 'home_add_transaction',
       onPressed: _openAddTransaction,
@@ -1274,7 +1308,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
-                  color: AppTheme.gold.withOpacity(0.35),
+                  color: _alpha(AppTheme.gold, 0.35),
                 ),
               ),
               child: Row(
@@ -1283,7 +1317,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 46,
                     height: 46,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.10),
+                      color: _alpha(Colors.white, 0.10),
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: const Icon(
@@ -1350,9 +1384,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Divider(
-                    color: Theme.of(context)
-                        .dividerColor
-                        .withOpacity(0.15),
+                    color: _alpha(
+                      Theme.of(context).dividerColor,
+                      0.15,
+                    ),
                   ),
                   _drawerItem(
                     context,
