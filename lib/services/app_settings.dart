@@ -8,10 +8,15 @@ class AppSettings extends ChangeNotifier {
 
   SharedPreferences? _prefs;
 
-  bool _isDarkMode = true;
+  // Default settings
+  // First time app opens:
+  // Language = Bangla
+  // Theme = Light Mode
+  bool _isDarkMode = false;
   String _language = 'bn';
 
   bool get isDarkMode => _isDarkMode;
+
   bool get darkMode => _isDarkMode;
 
   String get language => _language;
@@ -21,7 +26,10 @@ class AppSettings extends ChangeNotifier {
   Future<void> init() async {
     _prefs ??= await SharedPreferences.getInstance();
 
-    _isDarkMode = _prefs?.getBool('dark_mode') ?? true;
+    // Light mode is the default
+    _isDarkMode = _prefs?.getBool('dark_mode') ?? false;
+
+    // Bangla is the default language
     _language = _prefs?.getString('language') ?? 'bn';
   }
 
@@ -56,7 +64,9 @@ class AppSettings extends ChangeNotifier {
   }
 
   Future<void> toggleLanguage() async {
-    await setLanguage(_language == 'bn' ? 'en' : 'bn');
+    await setLanguage(
+      _language == 'bn' ? 'en' : 'bn',
+    );
   }
 
   String t(String key) {
