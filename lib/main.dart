@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
 import 'services/app_settings.dart';
+import 'services/money_db.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize local database before the app starts.
+  await MoneyDb.instance.init();
+
+  // Initialize app settings.
   await AppSettings.instance.init();
 
   runApp(const AmarHisabApp());
