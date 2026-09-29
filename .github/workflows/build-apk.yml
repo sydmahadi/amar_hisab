@@ -44,14 +44,116 @@ jobs:
             --project-name amar_hisab \
             .
 
+      - name: Configure Android Build
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # ---------------------------------------------------------
+          # Android app Gradle file
+          # ---------------------------------------------------------
+          gradle_files = [
+              Path("android/app/build.gradle"),
+              Path("android/app/build.gradle.kts"),
+          ]
+
+          gradle_file = None
+
+          for file in gradle_files:
+              if file.exists():
+                  gradle_file = file
+                  break
+
+          if gradle_file is None:
+              raise SystemExit(
+                  "ERROR: Android app Gradle file was not found."
+              )
+
+          text = gradle_file.read_text(encoding="utf-8")
+
+          # Flutter generated projects normally use:
+          #
+          # compileSdk = flutter.compileSdkVersion
+          #
+          # or:
+          #
+          # compileSdk flutter.compileSdkVersion
+          #
+          # Force compileSdk 36 so gallery_saver_plus and
+          # its AndroidX dependencies can compile correctly.
+
+          text = text.replace(
+              "compileSdk = flutter.compileSdkVersion",
+              "compileSdk = 36",
+          )
+
+          text = text.replace(
+              "compileSdk flutter.compileSdkVersion",
+              "compileSdk 36",
+          )
+
+          gradle_file.write_text(
+              text,
+              encoding="utf-8",
+          )
+
+          print(
+              f"Updated compileSdk to 36 in: {gradle_file}"
+          )
+
+          # ---------------------------------------------------------
+          # Android Gradle properties
+          # ---------------------------------------------------------
+          properties = Path(
+              "android/gradle.properties"
+          )
+
+          if properties.exists():
+              props = properties.read_text(
+                  encoding="utf-8"
+              )
+
+              if "android.useAndroidX=true" not in props:
+                  props += (
+                      "\nandroid.useAndroidX=true\n"
+                  )
+
+              if "android.enableJetifier=true" not in props:
+                  props += (
+                      "android.enableJetifier=true\n"
+                  )
+
+              properties.write_text(
+                  props,
+                  encoding="utf-8",
+              )
+
+          # ---------------------------------------------------------
+          # Print final configuration for debugging
+          # ---------------------------------------------------------
+          print("\n===== Final Android Gradle Configuration =====")
+          print(
+              gradle_file.read_text(
+                  encoding="utf-8"
+              )
+          )
+          print(
+              "==============================================\n"
+          )
+          PY
+
       - name: Set App Name and Internet Permission
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          manifest = Path(
+              "android/app/src/main/AndroidManifest.xml"
+          )
 
-          text = manifest.read_text(encoding="utf-8")
+          text = manifest.read_text(
+              encoding="utf-8"
+          )
 
           text = text.replace(
               'android:label="amar_hisab"',
@@ -65,7 +167,10 @@ jobs:
                   '    <uses-permission android:name="android.permission.INTERNET"/>'
               )
 
-          manifest.write_text(text, encoding="utf-8")
+          manifest.write_text(
+              text,
+              encoding="utf-8"
+          )
           PY
 
       - name: Check Android Structure
