@@ -23,6 +23,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final MoneyDb _db = MoneyDb.instance;
   final AppSettings _settings = AppSettings.instance;
 
+  final GlobalKey<ScaffoldState> _scaffoldKey =
+      GlobalKey<ScaffoldState>();
+
   bool _loading = true;
 
   double _income = 0;
@@ -36,7 +39,22 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
+    _settings.addListener(_onSettingsChanged);
+
     _loadDashboard();
+  }
+
+  @override
+  void dispose() {
+    _settings.removeListener(_onSettingsChanged);
+    super.dispose();
+  }
+
+  void _onSettingsChanged() {
+    if (!mounted) return;
+
+    setState(() {});
   }
 
   Future<void> _loadDashboard() async {
@@ -74,7 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _income = _toDouble(period['income']);
         _expense = _toDouble(period['expense']);
         _difference = _toDouble(period['difference']);
-
         _accountBalance = _toDouble(totalBalance);
 
         _accounts = accounts;
@@ -125,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return '$from → $to';
       }
 
-      return 'Transfer';
+      return _settings.t('transfer');
     }
 
     final category =
@@ -136,14 +153,14 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (type == 'income') {
-      return 'Income';
+      return _settings.t('income');
     }
 
     if (type == 'expense') {
-      return 'Expense';
+      return _settings.t('expense');
     }
 
-    return 'Transaction';
+    return _settings.t('transactions');
   }
 
   String _transactionSubtitle(
@@ -176,6 +193,18 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'transfer':
         return Icons.swap_horiz_rounded;
 
+      case 'loan_given':
+        return Icons.call_made_rounded;
+
+      case 'loan_taken':
+        return Icons.call_received_rounded;
+
+      case 'loan_received':
+        return Icons.keyboard_return_rounded;
+
+      case 'loan_paid':
+        return Icons.payments_rounded;
+
       default:
         return Icons.receipt_long_rounded;
     }
@@ -192,6 +221,12 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'transfer':
         return AppTheme.transferColor;
 
+      case 'loan_given':
+      case 'loan_taken':
+      case 'loan_received':
+      case 'loan_paid':
+        return AppTheme.gold;
+
       default:
         return AppTheme.gold;
     }
@@ -203,11 +238,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final type = _type(item);
     final amount = _toDouble(item['amount']);
 
-    if (type == 'income') {
+    if (type == 'income' ||
+        type == 'loan_received' ||
+        type == 'loan_taken') {
       return '+${_money(amount)}';
     }
 
-    if (type == 'expense') {
+    if (type == 'expense' ||
+        type == 'loan_given' ||
+        type == 'loan_paid') {
       return '-${_money(amount)}';
     }
 
@@ -248,10 +287,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openScreen(Widget screen) async {
     if (!mounted) return;
 
-    Navigator.of(context).pop();
+    _scaffoldKey.currentState?.closeDrawer();
 
     await Future<void>.delayed(
-      const Duration(milliseconds: 120),
+      const Duration(milliseconds: 150),
     );
 
     if (!mounted) return;
@@ -284,25 +323,30 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text(
-            'লেনদেন মুছে ফেলবেন?',
+          title: Text(
+            _settings.t('delete'),
           ),
-          content: const Text(
-            'এই লেনদেনটি মুছে দিলে এটি আর ফিরে পাওয়া যাবে না।',
+          content: Text(
+            _settings.t('deleteConfirmation'),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
               },
-              child: const Text('না'),
+              child: Text(
+                _settings.t('no'),
+              ),
             ),
             FilledButton(
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
+
                 await _deleteTransaction(id);
               },
-              child: const Text('মুছে ফেলুন'),
+              child: Text(
+                _settings.t('delete'),
+              ),
             ),
           ],
         );
@@ -311,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openDrawer() {
-    Scaffold.of(context).openDrawer();
+    _scaffoldKey.currentState?.openDrawer();
   }
 
   Future<void> _changeTheme(bool value) async {
@@ -331,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showSettings() {
-    Navigator.of(context).pop();
+    _scaffoldKey.currentState?.closeDrawer();
 
     showModalBottomSheet<void>(
       context: context,
@@ -344,8 +388,7 @@ class _HomeScreenState extends State<HomeScreen> {
             setSheetState,
           ) {
             final currentDark =
-                Theme.of(context).brightness ==
-                    Brightness.dark;
+                _settings.isDarkMode;
 
             final currentBangla =
                 _settings.isBangla;
@@ -353,7 +396,9 @@ class _HomeScreenState extends State<HomeScreen> {
             return Container(
               decoration: BoxDecoration(
                 color:
-                    Theme.of(context).colorScheme.surface,
+                    Theme.of(context)
+                        .colorScheme
+                        .surface,
                 borderRadius:
                     const BorderRadius.vertical(
                   top: Radius.circular(30),
@@ -412,10 +457,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           const SizedBox(width: 13),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'সেটিংস',
-                              style: TextStyle(
+                              _settings.t('settings'),
+                              style: const TextStyle(
                                 fontSize: 21,
                                 fontWeight:
                                     FontWeight.w800,
@@ -429,10 +474,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: currentDark
                             ? Icons.dark_mode_rounded
                             : Icons.light_mode_rounded,
-                        title: 'থিম',
+                        title: _settings.t('theme'),
                         subtitle: currentDark
-                            ? 'ডার্ক মোড'
-                            : 'লাইট মোড',
+                            ? _settings.t('darkTheme')
+                            : _settings.t('lightTheme'),
                         trailing: Switch(
                           value: currentDark,
                           onChanged:
@@ -451,10 +496,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       _settingTile(
                         icon:
                             Icons.language_rounded,
-                        title: 'ভাষা',
+                        title: _settings.t('language'),
                         subtitle: currentBangla
-                            ? 'বাংলা'
-                            : 'English',
+                            ? _settings.t('bangla')
+                            : _settings.t('english'),
                         trailing: Row(
                           mainAxisSize:
                               MainAxisSize.min,
@@ -631,6 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
         theme.brightness == Brightness.dark;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor:
           theme.scaffoldBackgroundColor,
       drawer: _buildDrawer(),
@@ -848,9 +894,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     size: 21,
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'অ্যাকাউন্ট ব্যালেন্স',
-                    style: TextStyle(
+                  Text(
+                    _settings.t('balance'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight:
                           FontWeight.w700,
@@ -871,7 +917,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'সব অ্যাকাউন্টের বর্তমান ব্যালেন্স',
+                _settings.isBangla
+                    ? 'সব অ্যাকাউন্টের বর্তমান ব্যালেন্স'
+                    : 'Current balance of all accounts',
                 style: TextStyle(
                   color: Colors.white
                       .withValues(alpha: .70),
@@ -885,7 +933,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _balanceMini(
                       icon:
                           Icons.arrow_downward_rounded,
-                      title: 'এই মাসের আয়',
+                      title: _settings.t('incomeTotal'),
                       amount: _income,
                     ),
                   ),
@@ -894,7 +942,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _balanceMini(
                       icon:
                           Icons.arrow_upward_rounded,
-                      title: 'এই মাসের ব্যয়',
+                      title: _settings.t('expenseTotal'),
                       amount: _expense,
                     ),
                   ),
@@ -933,8 +981,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(width: 8),
                     Text(
                       positive
-                          ? 'বর্তমান উদ্বৃত্ত'
-                          : 'বর্তমান ঘাটি',
+                          ? _settings.t('surplus')
+                          : _settings.t('deficit'),
                       style: TextStyle(
                         color: Colors.white
                             .withValues(
@@ -1042,8 +1090,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _quickAction(
               icon:
                   Icons.add_circle_outline_rounded,
-              title: 'আয়',
-              subtitle: 'নতুন আয়',
+              title: _settings.t('income'),
+              subtitle: _settings.isBangla
+                  ? 'নতুন আয়'
+                  : 'New income',
               color:
                   AppTheme.incomeColor,
             ),
@@ -1053,8 +1103,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _quickAction(
               icon:
                   Icons.remove_circle_outline_rounded,
-              title: 'ব্যয়',
-              subtitle: 'নতুন ব্যয়',
+              title: _settings.t('expense'),
+              subtitle: _settings.isBangla
+                  ? 'নতুন ব্যয়'
+                  : 'New expense',
               color:
                   AppTheme.expenseColor,
             ),
@@ -1063,8 +1115,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: _quickAction(
               icon: Icons.swap_horiz_rounded,
-              title: 'Transfer',
-              subtitle: 'অ্যাকাউন্ট',
+              title: _settings.t('transfer'),
+              subtitle: _settings.isBangla
+                  ? 'অ্যাকাউন্ট'
+                  : 'Account',
               color:
                   AppTheme.transferColor,
             ),
@@ -1167,7 +1221,7 @@ class _HomeScreenState extends State<HomeScreen> {
             CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-            title: 'অ্যাকাউন্ট',
+            title: _settings.t('accounts'),
             icon:
                 Icons.account_balance_wallet_rounded,
             onTap: () {
@@ -1182,7 +1236,9 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icons
                   .account_balance_wallet_outlined,
               text:
-                  'কোনো অ্যাকাউন্ট পাওয়া যায়নি',
+                  _settings.isBangla
+                      ? 'কোনো অ্যাকাউন্ট পাওয়া যায়নি'
+                      : 'No accounts found',
             )
           else
             SizedBox(
@@ -1331,7 +1387,7 @@ class _HomeScreenState extends State<HomeScreen> {
             CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-            title: 'সাম্প্রতিক লেনদেন',
+            title: _settings.t('transactions'),
             icon:
                 Icons.receipt_long_rounded,
             onTap: () {
@@ -1346,7 +1402,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon:
                   Icons.receipt_long_outlined,
               text:
-                  'এখনও কোনো লেনদেন যোগ করা হয়নি',
+                  _settings.t('noTransactions'),
             )
           else
             Container(
@@ -1516,23 +1572,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                   }
                                 },
                                 itemBuilder:
-                                    (_) => const [
+                                    (_) => [
                                   PopupMenuItem(
                                     value:
                                         'edit',
                                     child: Row(
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           Icons
                                               .edit_rounded,
                                           size: 19,
                                         ),
-                                        SizedBox(
+                                        const SizedBox(
                                           width:
                                               10,
                                         ),
                                         Text(
-                                            'Edit'),
+                                          _settings.t(
+                                            'edit',
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -1541,17 +1600,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                         'delete',
                                     child: Row(
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           Icons
                                               .delete_outline_rounded,
                                           size: 19,
                                         ),
-                                        SizedBox(
+                                        const SizedBox(
                                           width:
                                               10,
                                         ),
                                         Text(
-                                            'Delete'),
+                                          _settings.t(
+                                            'delete',
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -1585,7 +1647,9 @@ class _HomeScreenState extends State<HomeScreen> {
             CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-            title: 'আরও',
+            title: _settings.isBangla
+                ? 'আরও'
+                : 'More',
             icon: Icons.grid_view_rounded,
             onTap: () {},
           ),
@@ -1601,7 +1665,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               _toolCard(
                 icon: Icons.bar_chart_rounded,
-                title: 'পরিসংখ্যান',
+                title: _settings.t('statistics'),
                 onTap: () {
                   _openScreen(
                     const StatisticsScreen(),
@@ -1610,7 +1674,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               _toolCard(
                 icon: Icons.assessment_rounded,
-                title: 'রিপোর্ট',
+                title: _settings.t('report'),
                 onTap: () {
                   _openScreen(
                     const ReportScreen(),
@@ -1619,7 +1683,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               _toolCard(
                 icon: Icons.category_rounded,
-                title: 'খাত',
+                title: _settings.t('categories'),
                 onTap: () {
                   _openScreen(
                     const CategoriesScreen(),
@@ -1629,7 +1693,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _toolCard(
                 icon:
                     Icons.receipt_long_rounded,
-                title: 'সব লেনদেন',
+                title: _settings.t('transactions'),
                 onTap: () {
                   _openScreen(
                     const TransactionsScreen(),
@@ -1639,7 +1703,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _toolCard(
                 icon:
                     Icons.account_balance_rounded,
-                title: 'অ্যাকাউন্ট',
+                title: _settings.t('accounts'),
                 onTap: () {
                   _openScreen(
                     const AccountsScreen(),
@@ -1649,7 +1713,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _toolCard(
                 icon:
                     Icons.info_outline_rounded,
-                title: 'সম্পর্কে',
+                title: _settings.t('about'),
                 onTap: () {
                   _openScreen(
                     const AboutScreen(),
@@ -1849,7 +1913,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = Theme.of(context);
 
     final currentDark =
-        theme.brightness == Brightness.dark;
+        _settings.isDarkMode;
 
     final currentBangla =
         _settings.isBangla;
@@ -1877,17 +1941,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _drawerItem(
                     icon: Icons.home_rounded,
-                    title: 'হোম',
+                    title: _settings.t('appName'),
                     selected: true,
                     onTap: () {
-                      Navigator.of(context).pop();
+                      _scaffoldKey.currentState
+                          ?.closeDrawer();
                     },
                   ),
 
                   _drawerItem(
                     icon:
                         Icons.receipt_long_rounded,
-                    title: 'লেনদেন',
+                    title: _settings.t('transactions'),
                     onTap: () {
                       _openScreen(
                         const TransactionsScreen(),
@@ -1898,7 +1963,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     icon:
                         Icons.account_balance_wallet_rounded,
-                    title: 'অ্যাকাউন্ট',
+                    title: _settings.t('accounts'),
                     onTap: () {
                       _openScreen(
                         const AccountsScreen(),
@@ -1909,7 +1974,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     icon:
                         Icons.category_rounded,
-                    title: 'খাত',
+                    title: _settings.t('categories'),
                     onTap: () {
                       _openScreen(
                         const CategoriesScreen(),
@@ -1920,7 +1985,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     icon:
                         Icons.bar_chart_rounded,
-                    title: 'পরিসংখ্যান',
+                    title: _settings.t('statistics'),
                     onTap: () {
                       _openScreen(
                         const StatisticsScreen(),
@@ -1931,7 +1996,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     icon:
                         Icons.assessment_rounded,
-                    title: 'রিপোর্ট',
+                    title: _settings.t('report'),
                     onTap: () {
                       _openScreen(
                         const ReportScreen(),
@@ -1955,9 +2020,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // ----------------------------
-                  // THEME
-                  // ----------------------------
                   Container(
                     margin:
                         const EdgeInsets.symmetric(
@@ -2020,7 +2082,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     .start,
                             children: [
                               Text(
-                                'থিম',
+                                _settings.t('theme'),
                                 style: TextStyle(
                                   color: theme
                                       .colorScheme
@@ -2035,8 +2097,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   height: 2),
                               Text(
                                 currentDark
-                                    ? 'ডার্ক মোড'
-                                    : 'লাইট মোড',
+                                    ? _settings.t(
+                                        'darkTheme',
+                                      )
+                                    : _settings.t(
+                                        'lightTheme',
+                                      ),
                                 style: TextStyle(
                                   color: theme
                                       .colorScheme
@@ -2056,9 +2122,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // ----------------------------
-                  // LANGUAGE
-                  // ----------------------------
                   Container(
                     margin:
                         const EdgeInsets.symmetric(
@@ -2112,7 +2175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 11),
                         Expanded(
                           child: Text(
-                            'ভাষা',
+                            _settings.t('language'),
                             style: TextStyle(
                               color: theme
                                   .colorScheme
@@ -2149,14 +2212,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     icon:
                         Icons.settings_rounded,
-                    title: 'সেটিংস',
+                    title: _settings.t('settings'),
                     onTap: _showSettings,
                   ),
 
                   _drawerItem(
                     icon:
                         Icons.info_outline_rounded,
-                    title: 'সম্পর্কে',
+                    title: _settings.t('about'),
                     onTap: () {
                       _openScreen(
                         const AboutScreen(),
@@ -2176,7 +2239,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 18,
               ),
               child: Text(
-                'সহজে হিসাব রাখুন',
+                _settings.isBangla
+                    ? 'সহজে হিসাব রাখুন'
+                    : 'Manage your money easily',
                 style: TextStyle(
                   color: theme
                       .colorScheme
@@ -2240,24 +2305,24 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(width: 13),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
                 Text(
-                  'হিসাব মেনু',
-                  style: TextStyle(
+                  _settings.t('appName'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 19,
                     fontWeight:
                         FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'আপনার হিসাব পরিচালনা করুন',
-                  style: TextStyle(
+                  _settings.t('appTagline'),
+                  style: const TextStyle(
                     color:
                         AppTheme.goldLight,
                     fontSize: 11,
