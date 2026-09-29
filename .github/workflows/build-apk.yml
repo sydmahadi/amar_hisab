@@ -1,3 +1,4 @@
+
 name: Build Amar Hisab APK
 
 on:
@@ -18,173 +19,109 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
-      - name: Setup Flutter
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.47.5"
+          flutter-version: '3.47.5'
           channel: stable
           cache: true
 
-      - name: Flutter Doctor
-        run: flutter doctor -v
+      - name: Show Flutter version
+        run: flutter --version
 
-      - name: Generate Android Project
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      # Generate a fresh Android project because the workflow
+      # rebuilds the Android folder from scratch.
+      - name: Generate Android project
         run: |
           rm -rf android
+          flutter create --platforms=android --org com.sydmahadi .
 
-          flutter create \
-            --platforms=android \
-            --org com.amar \
-            --project-name amar_hisab \
-            .
-
-      - name: Configure Android Build
+      # Set compileSdk to 36 in the generated Gradle file.
+      - name: Configure Android compileSdk
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
-          # ---------------------------------------------------------
-          # Android app Gradle file
-          # ---------------------------------------------------------
-          gradle_files = [
-              Path("android/app/build.gradle"),
+          candidates = [
               Path("android/app/build.gradle.kts"),
+              Path("android/app/build.gradle"),
           ]
 
-          gradle_file = None
-
-          for file in gradle_files:
-              if file.exists():
-                  gradle_file = file
-                  break
+          gradle_file = next(
+              (p for p in candidates if p.exists()),
+              None
+          )
 
           if gradle_file is None:
               raise SystemExit(
-                  "ERROR: Android app Gradle file was not found."
+                  "ERROR: Android app Gradle file not found."
               )
 
-          text = gradle_file.read_text(encoding="utf-8")
+          content = gradle_file.read_text()
 
-          # Flutter generated projects normally use:
-          #
-          # compileSdk = flutter.compileSdkVersion
-          #
-          # or:
-          #
-          # compileSdk flutter.compileSdkVersion
-          #
-          # Force compileSdk 36 so gallery_saver_plus and
-          # its AndroidX dependencies can compile correctly.
+          if gradle_file.name.endswith(".kts"):
+              pattern = r"compileSdk\s*=\s*[^\n]+"
+              replacement = "compileSdk = 36"
+          else:
+              pattern = r"compileSdkVersion\s+[^\n]+"
+              replacement = "compileSdkVersion 36"
 
-          text = text.replace(
-              "compileSdk = flutter.compileSdkVersion",
-              "compileSdk = 36",
+          updated, count = re.subn(
+              pattern,
+              replacement,
+              content,
+              count=1
           )
 
-          text = text.replace(
-              "compileSdk flutter.compileSdkVersion",
-              "compileSdk 36",
-          )
+          if count == 0:
+              raise SystemExit(
+                  "ERROR: Could not find compileSdk setting in "
+                  + str(gradle_file)
+              )
 
-          gradle_file.write_text(
-              text,
-              encoding="utf-8",
-          )
+          gradle_file.write_text(updated)
 
+          print("Updated:", gradle_file)
+          print("compileSdk set to 36")
           print(
-              f"Updated compileSdk to 36 in: {gradle_file}"
-          )
-
-          # ---------------------------------------------------------
-          # Android Gradle properties
-          # ---------------------------------------------------------
-          properties = Path(
-              "android/gradle.properties"
-          )
-
-          if properties.exists():
-              props = properties.read_text(
-                  encoding="utf-8"
+              "\n".join(
+                  line for line in updated.splitlines()
+                  if "compileSdk" in line
               )
-
-              if "android.useAndroidX=true" not in props:
-                  props += (
-                      "\nandroid.useAndroidX=true\n"
-                  )
-
-              if "android.enableJetifier=true" not in props:
-                  props += (
-                      "android.enableJetifier=true\n"
-                  )
-
-              properties.write_text(
-                  props,
-                  encoding="utf-8",
-              )
-
-          # ---------------------------------------------------------
-          # Print final configuration for debugging
-          # ---------------------------------------------------------
-          print("\n===== Final Android Gradle Configuration =====")
-          print(
-              gradle_file.read_text(
-                  encoding="utf-8"
-              )
-          )
-          print(
-              "==============================================\n"
           )
           PY
 
-      - name: Set App Name and Internet Permission
+      - name: Enable AndroidX
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
+          touch android/gradle.properties
 
-          manifest = Path(
-              "android/app/src/main/AndroidManifest.xml"
-          )
+          if ! grep -q '^android.useAndroidX=' android/gradle.properties; then
+            echo 'android.useAndroidX=true' >> android/gradle.properties
+          fi
 
-          text = manifest.read_text(
-              encoding="utf-8"
-          )
+          if ! grep -q '^android.enableJetifier=' android/gradle.properties; then
+            echo 'android.enableJetifier=true' >> android/gradle.properties
+          fi
 
-          text = text.replace(
-              'android:label="amar_hisab"',
-              'android:label="আমার হিসাব"'
-          )
-
-          if "android.permission.INTERNET" not in text:
-              text = text.replace(
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n\n'
-                  '    <uses-permission android:name="android.permission.INTERNET"/>'
-              )
-
-          manifest.write_text(
-              text,
-              encoding="utf-8"
-          )
-          PY
-
-      - name: Check Android Structure
+      - name: Verify Android configuration
         run: |
-          echo "===== Android Project Structure ====="
-          find android -maxdepth 7 -type f | sort
+          grep -n 'compileSdk' android/app/build.gradle*
+          cat android/gradle.properties
 
-      - name: Get Dependencies
-        run: flutter pub get
-
-      - name: Analyze Project
+      - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
 
-      - name: Build APK
+      - name: Build release APK
         run: flutter build apk --release
 
       - name: Upload APK
@@ -193,3 +130,4 @@ jobs:
           name: amar-hisab-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+          retention-days: 14
