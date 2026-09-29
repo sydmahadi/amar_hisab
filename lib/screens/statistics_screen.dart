@@ -133,7 +133,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
 
     try {
-      final transactions = await MoneyDb.instance.getTransactions();
+      final transactions =
+          await MoneyDb.instance.getTransactions();
 
       final periodTransactions = transactions.where((tx) {
         final date = _transactionDate(tx);
@@ -158,7 +159,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       // loan_taken   = আমরা অন্যের কাছ থেকে নিয়েছি
       // loan_paid    = সেই লোন শোধ করেছি
       //
-      // তাই:
       // আমার দেনা = loan_taken - loan_paid
       //
       // loan_given     = আমরা অন্যকে দিয়েছি
@@ -609,6 +609,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       },
     ];
 
+    // Dark/Light দুই mode-এই unselected option স্পষ্ট থাকবে।
+    final Color unselectedColor =
+        theme.colorScheme.onSurface.withValues(
+      alpha: 0.78,
+    );
+
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
@@ -657,7 +663,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       size: 18,
                       color: selected
                           ? AppTheme.goldLight
-                          : theme.iconTheme.color,
+                          : unselectedColor,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -671,9 +677,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             : FontWeight.w500,
                         color: selected
                             ? Colors.white
-                            : theme.textTheme
-                                .bodyMedium
-                                ?.color,
+                            : unselectedColor,
                       ),
                     ),
                   ],
@@ -904,6 +908,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       },
     ];
 
+    // Dark/Light দুই mode-এই unselected tab স্পষ্ট থাকবে।
+    final Color unselectedColor =
+        theme.colorScheme.onSurface.withValues(
+      alpha: 0.78,
+    );
+
     return Container(
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
@@ -947,7 +957,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       size: 18,
                       color: selected
                           ? AppTheme.goldLight
-                          : theme.iconTheme.color,
+                          : unselectedColor,
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -960,9 +970,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             : FontWeight.w500,
                         color: selected
                             ? Colors.white
-                            : theme.textTheme
-                                .bodyMedium
-                                ?.color,
+                            : unselectedColor,
                       ),
                     ),
                   ],
@@ -1280,8 +1288,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ? _totalIncome
                     : _totalExpense;
 
-            // Explicit double type:
-            // এতে num -> double analyzer error হবে না।
             final double percentage =
                 total > 0.0
                     ? (amount / total) *
@@ -1474,7 +1480,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               : 'Current receivable and payable',
         ),
         const SizedBox(height: 14),
-
         Container(
           padding:
               const EdgeInsets.fromLTRB(
@@ -1700,9 +1705,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ],
           ),
         ),
-
         const SizedBox(height: 18),
-
         Text(
           _settings.isBangla
               ? 'লোনের লেনদেন'
@@ -1712,9 +1715,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             fontWeight: FontWeight.w800,
           ),
         ),
-
         const SizedBox(height: 10),
-
         _buildLoanMovementGrid(theme),
       ],
     );
