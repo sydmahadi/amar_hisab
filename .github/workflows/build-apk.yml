@@ -32,21 +32,20 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Show Flutter version
-        run: flutter --version
-
       - name: Install Flutter dependencies
         run: flutter pub get
 
-      # Generate a fresh Android project because the workflow
-      # rebuilds the Android folder from scratch.
       - name: Generate Android project
         run: |
           rm -rf android
           flutter create --platforms=android --org com.sydmahadi .
 
-      # Set compileSdk to 36 in the generated Gradle file.
-      - name: Configure Android compileSdk
+      - name: Install Android SDK 36
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-36"
+
+      - name: Fix app compileSdk
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -57,19 +56,17 @@ jobs:
               Path("android/app/build.gradle"),
           ]
 
-          gradle_file = next(
+          gradle = next(
               (p for p in candidates if p.exists()),
               None
           )
 
-          if gradle_file is None:
-              raise SystemExit(
-                  "ERROR: Android app Gradle file not found."
-              )
+          if gradle is None:
+              raise SystemExit("App Gradle file not found")
 
-          content = gradle_file.read_text()
+          content = gradle.read_text()
 
-          if gradle_file.name.endswith(".kts"):
+          if gradle.name.endswith(".kts"):
               pattern = r"compileSdk\s*=\s*[^\n]+"
               replacement = "compileSdk = 36"
           else:
@@ -77,46 +74,96 @@ jobs:
               replacement = "compileSdkVersion 36"
 
           updated, count = re.subn(
-              pattern,
-              replacement,
-              content,
-              count=1
+              pattern, replacement, content, count=1
           )
 
           if count == 0:
-              raise SystemExit(
-                  "ERROR: Could not find compileSdk setting in "
-                  + str(gradle_file)
+              raise SystemExit("Could not update app compileSdk")
+
+          gradle.write_text(updated)
+          print(f"{gradle}: compileSdk 36")
+          PY
+
+      - name: Fix gallery_saver_plus compileSdk
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          cache = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+
+          matches = list(
+              cache.glob(
+                  "gallery_saver_plus-*/android/build.gradle"
               )
-
-          gradle_file.write_text(updated)
-
-          print("Updated:", gradle_file)
-          print("compileSdk set to 36")
-          print(
-              "\n".join(
-                  line for line in updated.splitlines()
-                  if "compileSdk" in line
+          ) + list(
+              cache.glob(
+                  "gallery_saver_plus-*/android/build.gradle.kts"
               )
           )
+
+          if not matches:
+              raise SystemExit(
+                  "gallery_saver_plus Android Gradle file not found"
+              )
+
+          for gradle in matches:
+              content = gradle.read_text()
+
+              patterns = [
+                  (
+                      r"compileSdkVersion\s+31\b",
+                      "compileSdkVersion 36"
+                  ),
+                  (
+                      r"compileSdk\s*=\s*31\b",
+                      "compileSdk = 36"
+                  ),
+                  (
+                      r"compileSdk\s+31\b",
+                      "compileSdk 36"
+                  ),
+              ]
+
+              changed = False
+
+              for pattern, replacement in patterns:
+                  content, count = re.subn(
+                      pattern, replacement, content
+                  )
+                  if count:
+                      changed = True
+
+              if not changed:
+                  print("No API 31 setting found in", gradle)
+                  print(content)
+                  raise SystemExit(
+                      "Could not patch gallery_saver_plus compileSdk"
+                  )
+
+              gradle.write_text(content)
+              print("Patched:", gradle)
+
           PY
 
       - name: Enable AndroidX
         run: |
           touch android/gradle.properties
 
-          if ! grep -q '^android.useAndroidX=' android/gradle.properties; then
-            echo 'android.useAndroidX=true' >> android/gradle.properties
-          fi
+          grep -q '^android.useAndroidX=' android/gradle.properties \
+            || echo 'android.useAndroidX=true' >> android/gradle.properties
 
-          if ! grep -q '^android.enableJetifier=' android/gradle.properties; then
-            echo 'android.enableJetifier=true' >> android/gradle.properties
-          fi
+          grep -q '^android.enableJetifier=' android/gradle.properties \
+            || echo 'android.enableJetifier=true' >> android/gradle.properties
 
-      - name: Verify Android configuration
+      - name: Verify Android SDK configuration
         run: |
+          echo "App compileSdk:"
           grep -n 'compileSdk' android/app/build.gradle*
-          cat android/gradle.properties
+
+          echo "gallery_saver_plus compileSdk:"
+          grep -n 'compileSdk' \
+            "$HOME"/.pub-cache/hosted/pub.dev/gallery_saver_plus-*/android/build.gradle*
 
       - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
