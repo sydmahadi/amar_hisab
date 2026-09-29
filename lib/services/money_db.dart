@@ -409,14 +409,12 @@ class MoneyDb {
       data['balance'] = balance;
     }
 
-    final result = await db.update(
+    return db.update(
       'accounts',
       data,
       where: 'id = ?',
       whereArgs: [id],
     );
-
-    return result;
   }
 
   Future<int> deleteAccount(int id) async {
@@ -583,7 +581,22 @@ class MoneyDb {
     required DateTime transactionDate,
   }) async {
     if (amount <= 0) {
-      throw Exception('Amount must be greater than zero.');
+      throw Exception(
+        'Amount must be greater than zero.',
+      );
+    }
+
+    final loanTypes = [
+      'loan_given',
+      'loan_taken',
+      'loan_received',
+      'loan_paid',
+    ];
+
+    if (loanTypes.contains(type)) {
+      throw Exception(
+        'Please use the dedicated loan functions.',
+      );
     }
 
     return db.transaction(
@@ -616,6 +629,10 @@ class MoneyDb {
     );
   }
 
+  // =========================================================
+  // UPDATE TRANSACTION
+  // =========================================================
+
   Future<int> updateTransaction(
     int id, {
     required String type,
@@ -629,42 +646,327 @@ class MoneyDb {
     required DateTime transactionDate,
   }) async {
     if (amount <= 0) {
-      throw Exception('Amount must be greater than zero.');
+      throw Exception(
+        'Amount must be greater than zero.',
+      );
     }
 
     return db.transaction(
       (txn) async {
-        final result = await txn.update(
+        final oldResult = await txn.query(
           'transactions',
-          {
-            'type': type,
-            'amount': amount,
-            'category_id': categoryId,
-            'account_id': accountId,
-            'from_account_id': fromAccountId,
-            'to_account_id': toAccountId,
-            'loan_id': loanId,
-            'note': note?.trim() ?? '',
-            'transaction_date':
-                transactionDate.toIso8601String(),
-            'updated_at': DateTime.now().toIso8601String(),
-          },
           where: 'id = ?',
           whereArgs: [id],
+          limit: 1,
         );
+
+        if (oldResult.isEmpty) {
+          throw Exception(
+            'Transaction not found.',
+          );
+        }
+
+        final oldTransaction = oldResult.first;
+
+        final oldType =
+            oldTransaction['type']?.toString() ?? '';
+
+        final oldLoanId =
+            (oldTransaction['loan_id'] as num?)?.toInt();
+
+        final oldIsLoan =
+            oldType == 'loan_given' ||
+            oldType == 'loan_taken' ||
+            oldType == 'loan_received' ||
+            oldType == 'loan_paid';
+
+        // -----------------------------------------------------
+        // LOAN TRANSACTION
+        // -----------------------------------------------------
+
+        if (oldIsLoan) {
+          if (oldLoanId == null) {
+            throw Exception(
+              'This loan transaction is missing its loan information.',
+            );
+          }
+
+          if (type != oldType) {
+            throw Exception(
+              'Loan transaction type cannot be changed.',
+            );
+          }
+
+          final loanResult = await txn.query(
+            'loans',
+            where: 'id = ?',
+            whereArgs: [oldLoanId],
+            limit: 1,
+          );
+
+          if (loanResult.isEmpty) {
+            throw Exception(
+              'Related loan not found.',
+            );
+          }
+
+          final loan = loanResult.first;
+
+          final loanType =
+              loan['type']?.toString() ?? 'receivable';
+
+          final repaymentType =
+              loanType == 'receivable'
+                  ? 'loan_received'
+                  : 'loan_paid';
+
+          // ---------------------------------------------------
+          // ORIGINAL LOAN
+          // ---------------------------------------------------
+
+          if (oldType == 'loan_given' ||
+              oldType == 'loan_taken') {
+            final repaymentResult =
+                await txn.rawQuery(
+              '''
+              SELECT COALESCE(SUM(amount), 0) AS total
+              FROM transactions
+              WHERE loan_id = ?
+                AND type = ?
+                AND id != ?
+              ''',
+              [
+                oldLoanId,
+                repaymentType,
+                id,
+              ],
+            );
+
+            final alreadyRepaid =
+                (repaymentResult.first['total'] as num?)
+                        ?.toDouble() ??
+                    0;
+
+            if (amount < alreadyRepaid) {
+              throw Exception(
+                'Loan amount cannot be less than the amount already repaid.',
+              );
+            }
+
+            await txn.update(
+              'transactions',
+              {
+                'type': oldType,
+                'amount': amount,
+                'category_id': null,
+                'account_id': accountId,
+                'from_account_id': null,
+                'to_account_id': null,
+                'loan_id': oldLoanId,
+                'note': note?.trim() ?? '',
+                'transaction_date':
+                    transactionDate.toIso8601String(),
+                'updated_at':
+                    DateTime.now().toIso8601String(),
+              },
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+
+            await txn.update(
+              'loans',
+              {
+                'principal': amount,
+                'note': note?.trim() ?? '',
+                'updated_at':
+                    DateTime.now().toIso8601String(),
+              },
+              where: 'id = ?',
+              whereArgs: [oldLoanId],
+            );
+          }
+
+          // ---------------------------------------------------
+          // LOAN REPAYMENT
+          // ---------------------------------------------------
+
+          else {
+            final principal =
+                (loan['principal'] as num?)
+                        ?.toDouble() ??
+                    0;
+
+            final otherRepaymentResult =
+                await txn.rawQuery(
+              '''
+              SELECT COALESCE(SUM(amount), 0) AS total
+              FROM transactions
+              WHERE loan_id = ?
+                AND type = ?
+                AND id != ?
+              ''',
+              [
+                oldLoanId,
+                repaymentType,
+                id,
+              ],
+            );
+
+            final otherRepayments =
+                (otherRepaymentResult.first['total']
+                            as num?)
+                        ?.toDouble() ??
+                    0;
+
+            if (otherRepayments + amount >
+                principal) {
+              throw Exception(
+                'Total repayment cannot be greater than the loan amount.',
+              );
+            }
+
+            await txn.update(
+              'transactions',
+              {
+                'type': oldType,
+                'amount': amount,
+                'category_id': null,
+                'account_id': accountId,
+                'from_account_id': null,
+                'to_account_id': null,
+                'loan_id': oldLoanId,
+                'note': note?.trim() ?? '',
+                'transaction_date':
+                    transactionDate.toIso8601String(),
+                'updated_at':
+                    DateTime.now().toIso8601String(),
+              },
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+          }
+        }
+
+        // -----------------------------------------------------
+        // NORMAL TRANSACTION
+        // -----------------------------------------------------
+
+        else {
+          final loanTypes = [
+            'loan_given',
+            'loan_taken',
+            'loan_received',
+            'loan_paid',
+          ];
+
+          if (loanTypes.contains(type)) {
+            throw Exception(
+              'Please use the dedicated loan option.',
+            );
+          }
+
+          await txn.update(
+            'transactions',
+            {
+              'type': type,
+              'amount': amount,
+              'category_id': categoryId,
+              'account_id': accountId,
+              'from_account_id': fromAccountId,
+              'to_account_id': toAccountId,
+              'loan_id': loanId,
+              'note': note?.trim() ?? '',
+              'transaction_date':
+                  transactionDate.toIso8601String(),
+              'updated_at':
+                  DateTime.now().toIso8601String(),
+            },
+            where: 'id = ?',
+            whereArgs: [id],
+          );
+        }
 
         await _recalculateAllAccountBalances(txn);
         await _recalculateAllLoanBalances(txn);
 
-        return result;
+        return 1;
       },
     );
   }
+
+  // =========================================================
+  // DELETE TRANSACTION
+  // =========================================================
 
   Future<int> deleteTransaction(int id) async {
     return db.transaction(
       (txn) async {
-        final result = await txn.delete(
+        final result = await txn.query(
+          'transactions',
+          where: 'id = ?',
+          whereArgs: [id],
+          limit: 1,
+        );
+
+        if (result.isEmpty) {
+          return 0;
+        }
+
+        final transaction = result.first;
+
+        final type =
+            transaction['type']?.toString() ?? '';
+
+        final loanId =
+            (transaction['loan_id'] as num?)?.toInt();
+
+        final isLoanTransaction =
+            type == 'loan_given' ||
+            type == 'loan_taken' ||
+            type == 'loan_received' ||
+            type == 'loan_paid';
+
+        // -----------------------------------------------------
+        // DELETE ORIGINAL LOAN
+        // -----------------------------------------------------
+
+        if (isLoanTransaction &&
+            loanId != null &&
+            (type == 'loan_given' ||
+                type == 'loan_taken')) {
+          final repaymentResult =
+              await txn.rawQuery(
+            '''
+            SELECT COUNT(*) AS total
+            FROM transactions
+            WHERE loan_id = ?
+              AND type IN (
+                'loan_received',
+                'loan_paid'
+              )
+            ''',
+            [loanId],
+          );
+
+          final repaymentCount =
+              (repaymentResult.first['total'] as num?)
+                      ?.toInt() ??
+                  0;
+
+          if (repaymentCount > 0) {
+            throw Exception(
+              'This loan already has repayment records. Delete the repayment records first.',
+            );
+          }
+
+          await txn.delete(
+            'loans',
+            where: 'id = ?',
+            whereArgs: [loanId],
+          );
+        }
+
+        final deleted = await txn.delete(
           'transactions',
           where: 'id = ?',
           whereArgs: [id],
@@ -673,10 +975,14 @@ class MoneyDb {
         await _recalculateAllAccountBalances(txn);
         await _recalculateAllLoanBalances(txn);
 
-        return result;
+        return deleted;
       },
     );
   }
+
+  // =========================================================
+  // GET SINGLE TRANSACTION
+  // =========================================================
 
   Future<Map<String, dynamic>?> getTransaction(
     int id,
@@ -691,7 +997,9 @@ class MoneyDb {
         fa.name AS from_account_name,
         ta.name AS to_account_name,
         l.person_name AS loan_person_name,
-        l.type AS loan_type
+        l.type AS loan_type,
+        l.principal AS loan_principal,
+        l.remaining AS loan_remaining
       FROM transactions t
       LEFT JOIN categories c
         ON c.id = t.category_id
@@ -713,6 +1021,10 @@ class MoneyDb {
 
     return result.first;
   }
+
+  // =========================================================
+  // GET TRANSACTIONS
+  // =========================================================
 
   Future<List<Map<String, dynamic>>> getTransactions({
     String? type,
@@ -758,13 +1070,21 @@ class MoneyDb {
     }
 
     if (startDate != null) {
-      where.add('t.transaction_date >= ?');
-      args.add(startDate.toIso8601String());
+      where.add(
+        't.transaction_date >= ?',
+      );
+      args.add(
+        startDate.toIso8601String(),
+      );
     }
 
     if (endDate != null) {
-      where.add('t.transaction_date <= ?');
-      args.add(endDate.toIso8601String());
+      where.add(
+        't.transaction_date <= ?',
+      );
+      args.add(
+        endDate.toIso8601String(),
+      );
     }
 
     if (search != null &&
@@ -827,12 +1147,14 @@ class MoneyDb {
   }
 
   // =========================================================
-  // LOAN - CREATE
+  // CREATE LOAN
   // =========================================================
 
-  /// type:
-  /// receivable = আমি অন্যকে ধার দিয়েছি, টাকা পাব
-  /// payable   = আমি অন্যের কাছ থেকে ধার নিয়েছি, টাকা দিতে হবে
+  /// receivable:
+  /// আমি অন্যকে ধার দিয়েছি → টাকা পাব।
+  ///
+  /// payable:
+  /// আমি অন্যের কাছ থেকে ধার নিয়েছি → টাকা দিতে হবে।
   Future<int> createLoan({
     required String personName,
     required String type,
@@ -842,22 +1164,37 @@ class MoneyDb {
     required DateTime transactionDate,
   }) async {
     if (personName.trim().isEmpty) {
-      throw Exception('Person name is required.');
+      throw Exception(
+        'Person name is required.',
+      );
     }
 
     if (amount <= 0) {
-      throw Exception('Loan amount must be greater than zero.');
+      throw Exception(
+        'Loan amount must be greater than zero.',
+      );
     }
 
-    if (type != 'receivable' && type != 'payable') {
+    if (type != 'receivable' &&
+        type != 'payable') {
       throw Exception(
         'Loan type must be receivable or payable.',
       );
     }
 
+    final account =
+        await getAccount(accountId);
+
+    if (account == null) {
+      throw Exception(
+        'Account not found.',
+      );
+    }
+
     return db.transaction(
       (txn) async {
-        final now = DateTime.now().toIso8601String();
+        final now =
+            DateTime.now().toIso8601String();
 
         final loanId = await txn.insert(
           'loans',
@@ -904,7 +1241,7 @@ class MoneyDb {
   }
 
   // =========================================================
-  // LOAN - REPAYMENT
+  // LOAN REPAYMENT
   // =========================================================
 
   Future<int> addLoanRepayment({
@@ -920,6 +1257,15 @@ class MoneyDb {
       );
     }
 
+    final account =
+        await getAccount(accountId);
+
+    if (account == null) {
+      throw Exception(
+        'Account not found.',
+      );
+    }
+
     return db.transaction(
       (txn) async {
         final loanResult = await txn.query(
@@ -930,16 +1276,22 @@ class MoneyDb {
         );
 
         if (loanResult.isEmpty) {
-          throw Exception('Loan not found.');
+          throw Exception(
+            'Loan not found.',
+          );
         }
 
         final loan = loanResult.first;
 
         final remaining =
-            (loan['remaining'] as num?)?.toDouble() ?? 0;
+            (loan['remaining'] as num?)
+                    ?.toDouble() ??
+                0;
 
         if (remaining <= 0) {
-          throw Exception('This loan is already completed.');
+          throw Exception(
+            'This loan is already completed.',
+          );
         }
 
         if (amount > remaining) {
@@ -949,14 +1301,16 @@ class MoneyDb {
         }
 
         final loanType =
-            loan['type'] as String? ?? 'receivable';
+            loan['type']?.toString() ??
+                'receivable';
 
         final transactionType =
             loanType == 'receivable'
                 ? 'loan_received'
                 : 'loan_paid';
 
-        final now = DateTime.now().toIso8601String();
+        final now =
+            DateTime.now().toIso8601String();
 
         final id = await txn.insert(
           'transactions',
@@ -1088,8 +1442,11 @@ class MoneyDb {
   }
 
   Future<Map<String, double>> getLoanTotals() async {
-    final receivable = await getTotalReceivable();
-    final payable = await getTotalPayable();
+    final receivable =
+        await getTotalReceivable();
+
+    final payable =
+        await getTotalPayable();
 
     return {
       'receivable': receivable,
@@ -1098,7 +1455,8 @@ class MoneyDb {
     };
   }
 
-  Future<List<Map<String, dynamic>>> getLoanTransactions(
+  Future<List<Map<String, dynamic>>>
+      getLoanTransactions(
     int loanId,
   ) async {
     return getTransactions(
@@ -1113,30 +1471,39 @@ class MoneyDb {
   Future<void> _recalculateAllLoanBalances(
     DatabaseExecutor executor,
   ) async {
-    final loans = await executor.query('loans');
+    final loans =
+        await executor.query('loans');
 
     for (final loan in loans) {
-      final loanId = loan['id'] as int;
+      final loanId =
+          loan['id'] as int;
 
       final principal =
-          (loan['principal'] as num?)?.toDouble() ?? 0;
+          (loan['principal'] as num?)
+                  ?.toDouble() ??
+              0;
 
       final type =
-          loan['type'] as String? ?? 'receivable';
+          loan['type']?.toString() ??
+              'receivable';
 
       final repaymentType =
           type == 'receivable'
               ? 'loan_received'
               : 'loan_paid';
 
-      final result = await executor.rawQuery(
+      final result =
+          await executor.rawQuery(
         '''
         SELECT COALESCE(SUM(amount), 0) AS total
         FROM transactions
         WHERE loan_id = ?
           AND type = ?
         ''',
-        [loanId, repaymentType],
+        [
+          loanId,
+          repaymentType,
+        ],
       );
 
       final repaid =
@@ -1144,7 +1511,8 @@ class MoneyDb {
                   ?.toDouble() ??
               0;
 
-      double remaining = principal - repaid;
+      double remaining =
+          principal - repaid;
 
       if (remaining < 0) {
         remaining = 0;
@@ -1154,7 +1522,8 @@ class MoneyDb {
         'loans',
         {
           'remaining': remaining,
-          'updated_at': DateTime.now().toIso8601String(),
+          'updated_at':
+              DateTime.now().toIso8601String(),
         },
         where: 'id = ?',
         whereArgs: [loanId],
@@ -1178,6 +1547,7 @@ class MoneyDb {
 
       double balance = 0;
 
+      // Income
       final incomeResult =
           await executor.rawQuery(
         '''
@@ -1189,6 +1559,7 @@ class MoneyDb {
         [accountId],
       );
 
+      // Expense
       final expenseResult =
           await executor.rawQuery(
         '''
@@ -1200,6 +1571,7 @@ class MoneyDb {
         [accountId],
       );
 
+      // Transfer In
       final transferInResult =
           await executor.rawQuery(
         '''
@@ -1211,6 +1583,7 @@ class MoneyDb {
         [accountId],
       );
 
+      // Transfer Out
       final transferOutResult =
           await executor.rawQuery(
         '''
@@ -1222,7 +1595,7 @@ class MoneyDb {
         [accountId],
       );
 
-      // আমি অন্যকে ধার দিয়েছি → টাকা আমার account থেকে বের হয়েছে।
+      // Loan Given
       final loanGivenResult =
           await executor.rawQuery(
         '''
@@ -1234,7 +1607,7 @@ class MoneyDb {
         [accountId],
       );
 
-      // আমি ধার নিয়েছি → টাকা আমার account-এ এসেছে।
+      // Loan Taken
       final loanTakenResult =
           await executor.rawQuery(
         '''
@@ -1246,7 +1619,7 @@ class MoneyDb {
         [accountId],
       );
 
-      // আমি যাকে ধার দিয়েছিলাম সে টাকা ফেরত দিয়েছে।
+      // Loan Received
       final loanReceivedResult =
           await executor.rawQuery(
         '''
@@ -1258,7 +1631,7 @@ class MoneyDb {
         [accountId],
       );
 
-      // আমি আমার নেওয়া ধার পরিশোধ করেছি।
+      // Loan Paid
       final loanPaidResult =
           await executor.rawQuery(
         '''
@@ -1372,13 +1745,21 @@ class MoneyDb {
     final args = <dynamic>[];
 
     if (startDate != null) {
-      where.add('transaction_date >= ?');
-      args.add(startDate.toIso8601String());
+      where.add(
+        'transaction_date >= ?',
+      );
+      args.add(
+        startDate.toIso8601String(),
+      );
     }
 
     if (endDate != null) {
-      where.add('transaction_date <= ?');
-      args.add(endDate.toIso8601String());
+      where.add(
+        'transaction_date <= ?',
+      );
+      args.add(
+        endDate.toIso8601String(),
+      );
     }
 
     final result = await db.rawQuery(
@@ -1410,13 +1791,21 @@ class MoneyDb {
     final args = <dynamic>[];
 
     if (startDate != null) {
-      where.add('transaction_date >= ?');
-      args.add(startDate.toIso8601String());
+      where.add(
+        'transaction_date >= ?',
+      );
+      args.add(
+        startDate.toIso8601String(),
+      );
     }
 
     if (endDate != null) {
-      where.add('transaction_date <= ?');
-      args.add(endDate.toIso8601String());
+      where.add(
+        'transaction_date <= ?',
+      );
+      args.add(
+        endDate.toIso8601String(),
+      );
     }
 
     final result = await db.rawQuery(
@@ -1478,13 +1867,21 @@ class MoneyDb {
     ];
 
     if (startDate != null) {
-      where.add('t.transaction_date >= ?');
-      args.add(startDate.toIso8601String());
+      where.add(
+        't.transaction_date >= ?',
+      );
+      args.add(
+        startDate.toIso8601String(),
+      );
     }
 
     if (endDate != null) {
-      where.add('t.transaction_date <= ?');
-      args.add(endDate.toIso8601String());
+      where.add(
+        't.transaction_date <= ?',
+      );
+      args.add(
+        endDate.toIso8601String(),
+      );
     }
 
     return db.rawQuery(
@@ -1525,12 +1922,14 @@ class MoneyDb {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    final income = await getTotalIncome(
+    final income =
+        await getTotalIncome(
       startDate: startDate,
       endDate: endDate,
     );
 
-    final expense = await getTotalExpense(
+    final expense =
+        await getTotalExpense(
       startDate: startDate,
       endDate: endDate,
     );
@@ -1546,7 +1945,8 @@ class MoneyDb {
   // SEARCH
   // =========================================================
 
-  Future<List<Map<String, dynamic>>> searchTransactions(
+  Future<List<Map<String, dynamic>>>
+      searchTransactions(
     String query,
   ) async {
     return getTransactions(
