@@ -52,15 +52,19 @@ class _HomeScreenState extends State<HomeScreen> {
       final transactions = await _db.getTransactions();
 
       transactions.sort((a, b) {
-        final aDate =
-            DateTime.tryParse(
-              (a['transaction_date'] ?? a['transactionDate'] ?? '').toString(),
+        final aDate = DateTime.tryParse(
+              (a['transaction_date'] ??
+                      a['transactionDate'] ??
+                      '')
+                  .toString(),
             ) ??
             DateTime(2000);
 
-        final bDate =
-            DateTime.tryParse(
-              (b['transaction_date'] ?? b['transactionDate'] ?? '').toString(),
+        final bDate = DateTime.tryParse(
+              (b['transaction_date'] ??
+                      b['transactionDate'] ??
+                      '')
+                  .toString(),
             ) ??
             DateTime(2000);
 
@@ -87,7 +91,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   double _toDouble(dynamic value) {
-    if (value is num) return value.toDouble();
+    if (value is num) {
+      return value.toDouble();
+    }
+
     return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
@@ -103,10 +110,13 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (type.toLowerCase()) {
       case 'income':
         return AppTheme.incomeColor;
+
       case 'expense':
         return AppTheme.expenseColor;
+
       case 'transfer':
         return AppTheme.transferColor;
+
       default:
         return AppTheme.gold;
     }
@@ -116,10 +126,13 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (type.toLowerCase()) {
       case 'income':
         return Icons.arrow_downward_rounded;
+
       case 'expense':
         return Icons.arrow_upward_rounded;
+
       case 'transfer':
         return Icons.swap_horiz_rounded;
+
       default:
         return Icons.account_balance_wallet_outlined;
     }
@@ -136,7 +149,8 @@ class _HomeScreenState extends State<HomeScreen> {
         item['categoryName'] ??
         item['category'];
 
-    if (category != null && category.toString().trim().isNotEmpty) {
+    if (category != null &&
+        category.toString().trim().isNotEmpty) {
       return category.toString();
     }
 
@@ -145,24 +159,35 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (type) {
       case 'income':
         return AppSettings.instance.isBangla ? 'আয়' : 'Income';
+
       case 'expense':
         return AppSettings.instance.isBangla ? 'ব্যয়' : 'Expense';
+
       case 'transfer':
-        return AppSettings.instance.isBangla ? 'ট্রান্সফার' : 'Transfer';
+        return AppSettings.instance.isBangla
+            ? 'ট্রান্সফার'
+            : 'Transfer';
+
       default:
-        return AppSettings.instance.isBangla ? 'লেনদেন' : 'Transaction';
+        return AppSettings.instance.isBangla
+            ? 'লেনদেন'
+            : 'Transaction';
     }
   }
 
   String _accountName(Map<String, dynamic> account) {
     return account['name']?.toString() ??
-        (AppSettings.instance.isBangla ? 'অ্যাকাউন্ট' : 'Account');
+        (AppSettings.instance.isBangla
+            ? 'অ্যাকাউন্ট'
+            : 'Account');
   }
 
   String _formatDate(dynamic value) {
     final date = DateTime.tryParse(value?.toString() ?? '');
 
-    if (date == null) return '';
+    if (date == null) {
+      return '';
+    }
 
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
@@ -186,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const TransactionScreen(),
+        builder: (_) => const TransactionsScreen(),
       ),
     );
 
@@ -274,7 +299,6 @@ class _HomeScreenState extends State<HomeScreen> {
               isDark: isDark,
             ),
           ),
-
           SafeArea(
             child: RefreshIndicator(
               color: AppTheme.green,
@@ -288,7 +312,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _buildTopBar(theme),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 110),
+                    padding: const EdgeInsets.fromLTRB(
+                      18,
+                      8,
+                      18,
+                      110,
+                    ),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         _buildBalanceCard(theme),
@@ -322,8 +351,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           settings.isBangla
                               ? 'অ্যাকাউন্টসমূহ'
                               : 'Accounts',
-                          actionText:
-                              settings.isBangla ? 'সব দেখুন' : 'View All',
+                          actionText: settings.isBangla
+                              ? 'সব দেখুন'
+                              : 'View All',
                           onAction: _openAccounts,
                         ),
                         const SizedBox(height: 12),
@@ -344,7 +374,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
           if (_loading)
             Positioned.fill(
               child: IgnorePointer(
@@ -368,7 +397,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTopBar(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+      padding: const EdgeInsets.fromLTRB(
+        14,
+        10,
+        14,
+        8,
+      ),
       child: Row(
         children: [
           Builder(
@@ -444,7 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -454,7 +488,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: _alpha(AppTheme.green, 0.18),
+            color: AppTheme.green.withValues(alpha: 0.18),
             blurRadius: 28,
             offset: const Offset(0, 14),
           ),
@@ -471,7 +505,7 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: _alpha(Colors.white, 0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                   width: 20,
                 ),
               ),
@@ -485,7 +519,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 110,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _alpha(AppTheme.gold, 0.09),
+                color: AppTheme.gold.withValues(alpha: 0.09),
               ),
             ),
           ),
@@ -496,7 +530,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Icon(
                     Icons.account_balance_wallet_outlined,
-                    color: _alpha(Colors.white, 0.82),
+                    color: Colors.white.withValues(alpha: 0.82),
                     size: 19,
                   ),
                   const SizedBox(width: 8),
@@ -505,7 +539,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? 'মোট ব্যালেন্স'
                         : 'Total Balance',
                     style: TextStyle(
-                      color: _alpha(Colors.white, 0.82),
+                      color: Colors.white.withValues(alpha: 0.82),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -525,7 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 17),
               Container(
                 height: 1,
-                color: _alpha(Colors.white, 0.10),
+                color: Colors.white.withValues(alpha: 0.10),
               ),
               const SizedBox(height: 15),
               Row(
@@ -534,14 +568,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _balanceMini(
                       theme,
                       icon: Icons.arrow_downward_rounded,
-                      title: settings.isBangla ? 'আয়' : 'Income',
+                      title: settings.isBangla
+                          ? 'আয়'
+                          : 'Income',
                       value: '৳ ${_money(_income)}',
                     ),
                   ),
                   Container(
                     width: 1,
                     height: 38,
-                    color: _alpha(Colors.white, 0.10),
+                    color: Colors.white.withValues(alpha: 0.10),
                   ),
                   Expanded(
                     child: Padding(
@@ -549,7 +585,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: _balanceMini(
                         theme,
                         icon: Icons.arrow_upward_rounded,
-                        title: settings.isBangla ? 'ব্যয়' : 'Expense',
+                        title: settings.isBangla
+                            ? 'ব্যয়'
+                            : 'Expense',
                         value: '৳ ${_money(_expense)}',
                       ),
                     ),
@@ -575,12 +613,12 @@ class _HomeScreenState extends State<HomeScreen> {
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: _alpha(Colors.white, 0.10),
+            color: Colors.white.withValues(alpha: 0.10),
             shape: BoxShape.circle,
           ),
           child: Icon(
             icon,
-            color: _alpha(Colors.white, 0.85),
+            color: Colors.white.withValues(alpha: 0.85),
             size: 16,
           ),
         ),
@@ -592,7 +630,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 title,
                 style: TextStyle(
-                  color: _alpha(Colors.white, 0.65),
+                  color: Colors.white.withValues(alpha: 0.65),
                   fontSize: 11,
                 ),
               ),
@@ -623,7 +661,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _summaryCard(
             theme,
             icon: Icons.trending_down_rounded,
-            title: settings.isBangla ? 'আজকের আয়' : 'Income',
+            title: settings.isBangla ? 'মোট আয়' : 'Income',
             value: '৳ ${_money(_income)}',
             color: AppTheme.incomeColor,
           ),
@@ -633,7 +671,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _summaryCard(
             theme,
             icon: Icons.trending_up_rounded,
-            title: settings.isBangla ? 'আজকের ব্যয়' : 'Expense',
+            title: settings.isBangla ? 'মোট ব্যয়' : 'Expense',
             value: '৳ ${_money(_expense)}',
             color: AppTheme.expenseColor,
           ),
@@ -655,7 +693,10 @@ class _HomeScreenState extends State<HomeScreen> {
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: _alpha(theme.colorScheme.onSurface, 0.055),
+          color: _alpha(
+            theme.colorScheme.onSurface,
+            0.055,
+          ),
         ),
       ),
       child: Row(
@@ -751,7 +792,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.add_rounded,
             title: settings.isBangla ? 'আয়' : 'Income',
             color: AppTheme.incomeColor,
-            onTap: () => _openAddWithType('income'),
+            onTap: _openAddTransaction,
           ),
         ),
         const SizedBox(width: 10),
@@ -761,7 +802,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.remove_rounded,
             title: settings.isBangla ? 'ব্যয়' : 'Expense',
             color: AppTheme.expenseColor,
-            onTap: () => _openAddWithType('expense'),
+            onTap: _openAddTransaction,
           ),
         ),
         const SizedBox(width: 10),
@@ -769,28 +810,15 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _quickAction(
             theme,
             icon: Icons.swap_horiz_rounded,
-            title: settings.isBangla ? 'ট্রান্সফার' : 'Transfer',
+            title: settings.isBangla
+                ? 'ট্রান্সফার'
+                : 'Transfer',
             color: AppTheme.transferColor,
-            onTap: () => _openAddWithType('transfer'),
+            onTap: _openAddTransaction,
           ),
         ),
       ],
     );
-  }
-
-  Future<void> _openAddWithType(String type) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AddTransactionScreen(
-          initialType: type,
-        ),
-      ),
-    );
-
-    if (mounted) {
-      _loadData();
-    }
   }
 
   Widget _quickAction(
@@ -814,7 +842,10 @@ class _HomeScreenState extends State<HomeScreen> {
             color: theme.cardColor,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: _alpha(theme.colorScheme.onSurface, 0.055),
+              color: _alpha(
+                theme.colorScheme.onSurface,
+                0.055,
+              ),
             ),
           ),
           child: Column(
@@ -868,7 +899,10 @@ class _HomeScreenState extends State<HomeScreen> {
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: _alpha(theme.colorScheme.onSurface, 0.055),
+          color: _alpha(
+            theme.colorScheme.onSurface,
+            0.055,
+          ),
         ),
       ),
       child: Column(
@@ -879,8 +913,9 @@ class _HomeScreenState extends State<HomeScreen> {
             final type = item['type']?.toString() ?? '';
             final color = _transactionColor(type);
             final amount = _toDouble(item['amount']);
-            final date =
-                item['transaction_date'] ?? item['transactionDate'];
+
+            final date = item['transaction_date'] ??
+                item['transactionDate'];
 
             return Column(
               children: [
@@ -920,7 +955,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   trailing: Text(
-                    '${type.toLowerCase() == 'expense' ? '-' : '+'}৳ ${_money(amount)}',
+                    type.toLowerCase() == 'expense'
+                        ? '-৳ ${_money(amount)}'
+                        : '+৳ ${_money(amount)}',
                     style: TextStyle(
                       color: color,
                       fontSize: 13,
@@ -963,7 +1000,9 @@ class _HomeScreenState extends State<HomeScreen> {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: _accounts.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, __) {
+          return const SizedBox(width: 10);
+        },
         itemBuilder: (context, index) {
           final account = _accounts[index];
           final balance = _toDouble(account['balance']);
@@ -1081,7 +1120,10 @@ class _HomeScreenState extends State<HomeScreen> {
             color: theme.cardColor,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: _alpha(theme.colorScheme.onSurface, 0.055),
+              color: _alpha(
+                theme.colorScheme.onSurface,
+                0.055,
+              ),
             ),
           ),
           child: Column(
@@ -1116,12 +1158,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 28),
+      padding: const EdgeInsets.symmetric(
+        vertical: 28,
+      ),
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: _alpha(theme.colorScheme.onSurface, 0.055),
+          color: _alpha(
+            theme.colorScheme.onSurface,
+            0.055,
+          ),
         ),
       ),
       child: Column(
@@ -1172,8 +1219,13 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
-              decoration: BoxDecoration(
+              padding: const EdgeInsets.fromLTRB(
+                22,
+                28,
+                22,
+                24,
+              ),
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
                     AppTheme.darkGreen,
@@ -1182,13 +1234,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: _alpha(Colors.white, 0.10),
+                      color: Colors.white.withValues(
+                        alpha: 0.10,
+                      ),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
@@ -1212,7 +1267,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? 'সহজে আপনার হিসাব রাখুন'
                         : 'Manage your money simply',
                     style: TextStyle(
-                      color: _alpha(Colors.white, 0.68),
+                      color: Colors.white.withValues(
+                        alpha: 0.68,
+                      ),
                       fontSize: 12,
                     ),
                   ),
@@ -1229,8 +1286,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     theme,
                     icon: Icons.dashboard_outlined,
-                    title: settings.isBangla ? 'হোম' : 'Home',
-                    onTap: () => Navigator.pop(context),
+                    title: settings.isBangla
+                        ? 'হোম'
+                        : 'Home',
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
                   ),
                   _drawerItem(
                     theme,
@@ -1246,7 +1307,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     theme,
                     icon: Icons.account_balance_wallet_outlined,
-                    title: settings.isBangla ? 'অ্যাকাউন্ট' : 'Accounts',
+                    title: settings.isBangla
+                        ? 'অ্যাকাউন্ট'
+                        : 'Accounts',
                     onTap: () {
                       Navigator.pop(context);
                       _openAccounts();
@@ -1255,7 +1318,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     theme,
                     icon: Icons.category_outlined,
-                    title: settings.isBangla ? 'খাত' : 'Categories',
+                    title: settings.isBangla
+                        ? 'খাত'
+                        : 'Categories',
                     onTap: () {
                       Navigator.pop(context);
                       _openCategories();
@@ -1264,7 +1329,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     theme,
                     icon: Icons.bar_chart_rounded,
-                    title: settings.isBangla ? 'পরিসংখ্যান' : 'Statistics',
+                    title: settings.isBangla
+                        ? 'পরিসংখ্যান'
+                        : 'Statistics',
                     onTap: () {
                       Navigator.pop(context);
                       _openStatistics();
@@ -1273,7 +1340,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     theme,
                     icon: Icons.description_outlined,
-                    title: settings.isBangla ? 'রিপোর্ট' : 'Report',
+                    title: settings.isBangla
+                        ? 'রিপোর্ট'
+                        : 'Report',
                     onTap: () {
                       Navigator.pop(context);
                       _openReport();
@@ -1282,7 +1351,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     theme,
                     icon: Icons.settings_outlined,
-                    title: settings.isBangla ? 'সেটিংস' : 'Settings',
+                    title: settings.isBangla
+                        ? 'সেটিংস'
+                        : 'Settings',
                     onTap: () {
                       Navigator.pop(context);
                       _openSettings();
@@ -1291,7 +1362,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _drawerItem(
                     theme,
                     icon: Icons.info_outline_rounded,
-                    title: settings.isBangla ? 'অ্যাপ সম্পর্কে' : 'About',
+                    title: settings.isBangla
+                        ? 'অ্যাপ সম্পর্কে'
+                        : 'About',
                     onTap: () {
                       Navigator.pop(context);
                       _openAbout();
@@ -1301,7 +1374,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                20,
+              ),
               child: Text(
                 settings.isBangla
                     ? 'আমার হিসাব'
@@ -1394,7 +1472,7 @@ class _PremiumBackgroundPainter extends CustomPainter {
       bgPaint,
     );
 
-    // Large soft green circle
+    // বড় সবুজ soft shape
     final greenPaint = Paint()
       ..color = isDark
           ? const Color(0x121F7655)
@@ -1402,12 +1480,15 @@ class _PremiumBackgroundPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(
-      Offset(size.width * 0.98, size.height * 0.16),
+      Offset(
+        size.width * 0.98,
+        size.height * 0.16,
+      ),
       size.width * 0.62,
       greenPaint,
     );
 
-    // Gold circle
+    // Gold shape
     final goldPaint = Paint()
       ..color = isDark
           ? const Color(0x0CC9A45C)
@@ -1415,12 +1496,15 @@ class _PremiumBackgroundPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(
-      Offset(size.width * 0.04, size.height * 0.52),
+      Offset(
+        size.width * 0.04,
+        size.height * 0.52,
+      ),
       size.width * 0.38,
       goldPaint,
     );
 
-    // Large curved ring
+    // বড় curved ring
     final ringPaint = Paint()
       ..color = isDark
           ? const Color(0x102D8A63)
@@ -1429,12 +1513,15 @@ class _PremiumBackgroundPainter extends CustomPainter {
       ..strokeWidth = 34;
 
     canvas.drawCircle(
-      Offset(size.width * 0.90, size.height * 0.74),
+      Offset(
+        size.width * 0.90,
+        size.height * 0.74,
+      ),
       size.width * 0.45,
       ringPaint,
     );
 
-    // Thin decorative ring
+    // পাতলা গোল shape
     final thinRingPaint = Paint()
       ..color = isDark
           ? const Color(0x0CC9A45C)
@@ -1443,12 +1530,15 @@ class _PremiumBackgroundPainter extends CustomPainter {
       ..strokeWidth = 1.5;
 
     canvas.drawCircle(
-      Offset(size.width * 0.08, size.height * 0.20),
+      Offset(
+        size.width * 0.08,
+        size.height * 0.20,
+      ),
       90,
       thinRingPaint,
     );
 
-    // Small floating dots
+    // ছোট decorative dots
     final dotPaint = Paint()
       ..color = isDark
           ? const Color(0x16C9A45C)
@@ -1456,24 +1546,33 @@ class _PremiumBackgroundPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     canvas.drawCircle(
-      Offset(size.width * 0.82, size.height * 0.34),
+      Offset(
+        size.width * 0.82,
+        size.height * 0.34,
+      ),
       5,
       dotPaint,
     );
 
     canvas.drawCircle(
-      Offset(size.width * 0.88, size.height * 0.37),
+      Offset(
+        size.width * 0.88,
+        size.height * 0.37,
+      ),
       3,
       dotPaint,
     );
 
     canvas.drawCircle(
-      Offset(size.width * 0.15, size.height * 0.67),
+      Offset(
+        size.width * 0.15,
+        size.height * 0.67,
+      ),
       4,
       dotPaint,
     );
 
-    // Very subtle diagonal curved shape
+    // উপরের curved shape
     final path = Path();
 
     path.moveTo(
@@ -1513,7 +1612,7 @@ class _PremiumBackgroundPainter extends CustomPainter {
       shapePaint,
     );
 
-    // Small gold arc
+    // Gold arc
     final arcPaint = Paint()
       ..color = isDark
           ? const Color(0x18C9A45C)
