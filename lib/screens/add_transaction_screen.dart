@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../services/app_settings.dart';
@@ -19,23 +20,49 @@ class AddTransactionScreen extends StatefulWidget {
 
 class _AddTransactionScreenState
     extends State<AddTransactionScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
+  final _personController = TextEditingController();
+
+  AppSettings get settings => AppSettings.instance;
 
   String _type = 'expense';
 
   int? _selectedAccountId;
+  int? _fromAccountId;
+  int? _toAccountId;
   int? _selectedCategoryId;
+  int? _selectedLoanId;
 
   DateTime _selectedDate = DateTime.now();
 
   List<Map<String, dynamic>> _accounts = [];
   List<Map<String, dynamic>> _categories = [];
+  List<Map<String, dynamic>> _loans = [];
 
   bool _loading = true;
   bool _saving = false;
 
-  AppSettings get settings => AppSettings.instance;
+  bool get _isTransfer => _type == 'transfer';
+
+  bool get _isLoanGiven => _type == 'loan_given';
+
+  bool get _isLoanTaken => _type == 'loan_taken';
+
+  bool get _isLoanReceived => _type == 'loan_received';
+
+  bool get _isLoanPaid => _type == 'loan_paid';
+
+  bool get _isNewLoan => _isLoanGiven || _isLoanTaken;
+
+  bool get _isLoanRepayment =>
+      _isLoanReceived || _isLoanPaid;
+
+  bool get _isLoanTransaction =>
+      _isNewLoan || _isLoanRepayment;
+
+  bool get _isEdit => widget.transactionId != null;
 
   @override
   void initState() {
@@ -47,84 +74,114 @@ class _AddTransactionScreenState
   void dispose() {
     _amountController.dispose();
     _noteController.dispose();
+    _personController.dispose();
     super.dispose();
   }
 
-  // ============================================================
-  // LOAD DATA
-  // ============================================================
+  String _text(String bn, String en) =>
+      settings.isBangla ? bn : en;
+
+  String _formatAmount(dynamic value) {
+    final amount = (value as num?)?.toDouble() ?? 0;
+
+    if (amount == amount.toInt()) {
+      return amount.toInt().toString();
+    }
+
+    return amount.toStringAsFixed(2);
+  }
 
   Future<void> _loadInitialData() async {
     try {
-      final accounts =
-          await MoneyDb.instance.getAccounts();
+      final accounts = await MoneyDb.instance.getAccounts();
+      final loans = await MoneyDb.instance.getLoans();
 
-      Map<String, dynamic>? existingTx;
+      Map<String, dynamic>? existing;
 
-      if (widget.transactionId != null) {
-        final allTxs =
+      if (_isEdit) {
+        final transactions =
             await MoneyDb.instance.getTransactions();
 
-        final matches = allTxs.where(
-          (t) => t['id'] == widget.transactionId,
-        );
-
-        if (matches.isNotEmpty) {
-          existingTx = matches.first;
+        for (final transaction in transactions) {
+          if (transaction['id'] == widget.transactionId) {
+            existing = transaction;
+            break;
+          }
         }
       }
 
-      if (existingTx != null) {
-        _type =
-            existingTx['type']?.toString() ?? 'expense';
+      String initialType = 'expense';
+
+      if (existing != null) {
+        initialType = existing['type']?.toString() ?? 'expense';
 
         _amountController.text =
-            (existingTx['amount'] as num?)
-                    ?.toString() ??
-                '';
+            (existing['amount'] as num?)?.toString() ?? '';
 
         _noteController.text =
-            existingTx['note']?.toString() ?? '';
+            existing['note']?.toString() ?? '';
 
-        if (existingTx['transaction_date'] != null) {
-          _selectedDate =
-              DateTime.tryParse(
-                    existingTx['transaction_date']
-                        .toString(),
-                  ) ??
-                  DateTime.now();
+        _personController.text =
+            existing['loan_person_name']?.toString() ?? '';
+
+        final date = DateTime.tryParse(
+          existing['transaction_date']?.toString() ?? '',
+        );
+
+        if (date != null) {
+          _selectedDate = date;
         }
+
+        _selectedAccountId =
+            (existing['account_id'] as num?)?.toInt();
+
+        _fromAccountId =
+            (existing['from_account_id'] as num?)?.toInt();
+
+        _toAccountId =
+            (existing['to_account_id'] as num?)?.toInt();
+
+        _selectedCategoryId =
+            (existing['category_id'] as num?)?.toInt();
+
+        _selectedLoanId =
+            (existing['loan_id'] as num?)?.toInt();
       }
 
       final categories =
-          _type == 'transfer'
-              ? <Map<String, dynamic>>[]
-              : await MoneyDb.instance.getCategories(
-                  type: _type,
-                );
+          initialType == 'income' || initialType == 'expense'
+              ? await MoneyDb.instance.getCategories(
+                  type: initialType,
+                )
+              : <Map<String, dynamic>>[];
 
       if (!mounted) return;
 
       setState(() {
+        _type = initialType;
         _accounts = accounts;
         _categories = categories;
+        _loans = loans;
 
-        if (existingTx != null) {
+        if (_selectedAccountId == null && accounts.isNotEmpty) {
           _selectedAccountId =
-              existingTx['account_id'] as int?;
+              (accounts.first['id'] as num?)?.toInt();
+        }
 
+        if (_fromAccountId == null && accounts.isNotEmpty) {
+          _fromAccountId =
+              (accounts.first['id'] as num?)?.toInt();
+        }
+
+        if (_toAccountId == null && accounts.length > 1) {
+          _toAccountId =
+              (accounts[1]['id'] as num?)?.toInt();
+        }
+
+        if (_selectedCategoryId == null &&
+            categories.isNotEmpty) {
           _selectedCategoryId =
-              existingTx['category_id'] as int?;
-        } else {
-          if (_accounts.isNotEmpty) {
-            _selectedAccountId =
-                _accounts.first['id'] as int?;
-          }
-
-          if (_categories.isNotEmpty) {
-            _selectedCategoryId =
-                _categories.first['id'] as int?;
-          }
+              (categories.first['id'] as num?)?.toInt();
         }
 
         _loading = false;
@@ -132,51 +189,59 @@ class _AddTransactionScreenState
     } catch (e) {
       if (!mounted) return;
 
-      setState(() {
-        _loading = false;
-      });
-
-      _showMessage(
-        e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            ),
-        isError: true,
-      );
+      setState(() => _loading = false);
+      _showMessage(_errorText(e), isError: true);
     }
   }
 
-  // ============================================================
-  // TYPE CHANGE
-  // ============================================================
+  String _errorText(Object error) {
+    return error.toString().replaceFirst('Exception: ', '');
+  }
 
-  Future<void> _onTypeChanged(
-    String newType,
-  ) async {
-    if (_type == newType) return;
+  Future<void> _onTypeChanged(String newType) async {
+    if (_saving || _type == newType) return;
 
     setState(() {
       _type = newType;
       _selectedCategoryId = null;
+      _selectedLoanId = null;
       _loading = true;
     });
 
     try {
       final categories =
-          newType == 'transfer'
-              ? <Map<String, dynamic>>[]
-              : await MoneyDb.instance.getCategories(
+          newType == 'income' || newType == 'expense'
+              ? await MoneyDb.instance.getCategories(
                   type: newType,
-                );
+                )
+              : <Map<String, dynamic>>[];
+
+      final loans = await MoneyDb.instance.getLoans();
 
       if (!mounted) return;
 
       setState(() {
         _categories = categories;
+        _loans = loans;
 
-        if (_categories.isNotEmpty) {
+        if (categories.isNotEmpty) {
           _selectedCategoryId =
-              _categories.first['id'] as int?;
+              (categories.first['id'] as num?)?.toInt();
+        }
+
+        if (_isLoanRepayment) {
+          final desiredType =
+              _isLoanReceived ? 'receivable' : 'payable';
+
+          final available = loans.where(
+            (loan) =>
+                loan['type']?.toString() == desiredType &&
+                ((loan['remaining'] as num?)?.toDouble() ?? 0) > 0,
+          );
+
+          _selectedLoanId = available.isEmpty
+              ? null
+              : (available.first['id'] as num?)?.toInt();
         }
 
         _loading = false;
@@ -184,151 +249,79 @@ class _AddTransactionScreenState
     } catch (e) {
       if (!mounted) return;
 
-      setState(() {
-        _loading = false;
-      });
-
-      _showMessage(
-        e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            ),
-        isError: true,
-      );
+      setState(() => _loading = false);
+      _showMessage(_errorText(e), isError: true);
     }
   }
 
-  // ============================================================
-  // ADD CATEGORY
-  // ============================================================
-
-  Future<void> _addNewCategory() async {
+  Future<void> _addCategory() async {
     final controller = TextEditingController();
 
     final name = await showDialog<String>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            settings.isBangla
-                ? 'নতুন খাত যোগ করুন'
-                : 'Add New Category',
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_text('নতুন খাত যোগ করুন', 'Add Category')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: _text('খাতের নাম', 'Category Name'),
           ),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            textInputAction:
-                TextInputAction.done,
-            decoration: InputDecoration(
-              labelText: settings.isBangla
-                  ? 'খাতের নাম'
-                  : 'Category Name',
-              hintText: settings.isBangla
-                  ? 'যেমন: খাবার, বেতন, যাতায়াত'
-                  : 'Example: Food, Salary, Transport',
-              prefixIcon: const Icon(
-                Icons.category_outlined,
-              ),
-            ),
-            onSubmitted: (_) {
-              final value =
-                  controller.text.trim();
-
-              if (value.isNotEmpty) {
+          onSubmitted: (value) {
+            if (value.trim().isNotEmpty) {
+              Navigator.pop(dialogContext, value.trim());
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(_text('বাতিল', 'Cancel')),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
                 Navigator.pop(
                   dialogContext,
-                  value,
+                  controller.text.trim(),
                 );
               }
             },
+            child: Text(_text('যোগ করুন', 'Add')),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  dialogContext,
-                );
-              },
-              child: Text(
-                settings.isBangla
-                    ? 'বাতিল'
-                    : 'Cancel',
-              ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                final value =
-                    controller.text.trim();
-
-                if (value.isNotEmpty) {
-                  Navigator.pop(
-                    dialogContext,
-                    value,
-                  );
-                }
-              },
-              icon: const Icon(
-                Icons.add_rounded,
-              ),
-              label: Text(
-                settings.isBangla
-                    ? 'যোগ করুন'
-                    : 'Add',
-              ),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
 
     controller.dispose();
 
-    if (name == null || name.trim().isEmpty) {
-      return;
-    }
+    if (name == null || name.trim().isEmpty) return;
 
     try {
-      final existing =
-          await MoneyDb.instance.getCategories(
+      final existing = await MoneyDb.instance.getCategories(
         type: _type,
       );
 
-      final alreadyExists = existing.any(
-        (category) =>
-            category['name']
-                .toString()
-                .trim()
-                .toLowerCase() ==
+      if (existing.any(
+        (item) =>
+            item['name'].toString().trim().toLowerCase() ==
             name.trim().toLowerCase(),
-      );
-
-      if (alreadyExists) {
-        if (!mounted) return;
-
+      )) {
         _showMessage(
-          settings.isBangla
-              ? 'এই নামে খাত আগে থেকেই আছে'
-              : 'A category with this name already exists',
+          _text('এই খাতটি আগে থেকেই আছে', 'Category already exists'),
           isError: true,
         );
-
         return;
       }
 
-      final categoryId =
-          await MoneyDb.instance.addCategory(
+      final id = await MoneyDb.instance.addCategory(
         name: name.trim(),
         type: _type,
-        icon: _type == 'income'
-            ? Icons.payments_outlined.codePoint
-            : Icons.category_outlined.codePoint,
-        color: _type == 'income'
-            ? AppTheme.green.toARGB32()
-            : Colors.red.shade600.toARGB32(),
+        icon: Icons.category_outlined.codePoint,
+        color: AppTheme.green.toARGB32(),
       );
 
-      final categories =
-          await MoneyDb.instance.getCategories(
+      final categories = await MoneyDb.instance.getCategories(
         type: _type,
       );
 
@@ -336,103 +329,724 @@ class _AddTransactionScreenState
 
       setState(() {
         _categories = categories;
-        _selectedCategoryId = categoryId;
+        _selectedCategoryId = id;
       });
 
-      _showMessage(
-        settings.isBangla
-            ? 'নতুন খাত যোগ হয়েছে'
-            : 'New category added',
-      );
+      _showMessage(_text('খাত যোগ হয়েছে', 'Category added'));
     } catch (e) {
-      if (!mounted) return;
-
-      _showMessage(
-        e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            ),
-        isError: true,
-      );
+      _showMessage(_errorText(e), isError: true);
     }
   }
 
-  // ============================================================
-  // SAVE
-  // ============================================================
+  List<Map<String, dynamic>> get _repaymentLoans {
+    final desiredType =
+        _isLoanReceived ? 'receivable' : 'payable';
+
+    return _loans.where((loan) {
+      final remaining =
+          (loan['remaining'] as num?)?.toDouble() ?? 0;
+
+      return loan['type']?.toString() == desiredType &&
+          remaining > 0;
+    }).toList();
+  }
+
+  Future<void> _refreshLoans() async {
+    final loans = await MoneyDb.instance.getLoans();
+
+    if (!mounted) return;
+
+    setState(() {
+      _loans = loans;
+
+      if (_isLoanRepayment &&
+          !_repaymentLoans.any(
+            (loan) =>
+                (loan['id'] as num?)?.toInt() ==
+                _selectedLoanId,
+          )) {
+        _selectedLoanId = _repaymentLoans.isEmpty
+            ? null
+            : (_repaymentLoans.first['id'] as num?)?.toInt();
+      }
+    });
+  }
+
+  Future<void> _selectDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+
+    if (date == null || !mounted) return;
+
+    setState(() {
+      _selectedDate = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        _selectedDate.hour,
+        _selectedDate.minute,
+      );
+    });
+  }
+
+  String _dateText() {
+    final day = _selectedDate.day.toString().padLeft(2, '0');
+    final month =
+        _selectedDate.month.toString().padLeft(2, '0');
+
+    return '$day/$month/${_selectedDate.year}';
+  }
+
+  String _accountName(Map<String, dynamic> account) {
+    final name = account['name']?.toString() ?? '';
+
+    switch (name.toLowerCase()) {
+      case 'cash':
+        return _text('ক্যাশ', 'Cash');
+      case 'bkash':
+        return _text('বিকাশ', 'Bkash');
+      case 'nagad':
+        return _text('নগদ', 'Nagad');
+      case 'bank account':
+        return _text('ব্যাংক অ্যাকাউন্ট', 'Bank Account');
+      case 'card':
+        return _text('কার্ড', 'Card');
+      default:
+        return name;
+    }
+  }
+
+  String _typeName(String type) {
+    switch (type) {
+      case 'income':
+        return _text('আয়', 'Income');
+      case 'expense':
+        return _text('ব্যয়', 'Expense');
+      case 'transfer':
+        return _text('ট্রান্সফার', 'Transfer');
+      case 'loan_given':
+        return _text('ধার দিয়েছি', 'Loan Given');
+      case 'loan_taken':
+        return _text('ধার নিয়েছি', 'Loan Taken');
+      case 'loan_received':
+        return _text('ধার ফেরত পেয়েছি', 'Loan Received');
+      case 'loan_paid':
+        return _text('ধার শোধ করেছি', 'Loan Repaid');
+      default:
+        return type;
+    }
+  }
+
+  Color _typeColor(String type) {
+    switch (type) {
+      case 'income':
+        return const Color(0xFF2E9D68);
+      case 'transfer':
+        return const Color(0xFF3F7FD6);
+      case 'loan_given':
+      case 'loan_received':
+        return const Color(0xFFB99550);
+      case 'loan_taken':
+      case 'loan_paid':
+        return const Color(0xFF8E72C7);
+      default:
+        return const Color(0xFFD9534F);
+    }
+  }
+
+  IconData _typeIcon(String type) {
+    switch (type) {
+      case 'income':
+        return Icons.south_west_rounded;
+      case 'transfer':
+        return Icons.swap_horiz_rounded;
+      case 'loan_given':
+        return Icons.call_made_rounded;
+      case 'loan_taken':
+        return Icons.call_received_rounded;
+      case 'loan_received':
+        return Icons.payments_outlined;
+      case 'loan_paid':
+        return Icons.price_check_rounded;
+      default:
+        return Icons.north_east_rounded;
+    }
+  }
+
+  Widget _buildTypeSelector() {
+    const types = [
+      'expense',
+      'income',
+      'transfer',
+      'loan_given',
+      'loan_taken',
+      'loan_received',
+      'loan_paid',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _text('লেনদেনের ধরন', 'Transaction Type'),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: types.map((type) {
+            final selected = _type == type;
+            final color = _typeColor(type);
+
+            return InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: _saving ? null : () => _onTypeChanged(type),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? color.withValues(alpha: 0.14)
+                      : Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: selected
+                        ? color
+                        : Theme.of(context).dividerColor,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _typeIcon(type),
+                      size: 19,
+                      color: color,
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      _typeName(type),
+                      style: TextStyle(
+                        color: selected
+                            ? color
+                            : Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAmountField() {
+    final color = _typeColor(_type);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _text('টাকার পরিমাণ', 'Amount'),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 5),
+          TextFormField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(
+              decimal: true,
+            ),
+            style: TextStyle(
+              color: color,
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+            ),
+            decoration: const InputDecoration(
+              prefixText: '৳ ',
+              hintText: '0.00',
+              border: InputBorder.none,
+              filled: false,
+              contentPadding: EdgeInsets.zero,
+            ),
+            validator: (value) {
+              final amount = double.tryParse(
+                (value ?? '').trim(),
+              );
+
+              if (amount == null || amount <= 0) {
+                return _text(
+                  'সঠিক টাকার পরিমাণ লিখুন',
+                  'Enter a valid amount',
+                );
+              }
+
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountDropdown() {
+    if (_accounts.isEmpty) {
+      return _emptyMessage(
+        _text('কোনো অ্যাকাউন্ট নেই', 'No accounts available'),
+      );
+    }
+
+    return DropdownButtonFormField<int>(
+      initialValue: _accounts.any(
+        (a) => (a['id'] as num?)?.toInt() == _selectedAccountId,
+      )
+          ? _selectedAccountId
+          : null,
+      decoration: InputDecoration(
+        labelText: _text('অ্যাকাউন্ট', 'Account'),
+        prefixIcon: const Icon(
+          Icons.account_balance_wallet_outlined,
+        ),
+      ),
+      items: _accounts.map((account) {
+        final id = (account['id'] as num).toInt();
+
+        return DropdownMenuItem<int>(
+          value: id,
+          child: Text(_accountName(account)),
+        );
+      }).toList(),
+      onChanged: _saving
+          ? null
+          : (value) {
+              setState(() => _selectedAccountId = value);
+            },
+    );
+  }
+
+  Widget _buildTransferAccounts() {
+    if (_accounts.length < 2) {
+      return _emptyMessage(
+        _text(
+          'ট্রান্সফারের জন্য অন্তত দুটি অ্যাকাউন্ট দরকার',
+          'Transfer requires at least two accounts',
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        DropdownButtonFormField<int>(
+          initialValue: _accounts.any(
+            (a) => (a['id'] as num?)?.toInt() == _fromAccountId,
+          )
+              ? _fromAccountId
+              : null,
+          decoration: InputDecoration(
+            labelText: _text('যে অ্যাকাউন্ট থেকে', 'From Account'),
+            prefixIcon: const Icon(Icons.call_made_rounded),
+          ),
+          items: _accounts.map((account) {
+            final id = (account['id'] as num).toInt();
+
+            return DropdownMenuItem<int>(
+              value: id,
+              child: Text(_accountName(account)),
+            );
+          }).toList(),
+          onChanged: _saving
+              ? null
+              : (value) {
+                  setState(() {
+                    _fromAccountId = value;
+
+                    if (_fromAccountId == _toAccountId) {
+                      _toAccountId = _accounts
+                          .map((a) => (a['id'] as num).toInt())
+                          .firstWhere((id) => id != value);
+                    }
+                  });
+                },
+        ),
+        const SizedBox(height: 12),
+        const Icon(
+          Icons.south_rounded,
+          color: AppTheme.gold,
+          size: 26,
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<int>(
+          initialValue: _accounts.any(
+            (a) => (a['id'] as num?)?.toInt() == _toAccountId,
+          )
+              ? _toAccountId
+              : null,
+          decoration: InputDecoration(
+            labelText: _text('যে অ্যাকাউন্টে', 'To Account'),
+            prefixIcon: const Icon(Icons.call_received_rounded),
+          ),
+          items: _accounts
+              .where(
+                (account) =>
+                    (account['id'] as num).toInt() !=
+                    _fromAccountId,
+              )
+              .map((account) {
+            final id = (account['id'] as num).toInt();
+
+            return DropdownMenuItem<int>(
+              value: id,
+              child: Text(_accountName(account)),
+            );
+          }).toList(),
+          onChanged: _saving
+              ? null
+              : (value) {
+                  setState(() => _toAccountId = value);
+                },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryDropdown() {
+    return Row(
+      children: [
+        Expanded(
+          child: DropdownButtonFormField<int>(
+            initialValue: _categories.any(
+              (c) =>
+                  (c['id'] as num?)?.toInt() ==
+                  _selectedCategoryId,
+            )
+                ? _selectedCategoryId
+                : null,
+            decoration: InputDecoration(
+              labelText: _text('খাত', 'Category'),
+              prefixIcon: const Icon(
+                Icons.category_outlined,
+              ),
+            ),
+            items: _categories.map((category) {
+              final id = (category['id'] as num).toInt();
+
+              return DropdownMenuItem<int>(
+                value: id,
+                child: Text(
+                  category['name']?.toString() ?? '',
+                ),
+              );
+            }).toList(),
+            onChanged: _saving
+                ? null
+                : (value) {
+                    setState(
+                      () => _selectedCategoryId = value,
+                    );
+                  },
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.filledTonal(
+          tooltip: _text('নতুন খাত যোগ করুন', 'Add Category'),
+          onPressed: _saving ? null : _addCategory,
+          icon: const Icon(Icons.add_rounded),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPersonField() {
+    return TextFormField(
+      controller: _personController,
+      readOnly: _isEdit,
+      decoration: InputDecoration(
+        labelText: _text('ব্যক্তির নাম', 'Person Name'),
+        hintText: _text(
+          'যেমন: রহিম',
+          'Example: Rahim',
+        ),
+        prefixIcon: const Icon(Icons.person_outline_rounded),
+      ),
+      validator: (value) {
+        if (_isNewLoan && (value ?? '').trim().isEmpty) {
+          return _text(
+            'ব্যক্তির নাম লিখুন',
+            'Enter the person name',
+          );
+        }
+
+        return null;
+      },
+    );
+  }
+
+  Widget _buildLoanDropdown() {
+    if (_repaymentLoans.isEmpty) {
+      return _emptyMessage(
+        _isLoanReceived
+            ? _text(
+                'ফেরত পাওয়ার মতো কোনো ধার নেই',
+                'No receivable loans available',
+              )
+            : _text(
+                'শোধ করার মতো কোনো ধার নেই',
+                'No payable loans available',
+              ),
+      );
+    }
+
+    return DropdownButtonFormField<int>(
+      initialValue: _repaymentLoans.any(
+        (loan) =>
+            (loan['id'] as num?)?.toInt() == _selectedLoanId,
+      )
+          ? _selectedLoanId
+          : null,
+      decoration: InputDecoration(
+        labelText: _text('ধার নির্বাচন করুন', 'Select Loan'),
+        prefixIcon: const Icon(Icons.people_alt_outlined),
+      ),
+      items: _repaymentLoans.map((loan) {
+        final id = (loan['id'] as num).toInt();
+        final remaining =
+            (loan['remaining'] as num?)?.toDouble() ?? 0;
+
+        return DropdownMenuItem<int>(
+          value: id,
+          child: Text(
+            '${loan['person_name']} • ৳${_formatAmount(remaining)}',
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: _saving
+          ? null
+          : (value) {
+              setState(() => _selectedLoanId = value);
+            },
+    );
+  }
+
+  Widget _buildDateField() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: _saving ? null : _selectDate,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: _text('তারিখ', 'Date'),
+          prefixIcon: const Icon(
+            Icons.calendar_month_rounded,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(child: Text(_dateText())),
+            const Icon(Icons.keyboard_arrow_down_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoteField() {
+    return TextFormField(
+      controller: _noteController,
+      maxLines: 3,
+      decoration: InputDecoration(
+        labelText: _text('নোট / বিবরণ', 'Note / Description'),
+        hintText: _text(
+          'প্রয়োজনে বিস্তারিত লিখুন',
+          'Add details if needed',
+        ),
+        prefixIcon: const Padding(
+          padding: EdgeInsets.only(bottom: 36),
+          child: Icon(Icons.note_alt_outlined),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyMessage(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(message),
+    );
+  }
 
   Future<void> _saveTransaction() async {
     if (_saving) return;
 
-    final amountText =
-        _amountController.text.trim();
-
-    if (amountText.isEmpty) {
-      _showMessage(
-        settings.isBangla
-            ? 'টাকার পরিমাণ লিখুন'
-            : 'Enter an amount',
-        isError: true,
-      );
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     final amount =
-        double.tryParse(amountText);
+        double.tryParse(_amountController.text.trim());
 
     if (amount == null || amount <= 0) {
       _showMessage(
-        settings.isBangla
-            ? 'সঠিক টাকার পরিমাণ দিন'
-            : 'Enter a valid amount',
+        _text('সঠিক পরিমাণ লিখুন', 'Enter a valid amount'),
         isError: true,
       );
       return;
     }
 
-    if (_selectedAccountId == null) {
+    if (_accounts.isEmpty) {
       _showMessage(
-        settings.isBangla
-            ? 'একটি অ্যাকাউন্ট নির্বাচন করুন'
-            : 'Select an account',
+        _text('কোনো অ্যাকাউন্ট নেই', 'No accounts available'),
         isError: true,
       );
       return;
     }
 
-    if (_type != 'transfer' &&
+    if (_isTransfer) {
+      if (_fromAccountId == null || _toAccountId == null) {
+        _showMessage(
+          _text('দুটি অ্যাকাউন্ট নির্বাচন করুন', 'Select both accounts'),
+          isError: true,
+        );
+        return;
+      }
+
+      if (_fromAccountId == _toAccountId) {
+        _showMessage(
+          _text(
+            'দুটি আলাদা অ্যাকাউন্ট নির্বাচন করুন',
+            'Choose two different accounts',
+          ),
+          isError: true,
+        );
+        return;
+      }
+    } else if (_selectedAccountId == null) {
+      _showMessage(
+        _text('অ্যাকাউন্ট নির্বাচন করুন', 'Select an account'),
+        isError: true,
+      );
+      return;
+    }
+
+    if ((_type == 'income' || _type == 'expense') &&
         _selectedCategoryId == null) {
       _showMessage(
-        settings.isBangla
-            ? 'একটি খাত নির্বাচন করুন'
-            : 'Select a category',
+        _text('একটি খাত নির্বাচন করুন', 'Select a category'),
         isError: true,
       );
       return;
     }
 
-    setState(() {
-      _saving = true;
-    });
+    if (_isLoanRepayment) {
+      if (_selectedLoanId == null ||
+          !_repaymentLoans.any(
+            (loan) =>
+                (loan['id'] as num?)?.toInt() ==
+                _selectedLoanId,
+          )) {
+        _showMessage(
+          _text(
+            'একটি সক্রিয় ধার নির্বাচন করুন',
+            'Select an active loan',
+          ),
+          isError: true,
+        );
+        return;
+      }
+
+      final loan = _repaymentLoans.firstWhere(
+        (item) =>
+            (item['id'] as num).toInt() ==
+            _selectedLoanId,
+      );
+
+      final remaining =
+          (loan['remaining'] as num?)?.toDouble() ?? 0;
+
+      if (amount > remaining) {
+        _showMessage(
+          _text(
+            'পরিমাণ বাকি ধার থেকে বেশি হতে পারবে না',
+            'Amount cannot exceed the remaining loan',
+          ),
+          isError: true,
+        );
+        return;
+      }
+    }
+
+    setState(() => _saving = true);
 
     try {
-      if (widget.transactionId != null) {
+      final note = _noteController.text.trim();
+
+      if (_isEdit) {
         await MoneyDb.instance.updateTransaction(
           widget.transactionId!,
           type: _type,
           amount: amount,
-          accountId: _selectedAccountId,
           categoryId: _selectedCategoryId,
-          note: _noteController.text.trim(),
+          accountId: _isTransfer ? null : _selectedAccountId,
+          fromAccountId: _isTransfer ? _fromAccountId : null,
+          toAccountId: _isTransfer ? _toAccountId : null,
+          loanId: _isLoanTransaction ? _selectedLoanId : null,
+          note: note,
+          transactionDate: _selectedDate,
+        );
+      } else if (_isNewLoan) {
+        await MoneyDb.instance.createLoan(
+          personName: _personController.text.trim(),
+          type: _isLoanGiven ? 'receivable' : 'payable',
+          amount: amount,
+          accountId: _selectedAccountId!,
+          note: note,
+          transactionDate: _selectedDate,
+        );
+      } else if (_isLoanRepayment) {
+        await MoneyDb.instance.addLoanRepayment(
+          loanId: _selectedLoanId!,
+          amount: amount,
+          accountId: _selectedAccountId!,
+          note: note,
           transactionDate: _selectedDate,
         );
       } else {
         await MoneyDb.instance.addTransaction(
           type: _type,
           amount: amount,
-          accountId: _selectedAccountId,
           categoryId: _selectedCategoryId,
-          note: _noteController.text.trim(),
+          accountId: _isTransfer ? null : _selectedAccountId,
+          fromAccountId: _isTransfer ? _fromAccountId : null,
+          toAccountId: _isTransfer ? _toAccountId : null,
+          note: note,
           transactionDate: _selectedDate,
         );
       }
@@ -443,207 +1057,11 @@ class _AddTransactionScreenState
     } catch (e) {
       if (!mounted) return;
 
-      setState(() {
-        _saving = false;
-      });
-
-      _showMessage(
-        e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            ),
-        isError: true,
-      );
-    }
-  }
-
-  // ============================================================
-  // DATE
-  // ============================================================
-
-  Future<void> _selectDate() async {
-    final selected =
-        await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context)
-                .colorScheme
-                .copyWith(
-                  primary: AppTheme.green,
-                ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (selected == null) return;
-
-    setState(() {
-      _selectedDate = DateTime(
-        selected.year,
-        selected.month,
-        selected.day,
-        _selectedDate.hour,
-        _selectedDate.minute,
-      );
-    });
-  }
-
-  // ============================================================
-  // HELPERS
-  // ============================================================
-
-  String _formatDate() {
-    final d = _selectedDate.day
-        .toString()
-        .padLeft(2, '0');
-
-    final m = _selectedDate.month
-        .toString()
-        .padLeft(2, '0');
-
-    final y = _selectedDate.year
-        .toString();
-
-    return '$d/$m/$y';
-  }
-
-  String _accountName(
-    Map<String, dynamic> account,
-  ) {
-    final name =
-        account['name']?.toString() ?? '';
-
-    switch (name.toLowerCase()) {
-      case 'cash':
-        return settings.isBangla
-            ? 'ক্যাশ'
-            : 'Cash';
-
-      case 'bkash':
-        return settings.isBangla
-            ? 'বিকাশ'
-            : 'Bkash';
-
-      case 'nagad':
-        return settings.isBangla
-            ? 'নগদ'
-            : 'Nagad';
-
-      case 'bank account':
-        return settings.isBangla
-            ? 'ব্যাংক অ্যাকাউন্ট'
-            : 'Bank Account';
-
-      case 'card':
-        return settings.isBangla
-            ? 'কার্ড'
-            : 'Card';
-
-      default:
-        return name;
-    }
-  }
-
-  IconData _accountIcon(
-    String type,
-  ) {
-    switch (type) {
-      case 'cash':
-        return Icons.payments_rounded;
-
-      case 'bkash':
-        return Icons.phone_android_rounded;
-
-      case 'nagad':
-        return Icons.account_balance_wallet_rounded;
-
-      case 'bank':
-        return Icons.account_balance_rounded;
-
-      case 'card':
-        return Icons.credit_card_rounded;
-
-      default:
-        return Icons.wallet_rounded;
-    }
-  }
-
-  Color _typeColor(
-    String type,
-  ) {
-    switch (type) {
-      case 'income':
-        return const Color(0xFF2E9D68);
-
-      case 'transfer':
-        return const Color(0xFF3F7FD6);
-
-      default:
-        return const Color(0xFFD9534F);
-    }
-  }
-
-  IconData _typeIcon(
-    String type,
-  ) {
-    switch (type) {
-      case 'income':
-        return Icons.south_west_rounded;
-
-      case 'transfer':
-        return Icons.swap_horiz_rounded;
-
-      default:
-        return Icons.north_east_rounded;
-    }
-  }
-
-  String _typeTitle(
-    String type,
-  ) {
-    switch (type) {
-      case 'income':
-        return settings.isBangla
-            ? 'আয়'
-            : 'Income';
-
-      case 'transfer':
-        return settings.isBangla
-            ? 'ট্রান্সফার'
-            : 'Transfer';
-
-      default:
-        return settings.isBangla
-            ? 'ব্যয়'
-            : 'Expense';
-    }
-  }
-
-  String _typeSubtitle(
-    String type,
-  ) {
-    switch (type) {
-      case 'income':
-        return settings.isBangla
-            ? 'টাকা এসেছে'
-            : 'Money received';
-
-      case 'transfer':
-        return settings.isBangla
-            ? 'এক অ্যাকাউন্ট থেকে অন্যটিতে'
-            : 'Between accounts';
-
-      default:
-        return settings.isBangla
-            ? 'টাকা খরচ হয়েছে'
-            : 'Money spent';
+      _showMessage(_errorText(e), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
@@ -658,729 +1076,147 @@ class _AddTransactionScreenState
       ..showSnackBar(
         SnackBar(
           content: Text(message),
-          behavior:
-              SnackBarBehavior.floating,
-          backgroundColor: isError
-              ? Colors.red.shade700
-              : AppTheme.green,
+          behavior: SnackBarBehavior.floating,
+          backgroundColor:
+              isError ? Colors.red.shade700 : AppTheme.green,
         ),
       );
   }
-
-  // ============================================================
-  // TRANSACTION TYPE SELECTOR
-  // ============================================================
-
-  Widget _buildTypeSelector() {
-    final types = [
-      'expense',
-      'income',
-      'transfer',
-    ];
-
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          settings.isBangla
-              ? 'লেনদেনের ধরন'
-              : 'Transaction Type',
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 10),
-
-        Row(
-          children: types.map((type) {
-            final selected =
-                _type == type;
-
-            final color =
-                _typeColor(type);
-
-            return Expanded(
-              child: Padding(
-                padding:
-                    EdgeInsets.only(
-                  right: type == 'transfer'
-                      ? 0
-                      : 8,
-                ),
-                child: InkWell(
-                  borderRadius:
-                      BorderRadius.circular(
-                    17,
-                  ),
-                  onTap: _saving
-                      ? null
-                      : () =>
-                          _onTypeChanged(
-                            type,
-                          ),
-                  child: AnimatedContainer(
-                    duration:
-                        const Duration(
-                      milliseconds: 220,
-                    ),
-                    curve:
-                        Curves.easeOutCubic,
-                    padding:
-                        const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 13,
-                    ),
-                    decoration:
-                        BoxDecoration(
-                      color: selected
-                          ? color.withValues(
-                              alpha: 0.13,
-                            )
-                          : Theme.of(context)
-                              .cardColor,
-                      borderRadius:
-                          BorderRadius.circular(
-                        17,
-                      ),
-                      border: Border.all(
-                        color: selected
-                            ? color
-                            : Theme.of(context)
-                                .dividerColor,
-                        width:
-                            selected ? 1.5 : 1,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        AnimatedContainer(
-                          duration:
-                              const Duration(
-                            milliseconds: 220,
-                          ),
-                          width: 43,
-                          height: 43,
-                          decoration:
-                              BoxDecoration(
-                            color: selected
-                                ? color
-                                : color.withValues(
-                                    alpha: 0.08,
-                                  ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            _typeIcon(type),
-                            color: selected
-                                ? Colors.white
-                                : color,
-                            size: 21,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 7,
-                        ),
-                        Text(
-                          _typeTitle(type),
-                          maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: selected
-                                ? color
-                                : Theme.of(
-                                    context,
-                                  )
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.color,
-                            fontSize: 12,
-                            fontWeight:
-                                FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 2,
-                        ),
-                        Text(
-                          _typeSubtitle(type),
-                          maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            )
-                                .textTheme
-                                .bodySmall
-                                ?.color,
-                            fontSize: 8,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 5,
-                        ),
-                        AnimatedOpacity(
-                          duration:
-                              const Duration(
-                            milliseconds: 180,
-                          ),
-                          opacity:
-                              selected ? 1 : 0,
-                          child: Icon(
-                            Icons
-                                .check_circle_rounded,
-                            color: color,
-                            size: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // AMOUNT
-  // ============================================================
-
-  Widget _buildAmountField() {
-    final color = _typeColor(_type);
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        14,
-        16,
-        15,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius:
-            BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withValues(
-            alpha: 0.22,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Text(
-            settings.isBangla
-                ? 'টাকার পরিমাণ'
-                : 'Amount',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.color,
-            ),
-          ),
-          const SizedBox(height: 3),
-          TextField(
-            controller: _amountController,
-            keyboardType:
-                const TextInputType.numberWithOptions(
-              decimal: true,
-            ),
-            style: TextStyle(
-              fontSize: 29,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-            decoration:
-                const InputDecoration(
-              border: InputBorder.none,
-              filled: false,
-              hintText: '0.00',
-              contentPadding:
-                  EdgeInsets.zero,
-              prefixText: '৳ ',
-              prefixStyle: TextStyle(
-                fontSize: 25,
-                fontWeight:
-                    FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // ACCOUNT
-  // ============================================================
-
-  Widget _buildAccountSelector() {
-    if (_accounts.isEmpty) {
-      return _emptySelector(
-        icon: Icons.wallet_outlined,
-        title: settings.isBangla
-            ? 'কোনো অ্যাকাউন্ট নেই'
-            : 'No accounts found',
-      );
-    }
-
-    return _sectionCard(
-      child: DropdownButtonFormField<int>(
-        initialValue: _selectedAccountId,
-        decoration: InputDecoration(
-          labelText: settings.isBangla
-              ? 'অ্যাকাউন্ট'
-              : 'Account',
-          prefixIcon: const Icon(
-            Icons.account_balance_wallet_outlined,
-          ),
-        ),
-        items: _accounts.map((account) {
-          return DropdownMenuItem<int>(
-            value: account['id'] as int,
-            child: Row(
-              children: [
-                Icon(
-                  _accountIcon(
-                    account['type']
-                            ?.toString() ??
-                        '',
-                  ),
-                  size: 19,
-                ),
-                const SizedBox(width: 9),
-                Text(
-                  _accountName(account),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-        onChanged: _saving
-            ? null
-            : (value) {
-                setState(() {
-                  _selectedAccountId =
-                      value;
-                });
-              },
-      ),
-    );
-  }
-
-  // ============================================================
-  // CATEGORY
-  // ============================================================
-
-  Widget _buildCategorySelector() {
-    if (_type == 'transfer') {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFF3F7FD6)
-              .withValues(alpha: 0.08),
-          borderRadius:
-              BorderRadius.circular(17),
-          border: Border.all(
-            color: const Color(0xFF3F7FD6)
-                .withValues(alpha: 0.18),
-          ),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.swap_horiz_rounded,
-              color: Color(0xFF3F7FD6),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                settings.isBangla
-                    ? 'ট্রান্সফারের জন্য খাত প্রয়োজন নেই'
-                    : 'Category is not required for transfer',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight:
-                      FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return _sectionCard(
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue:
-                      _selectedCategoryId,
-                  decoration:
-                      InputDecoration(
-                    labelText:
-                        settings.isBangla
-                            ? 'খাত'
-                            : 'Category',
-                    prefixIcon:
-                        const Icon(
-                      Icons
-                          .category_outlined,
-                    ),
-                  ),
-                  items: _categories
-                      .map((category) {
-                    return DropdownMenuItem<
-                        int>(
-                      value:
-                          category['id']
-                              as int,
-                      child: Text(
-                        category['name']
-                            .toString(),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: _saving
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _selectedCategoryId =
-                                value;
-                          });
-                        },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 50,
-                height: 50,
-                decoration:
-                    BoxDecoration(
-                  color: AppTheme.green
-                      .withValues(
-                    alpha: 0.10,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
-                ),
-                child: IconButton(
-                  tooltip:
-                      settings.isBangla
-                          ? 'নতুন খাত যোগ করুন'
-                          : 'Add category',
-                  onPressed: _saving
-                      ? null
-                      : _addNewCategory,
-                  icon: const Icon(
-                    Icons.add_rounded,
-                    color:
-                        AppTheme.green,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          if (_categories.isEmpty) ...[
-            const SizedBox(height: 9),
-            Align(
-              alignment:
-                  Alignment.centerLeft,
-              child: Text(
-                settings.isBangla
-                    ? 'এই ধরনের কোনো খাত নেই। + চাপ দিয়ে নতুন খাত যোগ করুন।'
-                    : 'No category found. Tap + to add one.',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(
-                    context,
-                  )
-                      .textTheme
-                      .bodySmall
-                      ?.color,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // DATE & NOTE
-  // ============================================================
-
-  Widget _buildDateSelector() {
-    return InkWell(
-      borderRadius:
-          BorderRadius.circular(17),
-      onTap: _saving
-          ? null
-          : _selectDate,
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 15,
-          vertical: 15,
-        ),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius:
-              BorderRadius.circular(17),
-          border: Border.all(
-            color:
-                Theme.of(context).dividerColor,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration:
-                  BoxDecoration(
-                color: AppTheme.gold
-                    .withValues(
-                  alpha: 0.12,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  12,
-                ),
-              ),
-              child: const Icon(
-                Icons.calendar_month_rounded,
-                color: AppTheme.gold,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    settings.isBangla
-                        ? 'তারিখ'
-                        : 'Date',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Theme.of(
-                        context,
-                      )
-                          .textTheme
-                          .bodySmall
-                          ?.color,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    _formatDate(),
-                    style: const TextStyle(
-                      fontWeight:
-                          FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons
-                  .keyboard_arrow_down_rounded,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNoteField() {
-    return TextField(
-      controller: _noteController,
-      maxLines: 3,
-      textInputAction:
-          TextInputAction.newline,
-      decoration: InputDecoration(
-        labelText: settings.isBangla
-            ? 'নোট'
-            : 'Note',
-        hintText: settings.isBangla
-            ? 'প্রয়োজনে বিস্তারিত লিখুন'
-            : 'Add a note if needed',
-        prefixIcon: const Padding(
-          padding: EdgeInsets.only(
-            bottom: 36,
-          ),
-          child: Icon(
-            Icons.note_alt_outlined,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionCard({
-    required Widget child,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius:
-            BorderRadius.circular(19),
-      ),
-      child: child,
-    );
-  }
-
-  Widget _emptySelector({
-    required IconData icon,
-    required String title,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius:
-            BorderRadius.circular(17),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: AppTheme.gold,
-          ),
-          const SizedBox(width: 10),
-          Text(title),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
-    final isEdit =
-        widget.transactionId != null;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isEdit
-              ? (settings.isBangla
-                  ? 'লেনদেন আপডেট করুন'
-                  : 'Edit Transaction')
-              : (settings.isBangla
-                  ? 'নতুন লেনদেন'
-                  : 'New Transaction'),
-        ),
+          _isEdit
+              ? _text('লেনদেন সম্পাদনা', 'Edit Transaction')
+              : _text('নতুন লেনদেন', 'New Transaction'),
+      ),
       ),
       body: _loading
           ? const Center(
-              child:
-                  CircularProgressIndicator(),
+              child: CircularProgressIndicator(),
             )
           : SafeArea(
-              child: SingleChildScrollView(
-                padding:
-                    const EdgeInsets.fromLTRB(
-                  16,
-                  16,
-                  16,
-                  30,
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    16,
+                    16,
+                    30,
+                  ),
                   children: [
                     _buildTypeSelector(),
-
-                    const SizedBox(height: 18),
-
+                    const SizedBox(height: 20),
                     _buildAmountField(),
+                    const SizedBox(height: 16),
 
-                    const SizedBox(height: 15),
+                    if (_isNewLoan) ...[
+                      _buildPersonField(),
+                      const SizedBox(height: 14),
+                    ],
 
-                    _buildAccountSelector(),
+                    if (_isLoanRepayment) ...[
+                      _buildLoanDropdown(),
+                      const SizedBox(height: 14),
+                    ],
 
-                    const SizedBox(height: 12),
+                    if (_isTransfer) ...[
+                      _buildTransferAccounts(),
+                    ] else ...[
+                      _buildAccountDropdown(),
+                    ],
 
-                    _buildCategorySelector(),
+                    if (_type == 'income' ||
+                        _type == 'expense') ...[
+                      const SizedBox(height: 14),
+                      _buildCategoryDropdown(),
+                    ],
 
-                    const SizedBox(height: 12),
+                    if (_isLoanTransaction) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.gold.withValues(
+                            alpha: 0.10,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              color: AppTheme.gold,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _isLoanGiven
+                                    ? _text(
+                                        'এই টাকা আপনার পাওনা হিসেবে থাকবে।',
+                                        'This amount will be recorded as money owed to you.',
+                                      )
+                                    : _isLoanTaken
+                                        ? _text(
+                                            'এই টাকা আপনার পরিশোধযোগ্য ধার হিসেবে থাকবে।',
+                                            'This amount will be recorded as money you owe.',
+                                          )
+                                        : _isLoanReceived
+                                            ? _text(
+                                                'নির্বাচিত ব্যক্তি থেকে ফেরত পাওয়া টাকা যোগ হবে।',
+                                                'The repayment received will reduce the outstanding loan.',
+                                              )
+                                            : _text(
+                                                'নির্বাচিত ধার পরিশোধের হিসাব আপডেট হবে।',
+                                                'The selected loan balance will be reduced.',
+                                              ),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
 
-                    _buildDateSelector(),
-
-                    const SizedBox(height: 12),
-
+                    const SizedBox(height: 14),
+                    _buildDateField(),
+                    const SizedBox(height: 14),
                     _buildNoteField(),
-
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 24),
 
                     SizedBox(
-                      width: double.infinity,
                       height: 54,
                       child: ElevatedButton.icon(
-                        onPressed: _saving
-                            ? null
-                            : _saveTransaction,
+                        onPressed: _saving ? null : _saveTransaction,
                         icon: _saving
                             ? const SizedBox(
-                                width: 19,
-                                height: 19,
-                                child:
-                                    CircularProgressIndicator(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color:
-                                      Colors.white,
+                                  color: Colors.white,
                                 ),
                               )
                             : Icon(
-                                isEdit
-                                    ? Icons
-                                        .check_rounded
-                                    : Icons
-                                        .save_rounded,
+                                _isEdit
+                                    ? Icons.check_rounded
+                                    : Icons.save_rounded,
                               ),
                         label: Text(
                           _saving
-                              ? (settings.isBangla
-                                  ? 'সংরক্ষণ হচ্ছে...'
-                                  : 'Saving...')
-                              : isEdit
-                                  ? (settings.isBangla
-                                      ? 'আপডেট করুন'
-                                      : 'Update Transaction')
-                                  : (settings.isBangla
-                                      ? 'লেনদেন সংরক্ষণ করুন'
-                                      : 'Save Transaction'),
-                          style:
-                              const TextStyle(
-                            fontSize: 14,
-                            fontWeight:
-                                FontWeight.w800,
+                              ? _text('সংরক্ষণ হচ্ছে...', 'Saving...')
+                              : _isEdit
+                                  ? _text('আপডেট করুন', 'Update')
+                                  : _text(
+                                      'লেনদেন সংরক্ষণ করুন',
+                                      'Save Transaction',
+                                    ),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
                           ),
                         ),
                       ),
