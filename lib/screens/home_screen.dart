@@ -77,7 +77,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final expense =
           (period['expense'] as num?)?.toDouble() ?? 0;
 
-      final accountBalance = await _db.getTotalBalance();
+      final accountBalance =
+          await _db.getTotalBalance();
 
       if (!mounted) return;
 
@@ -123,7 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _formatAccountMoney(dynamic value) {
     final amount = (value as num?)?.toDouble() ?? 0;
-
     return _formatMoney(amount);
   }
 
@@ -165,10 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _currentMonthLabel() {
     final now = DateTime.now();
-
-    return settings.isBangla
-        ? '${_monthName(now.month)} ${now.year}'
-        : '${_monthName(now.month)} ${now.year}';
+    return '${_monthName(now.month)} ${now.year}';
   }
 
   String _transactionTitle(
@@ -212,14 +209,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final type = item['type']?.toString();
 
     if (type == 'transfer') {
-      final note = item['note']?.toString() ?? '';
-      return note;
+      return item['note']?.toString() ?? '';
     }
 
     final account =
         item['account_name']?.toString() ?? '';
 
-    final note = item['note']?.toString() ?? '';
+    final note =
+        item['note']?.toString() ?? '';
 
     if (account.isNotEmpty && note.isNotEmpty) {
       return '$account • $note';
@@ -256,15 +253,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Icons.swap_horiz_rounded;
   }
 
-  Future<void> _openAddTransaction({
-    String? type,
-  }) async {
+  Future<void> _openAddTransaction() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AddTransactionScreen(
-          initialType: type,
-        ),
+        builder: (_) => const AddTransactionScreen(),
       ),
     );
 
@@ -401,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
         22,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -415,7 +408,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -426,7 +420,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppTheme.gold.withValues(
                     alpha: 0.18,
                   ),
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius:
+                      BorderRadius.circular(15),
                   border: Border.all(
                     color: AppTheme.gold.withValues(
                       alpha: 0.35,
@@ -511,7 +506,8 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.black.withValues(
                 alpha: 0.14,
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius:
+                  BorderRadius.circular(20),
               border: Border.all(
                 color: Colors.white.withValues(
                   alpha: 0.10,
@@ -558,7 +554,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ? 'বর্তমান ঘাটি'
                                 : 'Current Deficit'),
                         style: TextStyle(
-                          color: Colors.white.withValues(
+                          color:
+                              Colors.white.withValues(
                             alpha: 0.75,
                           ),
                           fontSize: 12,
@@ -578,33 +575,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      settings.isBangla
-                          ? 'এই মাস'
-                          : 'This month',
-                      style: TextStyle(
-                        color: Colors.white.withValues(
-                          alpha: 0.65,
-                        ),
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      _difference >= 0 ? '+' : '-',
-                      style: TextStyle(
-                        color: _difference >= 0
-                            ? Colors.greenAccent
-                            : Colors.redAccent,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                Text(
+                  _difference >= 0 ? '+' : '-',
+                  style: TextStyle(
+                    color: _difference >= 0
+                        ? Colors.greenAccent
+                        : Colors.redAccent,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -662,9 +641,9 @@ class _HomeScreenState extends State<HomeScreen> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Theme.of(context).dividerColor.withValues(
-                alpha: 0.35,
-              ),
+          color: Theme.of(context)
+              .dividerColor
+              .withValues(alpha: 0.35),
         ),
       ),
       child: Column(
@@ -677,8 +656,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(11),
+                  color: color.withValues(
+                    alpha: 0.12,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(11),
                 ),
                 child: Icon(
                   icon,
@@ -703,7 +685,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             _formatMoney(amount),
             maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            overflow:
+                TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -739,13 +722,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: settings.isBangla
                       ? 'আয়'
                       : 'Income',
-                  icon: Icons.add_circle_outline_rounded,
+                  icon:
+                      Icons.add_circle_outline_rounded,
                   color: Colors.green.shade600,
-                  onTap: () {
-                    _openAddTransaction(
-                      type: 'income',
-                    );
-                  },
+                  onTap: _openAddTransaction,
                 ),
               ),
               const SizedBox(width: 9),
@@ -754,13 +734,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: settings.isBangla
                       ? 'ব্যয়'
                       : 'Expense',
-                  icon: Icons.remove_circle_outline_rounded,
+                  icon:
+                      Icons.remove_circle_outline_rounded,
                   color: Colors.red.shade600,
-                  onTap: () {
-                    _openAddTransaction(
-                      type: 'expense',
-                    );
-                  },
+                  onTap: _openAddTransaction,
                 ),
               ),
               const SizedBox(width: 9),
@@ -769,13 +746,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: settings.isBangla
                       ? 'ট্রান্সফার'
                       : 'Transfer',
-                  icon: Icons.swap_horiz_rounded,
+                  icon:
+                      Icons.swap_horiz_rounded,
                   color: AppTheme.gold,
-                  onTap: () {
-                    _openAddTransaction(
-                      type: 'transfer',
-                    );
-                  },
+                  onTap: _openAddTransaction,
                 ),
               ),
             ],
@@ -793,17 +767,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Material(
       color: Theme.of(context).cardColor,
-      borderRadius: BorderRadius.circular(17),
+      borderRadius:
+          BorderRadius.circular(17),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius:
+            BorderRadius.circular(17),
         child: Container(
-          padding: const EdgeInsets.symmetric(
+          padding:
+              const EdgeInsets.symmetric(
             vertical: 14,
             horizontal: 6,
           ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(17),
+            borderRadius:
+                BorderRadius.circular(17),
             border: Border.all(
               color: color.withValues(
                 alpha: 0.22,
@@ -831,10 +809,12 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 title,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow:
+                    TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight:
+                      FontWeight.w600,
                 ),
               ),
             ],
@@ -880,26 +860,27 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 2),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding:
+                const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppTheme.darkGreen.withValues(
-                    alpha: 0.95,
-                  ),
-                  AppTheme.green.withValues(
-                    alpha: 0.85,
-                  ),
+                  AppTheme.darkGreen
+                      .withValues(alpha: 0.95),
+                  AppTheme.green
+                      .withValues(alpha: 0.85),
                 ],
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius:
+                  BorderRadius.circular(20),
             ),
             child: Column(
               children: [
                 Row(
                   children: [
                     const Icon(
-                      Icons.account_balance_wallet_rounded,
+                      Icons
+                          .account_balance_wallet_rounded,
                       color: AppTheme.gold,
                       size: 22,
                     ),
@@ -910,7 +891,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? 'সব অ্যাকাউন্টের মোট বর্তমান ব্যালেন্স'
                             : 'Current balance of all accounts',
                         style: TextStyle(
-                          color: Colors.white.withValues(
+                          color: Colors.white
+                              .withValues(
                             alpha: 0.80,
                           ),
                           fontSize: 12,
@@ -921,7 +903,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 9),
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment:
+                      Alignment.centerLeft,
                   child: Text(
                     _formatMoney(
                       _accountBalance,
@@ -929,7 +912,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 27,
-                      fontWeight: FontWeight.bold,
+                      fontWeight:
+                          FontWeight.bold,
                     ),
                   ),
                 ),
@@ -938,17 +922,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(
                     height: 62,
                     child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _accounts.length,
-                      separatorBuilder: (_, __) {
-                        return const SizedBox(width: 8);
+                      scrollDirection:
+                          Axis.horizontal,
+                      itemCount:
+                          _accounts.length,
+                      separatorBuilder:
+                          (_, __) {
+                        return const SizedBox(
+                          width: 8,
+                        );
                       },
-                      itemBuilder: (context, index) {
+                      itemBuilder:
+                          (context, index) {
                         final account =
                             _accounts[index];
 
                         final name =
-                            account['name']?.toString() ??
+                            account['name']
+                                    ?.toString() ??
                                 '';
 
                         final balance =
@@ -957,27 +948,37 @@ class _HomeScreenState extends State<HomeScreen> {
                         return Container(
                           width: 125,
                           padding:
-                              const EdgeInsets.symmetric(
+                              const EdgeInsets
+                                  .symmetric(
                             horizontal: 11,
                             vertical: 8,
                           ),
-                          decoration: BoxDecoration(
+                          decoration:
+                              BoxDecoration(
                             color: Colors.white
-                                .withValues(alpha: 0.08),
+                                .withValues(
+                              alpha: 0.08,
+                            ),
                             borderRadius:
-                                BorderRadius.circular(13),
+                                BorderRadius
+                                    .circular(
+                              13,
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                                CrossAxisAlignment
+                                    .start,
                             children: [
                               Text(
                                 name,
                                 maxLines: 1,
                                 overflow:
-                                    TextOverflow.ellipsis,
+                                    TextOverflow
+                                        .ellipsis,
                                 style: TextStyle(
-                                  color: Colors.white
+                                  color: Colors
+                                      .white
                                       .withValues(
                                     alpha: 0.72,
                                   ),
@@ -991,12 +992,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 maxLines: 1,
                                 overflow:
-                                    TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                    TextOverflow
+                                        .ellipsis,
+                                style:
+                                    const TextStyle(
+                                  color:
+                                      Colors.white,
                                   fontSize: 14,
                                   fontWeight:
-                                      FontWeight.bold,
+                                      FontWeight
+                                          .bold,
                                 ),
                               ),
                             ],
@@ -1034,7 +1039,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               TextButton(
-                onPressed: _openTransactions,
+                onPressed:
+                    _openTransactions,
                 child: Text(
                   settings.isBangla
                       ? 'সব দেখুন'
@@ -1058,14 +1064,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildNoTransactions() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(25),
+      padding:
+          const EdgeInsets.all(25),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(18),
       ),
       child: Column(
         children: [
-          Icon(
+          const Icon(
             Icons.receipt_long_outlined,
             size: 42,
             color: AppTheme.gold,
@@ -1102,14 +1110,19 @@ class _HomeScreenState extends State<HomeScreen> {
     Map<String, dynamic> item,
   ) {
     final type =
-        item['type']?.toString() ?? 'expense';
+        item['type']?.toString() ??
+            'expense';
 
     final amount =
-        (item['amount'] as num?)?.toDouble() ?? 0;
+        (item['amount'] as num?)
+                ?.toDouble() ??
+            0;
 
-    final color = _transactionColor(type);
+    final color =
+        _transactionColor(type);
 
-    final title = _transactionTitle(item);
+    final title =
+        _transactionTitle(item);
 
     final subtitle =
         _transactionSubtitle(item);
@@ -1117,26 +1130,35 @@ class _HomeScreenState extends State<HomeScreen> {
     final id = item['id'] as int;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin:
+          const EdgeInsets.only(
+        bottom: 8,
+      ),
       elevation: 0,
       child: InkWell(
         onTap: () {
           _editTransaction(id);
         },
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding:
+              const EdgeInsets.all(12),
           child: Row(
             children: [
               Container(
                 width: 45,
                 height: 45,
-                decoration: BoxDecoration(
-                  color: color.withValues(
+                decoration:
+                    BoxDecoration(
+                  color:
+                      color.withValues(
                     alpha: 0.12,
                   ),
                   borderRadius:
-                      BorderRadius.circular(13),
+                      BorderRadius.circular(
+                    13,
+                  ),
                 ),
                 child: Icon(
                   _transactionIcon(type),
@@ -1155,9 +1177,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       maxLines: 1,
                       overflow:
                           TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style:
+                          const TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                        fontWeight:
+                            FontWeight.bold,
                       ),
                     ),
                     if (subtitle.isNotEmpty) ...[
@@ -1189,7 +1213,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? '+ ${_formatMoney(amount)}'
                         : type == 'expense'
                             ? '- ${_formatMoney(amount)}'
-                            : _formatMoney(amount),
+                            : _formatMoney(
+                                amount,
+                              ),
                     style: TextStyle(
                       color: color,
                       fontSize: 14,
@@ -1199,7 +1225,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 2),
                   PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
+                    padding:
+                        EdgeInsets.zero,
                     constraints:
                         const BoxConstraints(
                       minWidth: 42,
@@ -1215,16 +1242,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         _deleteTransaction(id);
                       }
                     },
-                    itemBuilder: (context) => [
+                    itemBuilder:
+                        (context) => [
                       PopupMenuItem(
                         value: 'edit',
                         child: Row(
                           children: [
                             const Icon(
-                              Icons.edit_outlined,
+                              Icons
+                                  .edit_outlined,
                               size: 19,
                             ),
-                            const SizedBox(width: 9),
+                            const SizedBox(
+                              width: 9,
+                            ),
                             Text(
                               settings.isBangla
                                   ? 'এডিট'
@@ -1238,19 +1269,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Row(
                           children: [
                             Icon(
-                              Icons.delete_outline,
+                              Icons
+                                  .delete_outline,
                               size: 19,
-                              color:
-                                  Colors.red.shade600,
+                              color: Colors
+                                  .red
+                                  .shade600,
                             ),
-                            const SizedBox(width: 9),
+                            const SizedBox(
+                              width: 9,
+                            ),
                             Text(
                               settings.isBangla
                                   ? 'ডিলিট'
                                   : 'Delete',
                               style: TextStyle(
-                                color:
-                                    Colors.red.shade600,
+                                color: Colors
+                                    .red
+                                    .shade600,
                               ),
                             ),
                           ],
@@ -1279,7 +1315,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTools() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         16,
         16,
         16,
@@ -1305,7 +1342,8 @@ class _HomeScreenState extends State<HomeScreen> {
             childAspectRatio: 1.12,
             children: [
               _toolButton(
-                icon: Icons.bar_chart_rounded,
+                icon:
+                    Icons.bar_chart_rounded,
                 title: settings.isBangla
                     ? 'পরিসংখ্যান'
                     : 'Statistics',
@@ -1316,7 +1354,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               _toolButton(
-                icon: Icons.description_outlined,
+                icon:
+                    Icons.description_outlined,
                 title: settings.isBangla
                     ? 'রিপোর্ট'
                     : 'Report',
@@ -1327,7 +1366,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               _toolButton(
-                icon: Icons.account_balance_wallet_outlined,
+                icon: Icons
+                    .account_balance_wallet_outlined,
                 title: settings.isBangla
                     ? 'অ্যাকাউন্ট'
                     : 'Accounts',
@@ -1338,7 +1378,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               _toolButton(
-                icon: Icons.category_outlined,
+                icon:
+                    Icons.category_outlined,
                 title: settings.isBangla
                     ? 'খাত'
                     : 'Categories',
@@ -1349,14 +1390,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               _toolButton(
-                icon: Icons.receipt_long_outlined,
+                icon:
+                    Icons.receipt_long_outlined,
                 title: settings.isBangla
                     ? 'লেনদেন'
                     : 'Transactions',
-                onTap: _openTransactions,
+                onTap:
+                    _openTransactions,
               ),
               _toolButton(
-                icon: Icons.info_outline_rounded,
+                icon:
+                    Icons.info_outline_rounded,
                 title: settings.isBangla
                     ? 'সম্পর্কে'
                     : 'About',
@@ -1380,17 +1424,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Material(
       color: Theme.of(context).cardColor,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius:
+          BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius:
+            BorderRadius.circular(16),
         child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+          decoration:
+              BoxDecoration(
+            borderRadius:
+                BorderRadius.circular(16),
             border: Border.all(
               color: Theme.of(context)
                   .dividerColor
-                  .withValues(alpha: 0.35),
+                  .withValues(
+                    alpha: 0.35,
+                  ),
             ),
           ),
           child: Column(
@@ -1406,11 +1456,15 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 title,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
+                overflow:
+                    TextOverflow.ellipsis,
+                textAlign:
+                    TextAlign.center,
+                style:
+                    const TextStyle(
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontWeight:
+                      FontWeight.w600,
                 ),
               ),
             ],
@@ -1422,7 +1476,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomAddButton() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding:
+          const EdgeInsets.fromLTRB(
         16,
         0,
         16,
@@ -1432,9 +1487,8 @@ class _HomeScreenState extends State<HomeScreen> {
         width: double.infinity,
         height: 54,
         child: ElevatedButton.icon(
-          onPressed: () {
-            _openAddTransaction();
-          },
+          onPressed:
+              _openAddTransaction,
           icon: const Icon(
             Icons.add_rounded,
           ),
@@ -1443,11 +1497,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? 'নতুন লেনদেন যোগ করুন'
                 : 'Add New Transaction',
           ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.green,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(17),
+          style:
+              ElevatedButton.styleFrom(
+            backgroundColor:
+                AppTheme.green,
+            foregroundColor:
+                Colors.white,
+            shape:
+                RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(
+                17,
+              ),
             ),
           ),
         ),
@@ -1463,7 +1524,8 @@ class _HomeScreenState extends State<HomeScreen> {
           onRefresh: _loadDashboard,
           child: _loading
               ? const Center(
-                  child: CircularProgressIndicator(),
+                  child:
+                      CircularProgressIndicator(),
                 )
               : SingleChildScrollView(
                   physics:
