@@ -1,12 +1,18 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:gallery_saver_plus/gallery_saver.dart';
+import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
+import 'package:screenshot/screenshot.dart';
 
-import '../services/app_settings.dart';
 import '../services/money_db.dart';
-import '../theme/app_theme.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -16,36 +22,111 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
+  final ScreenshotController _screenshotController =
+      ScreenshotController();
+
+  String _period = 'monthly';
+
   DateTime _startDate = DateTime(
     DateTime.now().year,
     DateTime.now().month,
     1,
   );
 
-  DateTime _endDate = DateTime.now();
+  DateTime _endDate = DateTime(
+    DateTime.now().year,
+    DateTime.now().month + 1,
+    0,
+    23,
+    59,
+    59,
+    999,
+  );
 
-  String _period = 'monthly';
-
-  List<Map<String, dynamic>> _transactions = [];
+  bool _loading = true;
+  bool _saving = false;
 
   double _income = 0;
   double _expense = 0;
 
-  bool _loading = true;
-
-  AppSettings get settings => AppSettings.instance;
+  List<Map<String, dynamic>> _transactions = [];
+  List<Map<String, dynamic>> _incomeCategories = [];
+  List<Map<String, dynamic>> _expenseCategories = [];
 
   @override
   void initState() {
     super.initState();
-    _loadReportData();
+    _loadReport();
   }
 
-  // ------------------------------------------------------------
-  // DATE / PERIOD
-  // ------------------------------------------------------------
+  // ============================================================
+  // LOAD REPORT
+  // ============================================================
 
-  void _setPeriod(String period) {
+  Future<void> _loadReport() async {
+    setState(() {
+      _loading = true;
+    });
+
+    try {
+      final income = await MoneyDb.instance.getTotalIncome(
+        startDate: _startDate,
+        endDate: _endDate,
+      );
+
+      final expense = await MoneyDb.instance.getTotalExpense(
+        startDate: _startDate,
+        endDate: _endDate,
+      );
+
+      final transactions =
+          await MoneyDb.instance.getTransactions(
+        startDate: _startDate,
+        endDate: _endDate,
+      );
+
+      final incomeCategories =
+          await MoneyDb.instance.getIncomeByCategory(
+        startDate: _startDate,
+        endDate: _endDate,
+      );
+
+      final expenseCategories =
+          await MoneyDb.instance.getExpenseByCategory(
+        startDate: _startDate,
+        endDate: _endDate,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _income = income;
+        _expense = expense;
+        _transactions = transactions;
+        _incomeCategories = incomeCategories;
+        _expenseCategories = expenseCategories;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('রিপোর্ট লোড করা যায়নি: $e'),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // PERIOD
+  // ============================================================
+
+  void _changePeriod(String period) {
     final now = DateTime.now();
 
     DateTime start;
@@ -53,35 +134,28 @@ class _ReportScreenState extends State<ReportScreen> {
 
     switch (period) {
       case 'weekly':
-        final today = DateTime(
-          now.year,
-          now.month,
-          now.day,
-        );
+        final today =
+            DateTime(now.year, now.month, now.day);
 
-        final daysFromMonday = today.weekday - 1;
+        final weekday = today.weekday;
 
         start = today.subtract(
-          Duration(days: daysFromMonday),
+          Duration(days: weekday - 1),
         );
 
-        end = start.add(
-          const Duration(
-            days: 6,
-            hours: 23,
-            minutes: 59,
-            seconds: 59,
-            milliseconds: 999,
-          ),
+        end = DateTime(
+          start.year,
+          start.month,
+          start.day + 6,
+          23,
+          59,
+          59,
+          999,
         );
         break;
 
       case 'yearly':
-        start = DateTime(
-          now.year,
-          1,
-          1,
-        );
+        start = DateTime(now.year, 1, 1);
 
         end = DateTime(
           now.year,
@@ -93,9 +167,6 @@ class _ReportScreenState extends State<ReportScreen> {
           999,
         );
         break;
-
-      case 'custom':
-        return;
 
       case 'monthly':
       default:
@@ -123,36 +194,37 @@ class _ReportScreenState extends State<ReportScreen> {
       _endDate = end;
     });
 
-    _loadReportData();
+    _loadReport();
   }
 
-  Future<void> _selectDateRange() async {
-    final picked = await showDateRangePicker(
+  Future<void> _pickCustomDate() async {
+    final range = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(
-        const Duration(days: 365),
-      ),
+      lastDate: DateTime(2100),
       initialDateRange: DateTimeRange(
         start: _startDate,
         end: _endDate,
       ),
+      helpText: 'রিপোর্টের সময় নির্বাচন করুন',
+      saveText: 'নির্বাচন',
     );
 
-    if (picked == null) return;
+    if (range == null) return;
 
     setState(() {
       _period = 'custom';
+
       _startDate = DateTime(
-        picked.start.year,
-        picked.start.month,
-        picked.start.day,
+        range.start.year,
+        range.start.month,
+        range.start.day,
       );
 
       _endDate = DateTime(
-        picked.end.year,
-        picked.end.month,
-        picked.end.day,
+        range.end.year,
+        range.end.month,
+        range.end.day,
         23,
         59,
         59,
@@ -160,658 +232,882 @@ class _ReportScreenState extends State<ReportScreen> {
       );
     });
 
-    await _loadReportData();
+    _loadReport();
   }
 
-  // ------------------------------------------------------------
-  // LOAD DATA
-  // ------------------------------------------------------------
-
-  Future<void> _loadReportData() async {
-    if (mounted) {
-      setState(() {
-        _loading = true;
-      });
-    }
-
-    try {
-      final transactions = await MoneyDb.instance.getTransactions(
-        startDate: _startDate,
-        endDate: _endDate,
-      );
-
-      double income = 0;
-      double expense = 0;
-
-      for (final tx in transactions) {
-        final amount =
-            (tx['amount'] as num?)?.toDouble() ?? 0;
-
-        final type = tx['type']?.toString();
-
-        if (type == 'income') {
-          income += amount;
-        } else if (type == 'expense') {
-          expense += amount;
-        }
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        _transactions = transactions;
-        _income = income;
-        _expense = expense;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
-
-      _showMessage(
-        e.toString().replaceFirst(
-          'Exception: ',
-          '',
-        ),
-        isError: true,
-      );
-    }
-  }
-
-  // ------------------------------------------------------------
-  // HELPERS
-  // ------------------------------------------------------------
+  // ============================================================
+  // CALCULATIONS
+  // ============================================================
 
   double get _difference => _income - _expense;
 
   bool get _isSurplus => _difference >= 0;
 
-  String _formatNumber(double value) {
-    if (value == value.toInt()) {
-      return value.toInt().toString();
+  String get _periodTitle {
+    switch (_period) {
+      case 'weekly':
+        return 'সাপ্তাহিক রিপোর্ট';
+      case 'yearly':
+        return 'বার্ষিক রিপোর্ট';
+      case 'custom':
+        return 'নির্বাচিত সময়ের রিপোর্ট';
+      case 'monthly':
+      default:
+        return 'মাসিক রিপোর্ট';
     }
-
-    return value.toStringAsFixed(2);
   }
 
-  String _formatDate(DateTime date) {
+  String _money(double value) {
+    return '৳ ${value.toStringAsFixed(2)}';
+  }
+
+  String _dateText(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
         '${date.year}';
   }
 
-  String _periodTitle() {
-    switch (_period) {
-      case 'weekly':
-        return settings.isBangla
-            ? 'এই সপ্তাহ'
-            : 'This Week';
+  DateTime _parseDate(dynamic value) {
+    if (value is DateTime) return value;
 
-      case 'yearly':
-        return settings.isBangla
-            ? 'এই বছর'
-            : 'This Year';
+    return DateTime.tryParse(
+          value?.toString() ?? '',
+        ) ??
+        DateTime.now();
+  }
 
-      case 'custom':
-        return settings.isBangla
-            ? 'নির্বাচিত সময়'
-            : 'Custom Period';
-
-      case 'monthly':
+  String _transactionType(String type) {
+    switch (type) {
+      case 'income':
+        return 'আয়';
+      case 'expense':
+        return 'ব্যয়';
+      case 'transfer':
+        return 'ট্রান্সফার';
       default:
-        return settings.isBangla
-            ? 'এই মাস'
-            : 'This Month';
+        return type;
     }
   }
 
-  void _showMessage(
-    String message, {
-    bool isError = false,
-  }) {
-    if (!mounted) return;
+  // ============================================================
+  // SCREENSHOT
+  // ============================================================
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: isError
-              ? Colors.red.shade700
-              : AppTheme.green,
+  Future<Uint8List> _captureReport() async {
+    return _screenshotController.captureFromWidget(
+      Material(
+        color: Colors.white,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: _buildVoucher(
+            exportMode: true,
+          ),
         ),
-      );
+      ),
+      delay: const Duration(milliseconds: 250),
+      pixelRatio: 2.5,
+    );
   }
 
-  // ------------------------------------------------------------
-  // CATEGORY TOTALS
-  // ------------------------------------------------------------
+  // ============================================================
+  // SAVE JPG
+  // ============================================================
 
-  Map<String, double> _categoryTotals(
-    String type,
-  ) {
-    final Map<String, double> result = {};
+  Future<void> _saveJpg() async {
+    if (_saving) return;
 
-    for (final tx in _transactions) {
-      if (tx['type']?.toString() != type) {
-        continue;
+    setState(() {
+      _saving = true;
+    });
+
+    try {
+      final pngBytes = await _captureReport();
+
+      final decoded = img.decodeImage(pngBytes);
+
+      if (decoded == null) {
+        throw Exception(
+          'রিপোর্টের ছবি তৈরি করা যায়নি।',
+        );
       }
 
-      final category =
-          tx['category_name']?.toString().trim();
+      final jpgBytes = Uint8List.fromList(
+        img.encodeJpg(
+          decoded,
+          quality: 95,
+        ),
+      );
 
-      final name = category == null || category.isEmpty
-          ? (settings.isBangla
-              ? 'অন্যান্য'
-              : 'Other')
-          : category;
+      final directory =
+          await getTemporaryDirectory();
 
-      final amount =
-          (tx['amount'] as num?)?.toDouble() ?? 0;
+      final fileName =
+          'amar_hisab_report_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      result[name] = (result[name] ?? 0) + amount;
+      final file = File(
+        '${directory.path}/$fileName',
+      );
+
+      await file.writeAsBytes(
+        jpgBytes,
+        flush: true,
+      );
+
+      final result = await GallerySaver.saveImage(
+        file.path,
+        albumName: 'আমার হিসাব',
+      );
+
+      if (!mounted) return;
+
+      if (result == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'JPG রিপোর্ট Gallery-তে সংরক্ষণ হয়েছে।',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'JPG সংরক্ষণ করা যায়নি।',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'JPG সংরক্ষণে সমস্যা: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
     }
-
-    return result;
   }
 
-  // ------------------------------------------------------------
-  // PERIOD SELECTOR
-  // ------------------------------------------------------------
+  // ============================================================
+  // SAVE PDF
+  // ============================================================
 
-  Widget _buildPeriodSelector() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
+  Future<void> _savePdf() async {
+    if (_saving) return;
+
+    setState(() {
+      _saving = true;
+    });
+
+    try {
+      final imageBytes = await _captureReport();
+
+      final pdf = pw.Document();
+
+      final pdfImage = pw.MemoryImage(
+        imageBytes,
+      );
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(18),
+          build: (context) {
+            return pw.Center(
+              child: pw.Image(
+                pdfImage,
+                fit: pw.BoxFit.contain,
+              ),
+            );
+          },
+        ),
+      );
+
+      final directory =
+          await getTemporaryDirectory();
+
+      final fileName =
+          'amar_hisab_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+
+      final file = File(
+        '${directory.path}/$fileName',
+      );
+
+      await file.writeAsBytes(
+        await pdf.save(),
+        flush: true,
+      );
+
+      await Share.shareXFiles(
+        [
+          XFile(
+            file.path,
+            mimeType: 'application/pdf',
+          ),
+        ],
+        subject: 'আমার হিসাব - $_periodTitle',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'PDF রিপোর্ট প্রস্তুত হয়েছে।',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'PDF তৈরি করতে সমস্যা: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // SHARE
+  // ============================================================
+
+  Future<void> _shareReport() async {
+    if (_saving) return;
+
+    setState(() {
+      _saving = true;
+    });
+
+    try {
+      final pngBytes = await _captureReport();
+
+      final directory =
+          await getTemporaryDirectory();
+
+      final fileName =
+          'amar_hisab_report_${DateTime.now().millisecondsSinceEpoch}.png';
+
+      final file = File(
+        '${directory.path}/$fileName',
+      );
+
+      await file.writeAsBytes(
+        pngBytes,
+        flush: true,
+      );
+
+      await Share.shareXFiles(
+        [
+          XFile(
+            file.path,
+            mimeType: 'image/png',
+          ),
+        ],
+        subject: 'আমার হিসাব - $_periodTitle',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'শেয়ার করতে সমস্যা: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // EXPORT MENU
+  // ============================================================
+
+  void _showExportMenu() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'রিপোর্ট সংরক্ষণ / শেয়ার',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(
+                      Icons.picture_as_pdf,
+                    ),
+                  ),
+                  title: const Text(
+                    'PDF হিসেবে সংরক্ষণ',
+                  ),
+                  subtitle: const Text(
+                    'PDF তৈরি করে শেয়ার/সেভ করুন',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _savePdf();
+                  },
+                ),
+
+                ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(
+                      Icons.image,
+                    ),
+                  ),
+                  title: const Text(
+                    'JPG হিসেবে Gallery-তে সংরক্ষণ',
+                  ),
+                  subtitle: const Text(
+                    'রিপোর্টের voucher JPG হিসেবে Save হবে',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _saveJpg();
+                  },
+                ),
+
+                ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(
+                      Icons.share,
+                    ),
+                  ),
+                  title: const Text(
+                    'রিপোর্ট শেয়ার করুন',
+                  ),
+                  subtitle: const Text(
+                    'Messenger, WhatsApp ইত্যাদিতে পাঠান',
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _shareReport();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // VOUCHER
+  // ============================================================
+
+  Widget _buildVoucher({
+    bool exportMode = false,
+  }) {
+    final theme = Theme.of(context);
+
+    final background =
+        exportMode ? Colors.white : theme.scaffoldBackgroundColor;
+
+    final primary = const Color(0xFF176B45);
+    final gold = const Color(0xFFB99550);
+
+    return Container(
+      width: exportMode ? 900 : double.infinity,
+      color: background,
+      padding: EdgeInsets.all(
+        exportMode ? 34 : 16,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(
+            exportMode ? 0 : 22,
+          ),
+          border: Border.all(
+            color: gold.withOpacity(0.45),
+            width: 1.4,
+          ),
+          boxShadow: exportMode
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+        ),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.stretch,
+          children: [
+            // HEADER
+            Container(
+              padding: const EdgeInsets.fromLTRB(
+                22,
+                22,
+                22,
+                18,
+              ),
+              decoration: BoxDecoration(
+                color: primary,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(
+                    exportMode ? 0 : 22,
+                  ),
+                  topRight: Radius.circular(
+                    exportMode ? 0 : 22,
+                  ),
+                ),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'আমার হিসাব',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 27,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    _periodTitle,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.92),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_dateText(_startDate)}  —  ${_dateText(_endDate)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // SUMMARY
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _summaryBox(
+                          title: 'মোট আয়',
+                          amount: _income,
+                          icon: Icons.arrow_downward,
+                          color: const Color(0xFF287A55),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _summaryBox(
+                          title: 'মোট ব্যয়',
+                          amount: _expense,
+                          icon: Icons.arrow_upward,
+                          color: const Color(0xFFC35E5E),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 15,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _isSurplus
+                          ? const Color(0xFFE8F4ED)
+                          : const Color(0xFFF9E9E9),
+                      borderRadius:
+                          BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _isSurplus
+                            ? const Color(0xFFB6DCC5)
+                            : const Color(0xFFE8BABA),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _isSurplus
+                              ? Icons.trending_up
+                              : Icons.trending_down,
+                          color: _isSurplus
+                              ? const Color(0xFF287A55)
+                              : const Color(0xFFC35E5E),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _isSurplus
+                                ? 'উদ্বৃত্ত'
+                                : 'ঘাটি',
+                            style: const TextStyle(
+                              color: Color(0xFF333333),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          _money(_difference.abs()),
+                          style: TextStyle(
+                            color: _isSurplus
+                                ? const Color(0xFF287A55)
+                                : const Color(0xFFC35E5E),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            _sectionTitle(
+              'খাত অনুযায়ী আয়',
+              Icons.account_balance_wallet,
+            ),
+
+            _categorySection(
+              _incomeCategories,
+              income: true,
+            ),
+
+            _sectionTitle(
+              'খাত অনুযায়ী ব্যয়',
+              Icons.receipt_long,
+            ),
+
+            _categorySection(
+              _expenseCategories,
+              income: false,
+            ),
+
+            _sectionTitle(
+              'লেনদেনের বিবরণ',
+              Icons.list_alt,
+            ),
+
+            _transactionSection(),
+
+            // FOOTER / WATERMARK
+            Container(
+              margin: const EdgeInsets.fromLTRB(
+                18,
+                20,
+                18,
+                20,
+              ),
+              padding: const EdgeInsets.only(
+                top: 16,
+              ),
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: Color(0xFFE4DCCB),
+                  ),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'আমার হিসাব অ্যাপ',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: primary.withOpacity(0.28),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'mahadisayeed@gmail.com',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.black.withOpacity(0.20),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryBox({
+    required String title,
+    required double amount,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: color.withOpacity(0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
-          _periodChip(
-            value: 'weekly',
-            title: settings.isBangla
-                ? 'সাপ্তাহিক'
-                : 'Weekly',
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 17,
+                color: color,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          _periodChip(
-            value: 'monthly',
-            title: settings.isBangla
-                ? 'মাসিক'
-                : 'Monthly',
-          ),
-          const SizedBox(width: 8),
-          _periodChip(
-            value: 'yearly',
-            title: settings.isBangla
-                ? 'বার্ষিক'
-                : 'Yearly',
-          ),
-          const SizedBox(width: 8),
-          _periodChip(
-            value: 'custom',
-            title: settings.isBangla
-                ? 'তারিখ নির্বাচন'
-                : 'Custom',
+          const SizedBox(height: 7),
+          FittedBox(
+            alignment: Alignment.centerLeft,
+            fit: BoxFit.scaleDown,
+            child: Text(
+              _money(amount),
+              style: TextStyle(
+                color: color,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _periodChip({
-    required String value,
-    required String title,
-  }) {
-    final selected = _period == value;
-
-    return ChoiceChip(
-      label: Text(title),
-      selected: selected,
-      onSelected: (_) {
-        if (value == 'custom') {
-          _selectDateRange();
-        } else {
-          _setPeriod(value);
-        }
-      },
-      selectedColor: AppTheme.green,
-      labelStyle: TextStyle(
-        color: selected
-            ? Colors.white
-            : Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.color,
-        fontWeight:
-            selected ? FontWeight.bold : FontWeight.normal,
+  Widget _sectionTitle(
+    String title,
+    IconData icon,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        18,
+        3,
+        18,
+        10,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 19,
+            color: const Color(0xFF176B45),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF222222),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // ------------------------------------------------------------
-  // DATE CARD
-  // ------------------------------------------------------------
-
-  Widget _buildDateCard() {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: _selectDateRange,
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: AppTheme.gold.withValues(
-                    alpha: 0.12,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.calendar_month_rounded,
-                  color: AppTheme.gold,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _periodTitle(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.color,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_formatDate(_startDate)} - ${_formatDate(_endDate)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.edit_calendar_rounded,
-                color: AppTheme.gold,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ------------------------------------------------------------
-  // SUMMARY
-  // ------------------------------------------------------------
-
-  Widget _buildSummary() {
-    final differenceColor = _isSurplus
-        ? Colors.green.shade600
-        : Colors.red.shade600;
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _summaryCard(
-                title: settings.isBangla
-                    ? 'মোট আয়'
-                    : 'Total Income',
-                value: _income,
-                icon: Icons.arrow_downward_rounded,
-                color: Colors.green.shade600,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _summaryCard(
-                title: settings.isBangla
-                    ? 'মোট ব্যয়'
-                    : 'Total Expense',
-                value: _expense,
-                icon: Icons.arrow_upward_rounded,
-                color: Colors.red.shade600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(17),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: differenceColor.withValues(
-                      alpha: 0.12,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _isSurplus
-                        ? Icons.trending_up_rounded
-                        : Icons.trending_down_rounded,
-                    color: differenceColor,
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isSurplus
-                            ? (settings.isBangla
-                                ? 'উদ্বৃত্ত'
-                                : 'Surplus')
-                            : (settings.isBangla
-                                ? 'ঘাটতি'
-                                : 'Deficit'),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.color,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatNumber(
-                          _difference.abs(),
-                        ),
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: differenceColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _summaryCard({
-    required String title,
-    required double value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius:
-                    BorderRadius.circular(11),
-              ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 20,
-              ),
-            ),
-            const SizedBox(height: 9),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                color: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.color,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              _formatNumber(value),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ------------------------------------------------------------
-  // CATEGORY REPORT
-  // ------------------------------------------------------------
-
-  Widget _buildCategoryReport() {
-    final incomeCategories =
-        _categoryTotals('income');
-
-    final expenseCategories =
-        _categoryTotals('expense');
-
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          settings.isBangla
-              ? 'খাতভিত্তিক হিসাব'
-              : 'Category-wise Report',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        _categorySection(
-          title: settings.isBangla
-              ? 'আয়'
-              : 'Income',
-          categories: incomeCategories,
-          total: _income,
-          color: Colors.green.shade600,
-          icon: Icons.arrow_downward_rounded,
-        ),
-
-        const SizedBox(height: 14),
-
-        _categorySection(
-          title: settings.isBangla
-              ? 'ব্যয়'
-              : 'Expense',
-          categories: expenseCategories,
-          total: _expense,
-          color: Colors.red.shade600,
-          icon: Icons.arrow_upward_rounded,
-        ),
-      ],
-    );
-  }
-
-  Widget _categorySection({
-    required String title,
-    required Map<String, double> categories,
-    required double total,
-    required Color color,
-    required IconData icon,
+  Widget _categorySection(
+    List<Map<String, dynamic>> categories, {
+    required bool income,
   }) {
     if (categories.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: color,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                settings.isBangla
-                    ? '$title-এর কোনো তথ্য নেই'
-                    : 'No $title data',
-              ),
-            ],
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          18,
+          0,
+          18,
+          12,
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7F5EF),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text(
+            'এই সময়ের মধ্যে কোনো তথ্য নেই।',
+            style: TextStyle(
+              color: Color(0xFF777777),
+            ),
           ),
         ),
       );
     }
 
-    final entries = categories.entries.toList()
-      ..sort(
-        (a, b) => b.value.compareTo(a.value),
-      );
+    final total = categories.fold<double>(
+      0,
+      (sum, item) =>
+          sum +
+          ((item['total'] as num?)?.toDouble() ?? 0),
+    );
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        18,
+        0,
+        18,
+        12,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAF9F5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFE9E2D2),
+          ),
+        ),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: color.withValues(
-                      alpha: 0.12,
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(11),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...List.generate(
-              entries.length,
-              (index) {
-                final entry = entries[index];
+            ...categories.map(
+              (item) {
+                final value =
+                    (item['total'] as num?)
+                            ?.toDouble() ??
+                        0;
 
-                final percentage = total > 0
-                    ? entry.value / total
-                    : 0.0;
+                final percentage =
+                    total <= 0
+                        ? 0
+                        : value / total;
 
                 return Padding(
-                  padding:
-                      const EdgeInsets.only(
-                    bottom: 12,
+                  padding: const EdgeInsets.fromLTRB(
+                    14,
+                    11,
+                    14,
+                    4,
                   ),
                   child: Column(
                     children: [
                       Row(
                         children: [
+                          Container(
+                            width: 9,
+                            height: 9,
+                            decoration: BoxDecoration(
+                              color: income
+                                  ? const Color(0xFF287A55)
+                                  : const Color(0xFFC35E5E),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 9),
                           Expanded(
                             child: Text(
-                              entry.key,
-                              style:
-                                  const TextStyle(
-                                fontWeight:
-                                    FontWeight.w600,
+                              item['name']?.toString() ??
+                                  'অন্যান্য',
+                              style: const TextStyle(
+                                color: Color(0xFF333333),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
                           Text(
-                            _formatNumber(
-                              entry.value,
-                            ),
-                            style: TextStyle(
-                              color: color,
-                              fontWeight:
-                                  FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 48,
-                            child: Text(
-                              '${(percentage * 100).toStringAsFixed(1)}%',
-                              textAlign:
-                                  TextAlign.end,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Theme.of(
-                                  context,
-                                )
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color,
-                              ),
+                            _money(value),
+                            style: const TextStyle(
+                              color: Color(0xFF222222),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 7),
                       ClipRRect(
                         borderRadius:
-                            BorderRadius.circular(
-                          10,
-                        ),
-                        child:
-                            LinearProgressIndicator(
+                            BorderRadius.circular(20),
+                        child: LinearProgressIndicator(
                           value: percentage,
-                          minHeight: 6,
+                          minHeight: 5,
                           backgroundColor:
-                              color.withValues(
-                            alpha: 0.10,
-                          ),
+                              const Color(0xFFE7E3DA),
                           valueColor:
-                              AlwaysStoppedAnimation<
-                                  Color>(
-                            color,
+                              AlwaysStoppedAnimation<Color>(
+                            income
+                                ? const Color(0xFF287A55)
+                                : const Color(0xFFC35E5E),
                           ),
                         ),
                       ),
@@ -820,290 +1116,382 @@ class _ReportScreenState extends State<ReportScreen> {
                 );
               },
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                14,
+                9,
+                14,
+                13,
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'সর্বমোট',
+                      style: TextStyle(
+                        color: Color(0xFF555555),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _money(total),
+                    style: TextStyle(
+                      color: income
+                          ? const Color(0xFF287A55)
+                          : const Color(0xFFC35E5E),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ------------------------------------------------------------
-  // TRANSACTIONS
-  // ------------------------------------------------------------
-
-  Widget _buildTransactions() {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Text(
-          settings.isBangla
-              ? 'লেনদেনের তালিকা'
-              : 'Transactions',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+  Widget _transactionSection() {
+    if (_transactions.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          18,
+          0,
+          18,
+          10,
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFAF9F5),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Text(
+            'এই সময়ের মধ্যে কোনো লেনদেন নেই।',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF777777),
+            ),
           ),
         ),
-        const SizedBox(height: 10),
-        if (_transactions.isEmpty)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(25),
-              child: Center(
-                child: Text(
-                  settings.t('noTransactions'),
-                ),
-              ),
-            ),
-          )
-        else
-          ..._transactions.map(
-            (tx) => _transactionTile(tx),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        18,
+        0,
+        18,
+        0,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAF9F5),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: const Color(0xFFE9E2D2),
           ),
-      ],
+        ),
+        child: Column(
+          children: _transactions
+              .map(
+                (tx) => _transactionRow(tx),
+              )
+              .toList(),
+        ),
+      ),
     );
   }
 
-  Widget _transactionTile(
+  Widget _transactionRow(
     Map<String, dynamic> tx,
   ) {
-    final type = tx['type']?.toString() ?? '';
+    final type =
+        tx['type']?.toString() ?? '';
 
     final amount =
         (tx['amount'] as num?)?.toDouble() ?? 0;
 
-    final isIncome = type == 'income';
-
-    final color = isIncome
-        ? Colors.green.shade600
-        : Colors.red.shade600;
+    final date =
+        _parseDate(tx['transaction_date']);
 
     final category =
-        tx['category_name']?.toString() ?? '';
+        tx['category_name']?.toString();
 
     final note =
         tx['note']?.toString() ?? '';
 
-    final date =
-        tx['transaction_date']?.toString() ?? '';
+    final account =
+        tx['account_name']?.toString();
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(
-          horizontal: 13,
-          vertical: 2,
-        ),
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius:
-                BorderRadius.circular(12),
+    final fromAccount =
+        tx['from_account_name']?.toString();
+
+    final toAccount =
+        tx['to_account_name']?.toString();
+
+    Color color;
+
+    IconData icon;
+
+    if (type == 'income') {
+      color = const Color(0xFF287A55);
+      icon = Icons.arrow_downward;
+    } else if (type == 'expense') {
+      color = const Color(0xFFC35E5E);
+      icon = Icons.arrow_upward;
+    } else {
+      color = const Color(0xFFB99550);
+      icon = Icons.swap_horiz;
+    }
+
+    String subtitle = '';
+
+    if (type == 'transfer') {
+      subtitle =
+          '${fromAccount ?? '—'} → ${toAccount ?? '—'}';
+    } else {
+      final parts = <String>[];
+
+      if (category != null &&
+          category.isNotEmpty) {
+        parts.add(category);
+      }
+
+      if (account != null &&
+          account.isNotEmpty) {
+        parts.add(account);
+      }
+
+      if (note.trim().isNotEmpty) {
+        parts.add(note.trim());
+      }
+
+      subtitle = parts.join(' • ');
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        12,
+        12,
+        12,
+        12,
+      ),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFFECE7DC),
           ),
-          child: Icon(
-            isIncome
-                ? Icons.arrow_downward_rounded
-                : Icons.arrow_upward_rounded,
-            color: color,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.10),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 17,
+              color: color,
+            ),
           ),
-        ),
-        title: Text(
-          category.isEmpty
-              ? (isIncome
-                  ? settings.t('income')
-                  : settings.t('expense'))
-              : category,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _transactionType(type),
+                        style: const TextStyle(
+                          color: Color(0xFF333333),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _money(amount),
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _dateText(date),
+                  style: const TextStyle(
+                    color: Color(0xFF888888),
+                    fontSize: 10,
+                  ),
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF666666),
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-        subtitle: Text(
-          note.isEmpty
-              ? date.split('T').first
-              : note,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Text(
-          '${isIncome ? '+ ' : '- '}${_formatNumber(amount)}',
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        ],
       ),
     );
   }
 
-  // ------------------------------------------------------------
-  // SHARE
-  // ------------------------------------------------------------
-
-  Future<void> _shareReport() async {
-    try {
-      final incomeCategories =
-          _categoryTotals('income');
-
-      final expenseCategories =
-          _categoryTotals('expense');
-
-      final buffer = StringBuffer();
-
-      buffer.writeln(
-        settings.isBangla
-            ? 'আমার হিসাব - রিপোর্ট'
-            : 'Amar Hisab - Report',
-      );
-
-      buffer.writeln(
-        '${_formatDate(_startDate)} - ${_formatDate(_endDate)}',
-      );
-
-      buffer.writeln();
-
-      buffer.writeln(
-        '${settings.isBangla ? 'মোট আয়' : 'Total Income'}: ${_formatNumber(_income)}',
-      );
-
-      buffer.writeln(
-        '${settings.isBangla ? 'মোট ব্যয়' : 'Total Expense'}: ${_formatNumber(_expense)}',
-      );
-
-      buffer.writeln(
-        '${_isSurplus ? (settings.isBangla ? 'উদ্বৃত্ত' : 'Surplus') : (settings.isBangla ? 'ঘাটতি' : 'Deficit')}: ${_formatNumber(_difference.abs())}',
-      );
-
-      buffer.writeln();
-
-      buffer.writeln(
-        settings.isBangla
-            ? '--- আয় খাতভিত্তিক ---'
-            : '--- Income by Category ---',
-      );
-
-      incomeCategories.forEach(
-        (key, value) {
-          buffer.writeln(
-            '$key: ${_formatNumber(value)}',
-          );
-        },
-      );
-
-      buffer.writeln();
-
-      buffer.writeln(
-        settings.isBangla
-            ? '--- ব্যয় খাতভিত্তিক ---'
-            : '--- Expense by Category ---',
-      );
-
-      expenseCategories.forEach(
-        (key, value) {
-          buffer.writeln(
-            '$key: ${_formatNumber(value)}',
-          );
-        },
-      );
-
-      final tempDir =
-          await getTemporaryDirectory();
-
-      final file = File(
-        '${tempDir.path}/amar_hisab_report.txt',
-      );
-
-      await file.writeAsString(
-        buffer.toString(),
-      );
-
-      if (!mounted) return;
-
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [
-            XFile(file.path),
-          ],
-          text: settings.isBangla
-              ? 'আমার হিসাব রিপোর্ট'
-              : 'Amar Hisab Report',
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      _showMessage(
-        e.toString(),
-        isError: true,
-      );
-    }
-  }
-
-  // ------------------------------------------------------------
-  // BUILD
-  // ------------------------------------------------------------
+  // ============================================================
+  // MAIN UI
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          settings.isBangla
-              ? 'রিপোর্ট'
-              : 'Report',
+        title: const Text(
+          'রিপোর্ট',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+          ),
         ),
         actions: [
           IconButton(
-            tooltip: settings.isBangla
-                ? 'শেয়ার'
-                : 'Share',
-            onPressed: _shareReport,
+            tooltip: 'Export',
+            onPressed:
+                _loading || _saving
+                    ? null
+                    : _showExportMenu,
             icon: const Icon(
-              Icons.share_rounded,
+              Icons.file_download_outlined,
             ),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadReportData,
-        child: _loading
-            ? const Center(
-                child:
-                    CircularProgressIndicator(),
-              )
-            : ListView(
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadReport,
+              child: ListView(
                 physics:
                     const AlwaysScrollableScrollPhysics(),
-                padding:
-                    const EdgeInsets.fromLTRB(
-                  16,
-                  14,
-                  16,
-                  100,
+                padding: const EdgeInsets.only(
+                  bottom: 30,
                 ),
                 children: [
-                  _buildPeriodSelector(),
+                  // PERIOD SELECTOR
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      16,
+                      12,
+                      16,
+                      10,
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _periodButton(
+                            'মাসিক',
+                            'monthly',
+                          ),
+                          const SizedBox(width: 8),
+                          _periodButton(
+                            'সাপ্তাহিক',
+                            'weekly',
+                          ),
+                          const SizedBox(width: 8),
+                          _periodButton(
+                            'বার্ষিক',
+                            'yearly',
+                          ),
+                          const SizedBox(width: 8),
+                          _periodButton(
+                            'তারিখ নির্বাচন',
+                            'custom',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                  const SizedBox(height: 14),
+                  if (_saving)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        0,
+                        16,
+                        10,
+                      ),
+                      child: LinearProgressIndicator(),
+                    ),
 
-                  _buildDateCard(),
-
-                  const SizedBox(height: 16),
-
-                  _buildSummary(),
-
-                  const SizedBox(height: 24),
-
-                  _buildCategoryReport(),
-
-                  const SizedBox(height: 24),
-
-                  _buildTransactions(),
+                  // REPORT
+                  Screenshot(
+                    controller: _screenshotController,
+                    child: _buildVoucher(),
+                  ),
                 ],
               ),
+            ),
+    );
+  }
+
+  Widget _periodButton(
+    String label,
+    String value,
+  ) {
+    final selected = _period == value;
+
+    return OutlinedButton(
+      onPressed: value == 'custom'
+          ? _pickCustomDate
+          : () => _changePeriod(value),
+      style: OutlinedButton.styleFrom(
+        backgroundColor: selected
+            ? const Color(0xFF176B45)
+            : null,
+        foregroundColor: selected
+            ? Colors.white
+            : null,
+        side: BorderSide(
+          color: selected
+              ? const Color(0xFF176B45)
+              : Theme.of(context)
+                  .colorScheme
+                  .outline,
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
+      child: Text(label),
     );
   }
 }
