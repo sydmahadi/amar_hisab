@@ -1,2586 +1,1980 @@
-import 'dart:io';
-import 'dart:typed_data';
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:gallery_saver_plus/gallery_saver.dart';
-import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:share_plus/share_plus.dart';
-import 'package:screenshot/screenshot.dart';
+class MoneyDb {
+  MoneyDb._();
 
-import '../services/money_db.dart';
+  static final MoneyDb instance = MoneyDb._();
 
-class ReportScreen extends StatefulWidget {
-  const ReportScreen({super.key});
+  Database? _db;
 
-  @override
-  State<ReportScreen> createState() => _ReportScreenState();
-}
+  Future<void> init() async {
+    if (_db != null) return;
 
-class _ReportScreenState extends State<ReportScreen> {
-  final ScreenshotController _screenshotController =
-      ScreenshotController();
+    final databasesPath = await getDatabasesPath();
+    final path = join(databasesPath, 'amar_hisab.db');
 
-  String _period = 'monthly';
-
-  DateTime _startDate = DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-    1,
-  );
-
-  DateTime _endDate = DateTime(
-    DateTime.now().year,
-    DateTime.now().month + 1,
-    0,
-    23,
-    59,
-    59,
-    999,
-  );
-
-  bool _loading = true;
-  bool _saving = false;
-
-  double _income = 0;
-  double _expense = 0;
-
-  List<Map<String, dynamic>> _transactions = [];
-  List<Map<String, dynamic>> _incomeCategories = [];
-  List<Map<String, dynamic>> _expenseCategories = [];
-
-  List<Map<String, dynamic>> _loans = [];
-  List<Map<String, dynamic>> _loanPeriodTransactions = [];
-
-  static const Color _green = Color(0xFF176B45);
-  static const Color _gold = Color(0xFFC9A45C);
-  static const Color _incomeColor = Color(0xFF287A55);
-  static const Color _expenseColor = Color(0xFFC35E5E);
-
-  static const Color _loanGiveColor = Color(0xFF1976D2);
-  static const Color _loanTakeColor = Color(0xFF9C27B0);
-  static const Color _loanReceiveColor = Color(0xFF2E7D32);
-  static const Color _loanPaidColor = Color(0xFFE65100);
-
-  @override
-  void initState() {
-    super.initState();
-    _loadReport();
+    _db = await openDatabase(
+      path,
+      version: 2,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
   }
 
-  // ============================================================
-  // LOAD REPORT
-  // ============================================================
+  Database get db {
+    if (_db == null) {
+      throw Exception('Database is not initialized.');
+    }
+    return _db!;
+  }
 
-  Future<void> _loadReport() async {
-    if (mounted) {
-      setState(() {
-        _loading = true;
-      });
+  // =========================================================
+  // DATABASE CREATE
+  // =========================================================
+
+  Future<void> _onCreate(
+    Database database,
+    int version,
+  ) async {
+    await database.execute('''
+      CREATE TABLE accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        balance REAL NOT NULL DEFAULT 0,
+        icon INTEGER,
+        color INTEGER,
+        is_default INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await database.execute('''
+      CREATE TABLE categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        icon INTEGER,
+        color INTEGER,
+        is_default INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await database.execute('''
+      CREATE TABLE loans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person_name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        principal REAL NOT NULL,
+        remaining REAL NOT NULL,
+        note TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await database.execute('''
+      CREATE TABLE transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        amount REAL NOT NULL,
+        category_id INTEGER,
+        account_id INTEGER,
+        from_account_id INTEGER,
+        to_account_id INTEGER,
+        loan_id INTEGER,
+        note TEXT,
+        transaction_date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await database.execute('''
+      CREATE INDEX idx_transactions_date
+      ON transactions(transaction_date)
+    ''');
+
+    await database.execute('''
+      CREATE INDEX idx_transactions_type
+      ON transactions(type)
+    ''');
+
+    await database.execute('''
+      CREATE INDEX idx_transactions_category
+      ON transactions(category_id)
+    ''');
+
+    await database.execute('''
+      CREATE INDEX idx_transactions_account
+      ON transactions(account_id)
+    ''');
+
+    await database.execute('''
+      CREATE INDEX idx_transactions_loan
+      ON transactions(loan_id)
+    ''');
+
+    await database.execute('''
+      CREATE INDEX idx_loans_type
+      ON loans(type)
+    ''');
+
+    await _insertDefaultAccounts(database);
+    await _insertDefaultCategories(database);
+  }
+
+  // =========================================================
+  // DATABASE UPGRADE
+  // =========================================================
+
+  Future<void> _onUpgrade(
+    Database database,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      await database.execute('''
+        CREATE TABLE IF NOT EXISTS loans (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          person_name TEXT NOT NULL,
+          type TEXT NOT NULL,
+          principal REAL NOT NULL,
+          remaining REAL NOT NULL,
+          note TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+
+      final columns = await database.rawQuery(
+        'PRAGMA table_info(transactions)',
+      );
+
+      final hasLoanId = columns.any(
+        (column) => column['name'] == 'loan_id',
+      );
+
+      if (!hasLoanId) {
+        await database.execute('''
+          ALTER TABLE transactions
+          ADD COLUMN loan_id INTEGER
+        ''');
+      }
+
+      await database.execute('''
+        CREATE INDEX IF NOT EXISTS idx_transactions_loan
+        ON transactions(loan_id)
+      ''');
+
+      await database.execute('''
+        CREATE INDEX IF NOT EXISTS idx_loans_type
+        ON loans(type)
+      ''');
+    }
+  }
+
+  // =========================================================
+  // DEFAULT ACCOUNTS
+  // =========================================================
+
+  Future<void> _insertDefaultAccounts(
+    Database database,
+  ) async {
+    final now = DateTime.now().toIso8601String();
+
+    final accounts = [
+      {
+        'name': 'Cash',
+        'type': 'cash',
+        'icon': 0xe88a,
+        'color': 0xFF176B45,
+      },
+      {
+        'name': 'Bkash',
+        'type': 'bkash',
+        'icon': 0xe0b0,
+        'color': 0xFFE91E63,
+      },
+      {
+        'name': 'Nagad',
+        'type': 'nagad',
+        'icon': 0xe8a6,
+        'color': 0xFFFF9800,
+      },
+      {
+        'name': 'Bank Account',
+        'type': 'bank',
+        'icon': 0xe84f,
+        'color': 0xFF2196F3,
+      },
+      {
+        'name': 'Card',
+        'type': 'card',
+        'icon': 0xe870,
+        'color': 0xFF9C27B0,
+      },
+    ];
+
+    for (final account in accounts) {
+      await database.insert(
+        'accounts',
+        {
+          'name': account['name'],
+          'type': account['type'],
+          'balance': 0.0,
+          'icon': account['icon'],
+          'color': account['color'],
+          'is_default': 1,
+          'created_at': now,
+        },
+      );
+    }
+  }
+
+  // =========================================================
+  // DEFAULT CATEGORIES
+  // =========================================================
+
+  Future<void> _insertDefaultCategories(
+    Database database,
+  ) async {
+    final now = DateTime.now().toIso8601String();
+
+    final incomeCategories = [
+      {
+        'name': 'Salary',
+        'icon': 0xe850,
+        'color': 0xFF176B45,
+      },
+      {
+        'name': 'Business',
+        'icon': 0xe8f6,
+        'color': 0xFF2196F3,
+      },
+      {
+        'name': 'Bonus',
+        'icon': 0xe8b6,
+        'color': 0xFFFF9800,
+      },
+      {
+        'name': 'Other Income',
+        'icon': 0xe145,
+        'color': 0xFF9C27B0,
+      },
+    ];
+
+    final expenseCategories = [
+      {
+        'name': 'Food',
+        'icon': 0xe56c,
+        'color': 0xFFFF7043,
+      },
+      {
+        'name': 'Shopping',
+        'icon': 0xe8cc,
+        'color': 0xFFE91E63,
+      },
+      {
+        'name': 'Transport',
+        'icon': 0xe531,
+        'color': 0xFF2196F3,
+      },
+      {
+        'name': 'Rent',
+        'icon': 0xe88a,
+        'color': 0xFF9C27B0,
+      },
+      {
+        'name': 'Bills',
+        'icon': 0xe8a1,
+        'color': 0xFFFF9800,
+      },
+      {
+        'name': 'Medical',
+        'icon': 0xe3f3,
+        'color': 0xFFF44336,
+      },
+      {
+        'name': 'Education',
+        'icon': 0xe80c,
+        'color': 0xFF3F51B5,
+      },
+      {
+        'name': 'Family',
+        'icon': 0xe7ef,
+        'color': 0xFF009688,
+      },
+      {
+        'name': 'Other Expense',
+        'icon': 0xe145,
+        'color': 0xFF607D8B,
+      },
+    ];
+
+    for (final category in incomeCategories) {
+      await database.insert(
+        'categories',
+        {
+          'name': category['name'],
+          'type': 'income',
+          'icon': category['icon'],
+          'color': category['color'],
+          'is_default': 1,
+          'created_at': now,
+        },
+      );
     }
 
-    try {
-      final results = await Future.wait<dynamic>([
-        MoneyDb.instance.getTotalIncome(
-          startDate: _startDate,
-          endDate: _endDate,
-        ),
-        MoneyDb.instance.getTotalExpense(
-          startDate: _startDate,
-          endDate: _endDate,
-        ),
-        MoneyDb.instance.getTransactions(
-          startDate: _startDate,
-          endDate: _endDate,
-        ),
-        MoneyDb.instance.getIncomeByCategory(
-          startDate: _startDate,
-          endDate: _endDate,
-        ),
-        MoneyDb.instance.getExpenseByCategory(
-          startDate: _startDate,
-          endDate: _endDate,
-        ),
-        MoneyDb.instance.getLoans(),
-      ]);
+    for (final category in expenseCategories) {
+      await database.insert(
+        'categories',
+        {
+          'name': category['name'],
+          'type': 'expense',
+          'icon': category['icon'],
+          'color': category['color'],
+          'is_default': 1,
+          'created_at': now,
+        },
+      );
+    }
+  }
 
-      final transactions =
-          List<Map<String, dynamic>>.from(results[2] as List);
+  // =========================================================
+  // ACCOUNTS
+  // =========================================================
 
-      final loans =
-          List<Map<String, dynamic>>.from(results[5] as List);
+  Future<List<Map<String, dynamic>>> getAccounts() async {
+    return db.query(
+      'accounts',
+      orderBy: 'is_default DESC, id ASC',
+    );
+  }
 
-      final loanTransactions = transactions.where((tx) {
-        final type = tx['type']?.toString() ?? '';
+  Future<Map<String, dynamic>?> getAccount(
+    int id,
+  ) async {
+    final result = await db.query(
+      'accounts',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
 
-        return type == 'loan_given' ||
+    if (result.isEmpty) return null;
+
+    return result.first;
+  }
+
+  Future<int> addAccount({
+    required String name,
+    required String type,
+    double balance = 0,
+    int? icon,
+    int? color,
+  }) async {
+    return db.insert(
+      'accounts',
+      {
+        'name': name.trim(),
+        'type': type,
+        'balance': balance,
+        'icon': icon,
+        'color': color,
+        'is_default': 0,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+    );
+  }
+
+  Future<int> updateAccount(
+    int id, {
+    required String name,
+    required String type,
+    double? balance,
+    int? icon,
+    int? color,
+  }) async {
+    final data = <String, dynamic>{
+      'name': name.trim(),
+      'type': type,
+      'icon': icon,
+      'color': color,
+    };
+
+    if (balance != null) {
+      data['balance'] = balance;
+    }
+
+    return db.update(
+      'accounts',
+      data,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> deleteAccount(int id) async {
+    final account = await getAccount(id);
+
+    if (account == null) return 0;
+
+    if ((account['is_default'] as int? ?? 0) == 1) {
+      throw Exception(
+        'Default accounts cannot be deleted.',
+      );
+    }
+
+    final count = await db.rawQuery(
+      '''
+      SELECT COUNT(*) AS total
+      FROM transactions
+      WHERE account_id = ?
+         OR from_account_id = ?
+         OR to_account_id = ?
+      ''',
+      [id, id, id],
+    );
+
+    final transactionCount =
+        (count.first['total'] as num?)?.toInt() ?? 0;
+
+    if (transactionCount > 0) {
+      throw Exception(
+        'This account has transactions and cannot be deleted.',
+      );
+    }
+
+    return db.delete(
+      'accounts',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // =========================================================
+  // CATEGORIES
+  // =========================================================
+
+  Future<List<Map<String, dynamic>>> getCategories({
+    String? type,
+  }) async {
+    if (type == null) {
+      return db.query(
+        'categories',
+        orderBy: 'is_default DESC, id ASC',
+      );
+    }
+
+    return db.query(
+      'categories',
+      where: 'type = ?',
+      whereArgs: [type],
+      orderBy: 'is_default DESC, id ASC',
+    );
+  }
+
+  Future<Map<String, dynamic>?> getCategory(
+    int id,
+  ) async {
+    final result = await db.query(
+      'categories',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (result.isEmpty) return null;
+
+    return result.first;
+  }
+
+  Future<int> addCategory({
+    required String name,
+    required String type,
+    int? icon,
+    int? color,
+  }) async {
+    return db.insert(
+      'categories',
+      {
+        'name': name.trim(),
+        'type': type,
+        'icon': icon,
+        'color': color,
+        'is_default': 0,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+    );
+  }
+
+  Future<int> updateCategory(
+    int id, {
+    required String name,
+    int? icon,
+    int? color,
+  }) async {
+    return db.update(
+      'categories',
+      {
+        'name': name.trim(),
+        'icon': icon,
+        'color': color,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> deleteCategory(int id) async {
+    final category = await getCategory(id);
+
+    if (category == null) return 0;
+
+    if ((category['is_default'] as int? ?? 0) == 1) {
+      throw Exception(
+        'Default categories cannot be deleted.',
+      );
+    }
+
+    final count = await db.rawQuery(
+      '''
+      SELECT COUNT(*) AS total
+      FROM transactions
+      WHERE category_id = ?
+      ''',
+      [id],
+    );
+
+    final transactionCount =
+        (count.first['total'] as num?)?.toInt() ?? 0;
+
+    if (transactionCount > 0) {
+      throw Exception(
+        'This category has transactions and cannot be deleted.',
+      );
+    }
+
+    return db.delete(
+      'categories',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // =========================================================
+  // NORMAL TRANSACTIONS
+  // =========================================================
+
+  Future<int> addTransaction({
+    required String type,
+    required double amount,
+    int? categoryId,
+    int? accountId,
+    int? fromAccountId,
+    int? toAccountId,
+    int? loanId,
+    String? note,
+    required DateTime transactionDate,
+  }) async {
+    if (amount <= 0) {
+      throw Exception(
+        'Amount must be greater than zero.',
+      );
+    }
+
+    final loanTypes = [
+      'loan_given',
+      'loan_taken',
+      'loan_received',
+      'loan_paid',
+    ];
+
+    if (loanTypes.contains(type)) {
+      throw Exception(
+        'Please use the dedicated loan functions.',
+      );
+    }
+
+    return db.transaction(
+      (txn) async {
+        final now = DateTime.now().toIso8601String();
+
+        final id = await txn.insert(
+          'transactions',
+          {
+            'type': type,
+            'amount': amount,
+            'category_id': categoryId,
+            'account_id': accountId,
+            'from_account_id': fromAccountId,
+            'to_account_id': toAccountId,
+            'loan_id': loanId,
+            'note': note?.trim() ?? '',
+            'transaction_date':
+                transactionDate.toIso8601String(),
+            'created_at': now,
+            'updated_at': now,
+          },
+        );
+
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
+
+        return id;
+      },
+    );
+  }
+
+  // =========================================================
+  // UPDATE TRANSACTION
+  // =========================================================
+
+  Future<int> updateTransaction(
+    int id, {
+    required String type,
+    required double amount,
+    int? categoryId,
+    int? accountId,
+    int? fromAccountId,
+    int? toAccountId,
+    int? loanId,
+    String? note,
+    required DateTime transactionDate,
+  }) async {
+    if (amount <= 0) {
+      throw Exception(
+        'Amount must be greater than zero.',
+      );
+    }
+
+    return db.transaction(
+      (txn) async {
+        final oldResult = await txn.query(
+          'transactions',
+          where: 'id = ?',
+          whereArgs: [id],
+          limit: 1,
+        );
+
+        if (oldResult.isEmpty) {
+          throw Exception(
+            'Transaction not found.',
+          );
+        }
+
+        final oldTransaction = oldResult.first;
+
+        final oldType =
+            oldTransaction['type']?.toString() ?? '';
+
+        final oldLoanId =
+            (oldTransaction['loan_id'] as num?)?.toInt();
+
+        final oldIsLoan =
+            oldType == 'loan_given' ||
+            oldType == 'loan_taken' ||
+            oldType == 'loan_received' ||
+            oldType == 'loan_paid';
+
+        // -----------------------------------------------------
+        // LOAN TRANSACTION
+        // -----------------------------------------------------
+
+        if (oldIsLoan) {
+          if (oldLoanId == null) {
+            throw Exception(
+              'This loan transaction is missing its loan information.',
+            );
+          }
+
+          if (type != oldType) {
+            throw Exception(
+              'Loan transaction type cannot be changed.',
+            );
+          }
+
+          final loanResult = await txn.query(
+            'loans',
+            where: 'id = ?',
+            whereArgs: [oldLoanId],
+            limit: 1,
+          );
+
+          if (loanResult.isEmpty) {
+            throw Exception(
+              'Related loan not found.',
+            );
+          }
+
+          final loan = loanResult.first;
+
+          final loanType =
+              loan['type']?.toString() ?? 'receivable';
+
+          final repaymentType =
+              loanType == 'receivable'
+                  ? 'loan_received'
+                  : 'loan_paid';
+
+          // ---------------------------------------------------
+          // ORIGINAL LOAN
+          // ---------------------------------------------------
+
+          if (oldType == 'loan_given' ||
+              oldType == 'loan_taken') {
+            final repaymentResult =
+                await txn.rawQuery(
+              '''
+              SELECT COALESCE(SUM(amount), 0) AS total
+              FROM transactions
+              WHERE loan_id = ?
+                AND type = ?
+                AND id != ?
+              ''',
+              [
+                oldLoanId,
+                repaymentType,
+                id,
+              ],
+            );
+
+            final alreadyRepaid =
+                (repaymentResult.first['total'] as num?)
+                        ?.toDouble() ??
+                    0;
+
+            if (amount < alreadyRepaid) {
+              throw Exception(
+                'Loan amount cannot be less than the amount already repaid.',
+              );
+            }
+
+            await txn.update(
+              'transactions',
+              {
+                'type': oldType,
+                'amount': amount,
+                'category_id': null,
+                'account_id': accountId,
+                'from_account_id': null,
+                'to_account_id': null,
+                'loan_id': oldLoanId,
+                'note': note?.trim() ?? '',
+                'transaction_date':
+                    transactionDate.toIso8601String(),
+                'updated_at':
+                    DateTime.now().toIso8601String(),
+              },
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+
+            await txn.update(
+              'loans',
+              {
+                'principal': amount,
+                'note': note?.trim() ?? '',
+                'updated_at':
+                    DateTime.now().toIso8601String(),
+              },
+              where: 'id = ?',
+              whereArgs: [oldLoanId],
+            );
+          }
+
+          // ---------------------------------------------------
+          // LOAN REPAYMENT
+          // ---------------------------------------------------
+
+          else {
+            final principal =
+                (loan['principal'] as num?)
+                        ?.toDouble() ??
+                    0;
+
+            final otherRepaymentResult =
+                await txn.rawQuery(
+              '''
+              SELECT COALESCE(SUM(amount), 0) AS total
+              FROM transactions
+              WHERE loan_id = ?
+                AND type = ?
+                AND id != ?
+              ''',
+              [
+                oldLoanId,
+                repaymentType,
+                id,
+              ],
+            );
+
+            final otherRepayments =
+                (otherRepaymentResult.first['total']
+                            as num?)
+                        ?.toDouble() ??
+                    0;
+
+            if (otherRepayments + amount >
+                principal) {
+              throw Exception(
+                'Total repayment cannot be greater than the loan amount.',
+              );
+            }
+
+            await txn.update(
+              'transactions',
+              {
+                'type': oldType,
+                'amount': amount,
+                'category_id': null,
+                'account_id': accountId,
+                'from_account_id': null,
+                'to_account_id': null,
+                'loan_id': oldLoanId,
+                'note': note?.trim() ?? '',
+                'transaction_date':
+                    transactionDate.toIso8601String(),
+                'updated_at':
+                    DateTime.now().toIso8601String(),
+              },
+              where: 'id = ?',
+              whereArgs: [id],
+            );
+          }
+        }
+
+        // -----------------------------------------------------
+        // NORMAL TRANSACTION
+        // -----------------------------------------------------
+
+        else {
+          final loanTypes = [
+            'loan_given',
+            'loan_taken',
+            'loan_received',
+            'loan_paid',
+          ];
+
+          if (loanTypes.contains(type)) {
+            throw Exception(
+              'Please use the dedicated loan option.',
+            );
+          }
+
+          await txn.update(
+            'transactions',
+            {
+              'type': type,
+              'amount': amount,
+              'category_id': categoryId,
+              'account_id': accountId,
+              'from_account_id': fromAccountId,
+              'to_account_id': toAccountId,
+              'loan_id': loanId,
+              'note': note?.trim() ?? '',
+              'transaction_date':
+                  transactionDate.toIso8601String(),
+              'updated_at':
+                  DateTime.now().toIso8601String(),
+            },
+            where: 'id = ?',
+            whereArgs: [id],
+          );
+        }
+
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
+
+        return 1;
+      },
+    );
+  }
+
+  // =========================================================
+  // DELETE TRANSACTION
+  // =========================================================
+
+  Future<int> deleteTransaction(int id) async {
+    return db.transaction(
+      (txn) async {
+        final result = await txn.query(
+          'transactions',
+          where: 'id = ?',
+          whereArgs: [id],
+          limit: 1,
+        );
+
+        if (result.isEmpty) {
+          return 0;
+        }
+
+        final transaction = result.first;
+
+        final type =
+            transaction['type']?.toString() ?? '';
+
+        final loanId =
+            (transaction['loan_id'] as num?)?.toInt();
+
+        final isLoanTransaction =
+            type == 'loan_given' ||
             type == 'loan_taken' ||
             type == 'loan_received' ||
             type == 'loan_paid';
-      }).toList();
 
-      if (!mounted) return;
-
-      setState(() {
-        _income = (results[0] as num).toDouble();
-        _expense = (results[1] as num).toDouble();
-
-        _transactions = transactions;
-
-        _incomeCategories =
-            List<Map<String, dynamic>>.from(results[3] as List);
-
-        _expenseCategories =
-            List<Map<String, dynamic>>.from(results[4] as List);
-
-        _loans = loans;
-        _loanPeriodTransactions = loanTransactions;
-
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'রিপোর্ট লোড করা যায়নি: $e',
-          ),
-        ),
-      );
-    }
-  }
-
-  // ============================================================
-  // PERIOD
-  // ============================================================
-
-  void _changePeriod(String period) {
-    final now = DateTime.now();
-
-    late DateTime start;
-    late DateTime end;
-
-    switch (period) {
-      case 'weekly':
-        final today = DateTime(
-          now.year,
-          now.month,
-          now.day,
-        );
-
-        start = today.subtract(
-          Duration(days: today.weekday - 1),
-        );
-
-        end = DateTime(
-          start.year,
-          start.month,
-          start.day + 6,
-          23,
-          59,
-          59,
-          999,
-        );
-        break;
-
-      case 'yearly':
-        start = DateTime(
-          now.year,
-          1,
-          1,
-        );
-
-        end = DateTime(
-          now.year,
-          12,
-          31,
-          23,
-          59,
-          59,
-          999,
-        );
-        break;
-
-      default:
-        start = DateTime(
-          now.year,
-          now.month,
-          1,
-        );
-
-        end = DateTime(
-          now.year,
-          now.month + 1,
-          0,
-          23,
-          59,
-          59,
-          999,
-        );
-    }
-
-    setState(() {
-      _period = period;
-      _startDate = start;
-      _endDate = end;
-    });
-
-    _loadReport();
-  }
-
-  Future<void> _pickCustomDate() async {
-    final range = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-      initialDateRange: DateTimeRange(
-        start: _startDate,
-        end: _endDate,
-      ),
-      helpText: 'রিপোর্টের সময় নির্বাচন করুন',
-      saveText: 'নির্বাচন',
-    );
-
-    if (range == null || !mounted) return;
-
-    setState(() {
-      _period = 'custom';
-
-      _startDate = DateTime(
-        range.start.year,
-        range.start.month,
-        range.start.day,
-      );
-
-      _endDate = DateTime(
-        range.end.year,
-        range.end.month,
-        range.end.day,
-        23,
-        59,
-        59,
-        999,
-      );
-    });
-
-    _loadReport();
-  }
-
-  // ============================================================
-  // BASIC HELPERS
-  // ============================================================
-
-  double get _difference => _income - _expense;
-
-  bool get _isSurplus => _difference >= 0;
-
-  String get _periodTitle {
-    switch (_period) {
-      case 'weekly':
-        return 'সাপ্তাহিক রিপোর্ট';
-
-      case 'yearly':
-        return 'বার্ষিক রিপোর্ট';
-
-      case 'custom':
-        return 'নির্বাচিত সময়ের রিপোর্ট';
-
-      default:
-        return 'মাসিক রিপোর্ট';
-    }
-  }
-
-  String _money(double value) {
-    return '৳ ${value.toStringAsFixed(2)}';
-  }
-
-  String _dateText(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
-  }
-
-  DateTime _parseDate(dynamic value) {
-    if (value is DateTime) {
-      return value;
-    }
-
-    return DateTime.tryParse(
-          value?.toString() ?? '',
-        ) ??
-        DateTime.now();
-  }
-
-  String _transactionType(String type) {
-    switch (type) {
-      case 'income':
-        return 'আয়';
-
-      case 'expense':
-        return 'ব্যয়';
-
-      case 'transfer':
-        return 'ট্রান্সফার';
-
-      case 'loan_given':
-        return 'ধার দিয়েছি';
-
-      case 'loan_taken':
-        return 'ধার নিয়েছি';
-
-      case 'loan_received':
-        return 'ধার ফেরত পেয়েছি';
-
-      case 'loan_paid':
-        return 'ধার শোধ করেছি';
-
-      default:
-        return type;
-    }
-  }
-
-  Color _transactionColor(String type) {
-    switch (type) {
-      case 'income':
-        return _incomeColor;
-
-      case 'expense':
-        return _expenseColor;
-
-      case 'loan_given':
-        return _loanGiveColor;
-
-      case 'loan_taken':
-        return _loanTakeColor;
-
-      case 'loan_received':
-        return _loanReceiveColor;
-
-      case 'loan_paid':
-        return _loanPaidColor;
-
-      default:
-        return _gold;
-    }
-  }
-
-  IconData _transactionIcon(String type) {
-    switch (type) {
-      case 'income':
-        return Icons.arrow_downward;
-
-      case 'expense':
-        return Icons.arrow_upward;
-
-      case 'loan_given':
-        return Icons.call_made;
-
-      case 'loan_taken':
-        return Icons.call_received;
-
-      case 'loan_received':
-        return Icons.assignment_return;
-
-      case 'loan_paid':
-        return Icons.payments;
-
-      default:
-        return Icons.swap_horiz;
-    }
-  }
-
-  String _loanPerson(Map<String, dynamic> tx) {
-    return tx['loan_person_name']?.toString() ?? '';
-  }
-
-  // ============================================================
-  // LOAN TOTALS
-  // ============================================================
-
-  double _sumLoanTransactions(String type) {
-    return _loanPeriodTransactions
-        .where(
-          (tx) => tx['type']?.toString() == type,
-        )
-        .fold<double>(
-          0,
-          (sum, tx) =>
-              sum +
-              ((tx['amount'] as num?)?.toDouble() ?? 0),
-        );
-  }
-
-  double get _loanGivenPeriod {
-    return _sumLoanTransactions('loan_given');
-  }
-
-  double get _loanTakenPeriod {
-    return _sumLoanTransactions('loan_taken');
-  }
-
-  double get _loanReceivedPeriod {
-    return _sumLoanTransactions('loan_received');
-  }
-
-  double get _loanPaidPeriod {
-    return _sumLoanTransactions('loan_paid');
-  }
-
-  double get _totalReceivable {
-    return _loans
-        .where(
-          (loan) =>
-              loan['type']?.toString() == 'receivable',
-        )
-        .fold<double>(
-          0,
-          (sum, loan) =>
-              sum +
-              ((loan['remaining'] as num?)?.toDouble() ?? 0),
-        );
-  }
-
-  double get _totalPayable {
-    return _loans
-        .where(
-          (loan) =>
-              loan['type']?.toString() == 'payable',
-        )
-        .fold<double>(
-          0,
-          (sum, loan) =>
-              sum +
-              ((loan['remaining'] as num?)?.toDouble() ?? 0),
-        );
-  }
-
-  // ============================================================
-  // LOAN PERSON SUMMARY
-  // ============================================================
-
-  List<Map<String, dynamic>> get _loanPersonSummary {
-    final Map<String, Map<String, dynamic>> data = {};
-
-    for (final tx in _loanPeriodTransactions) {
-      final person =
-          _loanPerson(tx).trim().isEmpty
-              ? 'নাম উল্লেখ নেই'
-              : _loanPerson(tx).trim();
-
-      final item = data.putIfAbsent(
-        person,
-        () => {
-          'person': person,
-          'given': 0.0,
-          'taken': 0.0,
-          'received': 0.0,
-          'paid': 0.0,
-          'receivable': 0.0,
-          'payable': 0.0,
-        },
-      );
-
-      final amount =
-          ((tx['amount'] as num?)?.toDouble() ?? 0);
-
-      switch (tx['type']?.toString()) {
-        case 'loan_given':
-          item['given'] =
-              (item['given'] as double) + amount;
-          break;
-
-        case 'loan_taken':
-          item['taken'] =
-              (item['taken'] as double) + amount;
-          break;
-
-        case 'loan_received':
-          item['received'] =
-              (item['received'] as double) + amount;
-          break;
-
-        case 'loan_paid':
-          item['paid'] =
-              (item['paid'] as double) + amount;
-          break;
-      }
-    }
-
-    for (final loan in _loans) {
-      final person =
-          loan['person_name']?.toString().trim() ?? '';
-
-      if (person.isEmpty) continue;
-
-      final item = data.putIfAbsent(
-        person,
-        () => {
-          'person': person,
-          'given': 0.0,
-          'taken': 0.0,
-          'received': 0.0,
-          'paid': 0.0,
-          'receivable': 0.0,
-          'payable': 0.0,
-        },
-      );
-
-      final remaining =
-          ((loan['remaining'] as num?)?.toDouble() ?? 0);
-
-      if (loan['type']?.toString() == 'receivable') {
-        item['receivable'] =
-            (item['receivable'] as double) + remaining;
-      } else {
-        item['payable'] =
-            (item['payable'] as double) + remaining;
-      }
-    }
-
-    final list = data.values.toList();
-
-    list.sort((a, b) {
-      final aTotal =
-          (a['receivable'] as double) +
-              (a['payable'] as double) +
-              (a['given'] as double) +
-              (a['taken'] as double);
-
-      final bTotal =
-          (b['receivable'] as double) +
-              (b['payable'] as double) +
-              (b['given'] as double) +
-              (b['taken'] as double);
-
-      return bTotal.compareTo(aTotal);
-    });
-
-    return list;
-  }
-
-  // ============================================================
-  // SCREENSHOT
-  // ============================================================
-
-  Future<Uint8List> _captureReport() async {
-    return _screenshotController.captureFromWidget(
-      Material(
-        color: Colors.white,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: _buildVoucher(
-            exportMode: true,
-          ),
-        ),
-      ),
-      delay: const Duration(
-        milliseconds: 300,
-      ),
-      pixelRatio: 2,
-    );
-  }
-
-  // ============================================================
-  // JPG
-  // ============================================================
-
-  Future<void> _saveJpg() async {
-    if (_saving) return;
-
-    setState(() {
-      _saving = true;
-    });
-
-    try {
-      final pngBytes = await _captureReport();
-
-      final decoded = img.decodeImage(pngBytes);
-
-      if (decoded == null) {
-        throw Exception(
-          'রিপোর্টের ছবি তৈরি করা যায়নি।',
-        );
-      }
-
-      final jpgBytes = Uint8List.fromList(
-        img.encodeJpg(
-          decoded,
-          quality: 95,
-        ),
-      );
-
-      final directory =
-          await getTemporaryDirectory();
-
-      final file = File(
-        '${directory.path}/amar_hisab_report_'
-        '${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
-
-      await file.writeAsBytes(
-        jpgBytes,
-        flush: true,
-      );
-
-      final result = await GallerySaver.saveImage(
-        file.path,
-        albumName: 'আমার হিসাব',
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result == true
-                ? 'JPG রিপোর্ট Gallery-তে সংরক্ষণ হয়েছে।'
-                : 'JPG সংরক্ষণ করা যায়নি।',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'JPG সংরক্ষণ করা যায়নি: $e',
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-        });
-      }
-    }
-  }
-
-  // ============================================================
-  // PDF FONT
-  // ============================================================
-
-  Future<pw.Font> _loadPdfFont() async {
-    try {
-      final data = await rootBundle.load(
-        'assets/fonts/NotoSansBengali-Regular.ttf',
-      );
-
-      return pw.Font.ttf(data);
-    } catch (_) {
-      return pw.Font.helvetica();
-    }
-  }
-
-  // ============================================================
-  // PDF
-  // ============================================================
-
-  Future<void> _savePdf() async {
-    if (_saving) return;
-
-    setState(() {
-      _saving = true;
-    });
-
-    try {
-      final font = await _loadPdfFont();
-
-      final pdf = pw.Document(
-        theme: pw.ThemeData.withFont(
-          base: font,
-          bold: font,
-        ),
-      );
-
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(32),
-          textDirection: pw.TextDirection.ltr,
-          build: (context) {
-            return _buildPdfOverview(font);
-          },
-          footer: (context) {
-            return pw.Container(
-              margin: const pw.EdgeInsets.only(top: 12),
-              child: pw.Row(
-                mainAxisAlignment:
-                    pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    'আমার হিসাব অ্যাপ',
-                    style: pw.TextStyle(
-                      font: font,
-                      fontSize: 9,
-                      color: PdfColors.grey600,
-                    ),
-                  ),
-                  pw.Text(
-                    'পৃষ্ঠা ${context.pageNumber} / '
-                    '${context.pagesCount}',
-                    style: pw.TextStyle(
-                      font: font,
-                      fontSize: 9,
-                      color: PdfColors.grey600,
-                    ),
-                  ),
-                ],
-              ),
+        // -----------------------------------------------------
+        // DELETE ORIGINAL LOAN
+        // -----------------------------------------------------
+
+        if (isLoanTransaction &&
+            loanId != null &&
+            (type == 'loan_given' ||
+                type == 'loan_taken')) {
+          final repaymentResult =
+              await txn.rawQuery(
+            '''
+            SELECT COUNT(*) AS total
+            FROM transactions
+            WHERE loan_id = ?
+              AND type IN (
+                'loan_received',
+                'loan_paid'
+              )
+            ''',
+            [loanId],
+          );
+
+          final repaymentCount =
+              (repaymentResult.first['total'] as num?)
+                      ?.toInt() ??
+                  0;
+
+          if (repaymentCount > 0) {
+            throw Exception(
+              'This loan already has repayment records. Delete the repayment records first.',
             );
-          },
-        ),
-      );
+          }
 
-      if (_transactions.isNotEmpty) {
-        pdf.addPage(
-          pw.MultiPage(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(32),
-            textDirection: pw.TextDirection.ltr,
-            build: (context) {
-              return [
-                _pdfTransactionTitle(font),
-                ..._buildAllPdfTransactions(font),
-              ];
-            },
-            footer: (context) {
-              return pw.Container(
-                margin: const pw.EdgeInsets.only(top: 12),
-                child: pw.Row(
-                  mainAxisAlignment:
-                      pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      'আমার হিসাব অ্যাপ',
-                      style: pw.TextStyle(
-                        font: font,
-                        fontSize: 9,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                    pw.Text(
-                      'পৃষ্ঠা ${context.pageNumber} / '
-                      '${context.pagesCount}',
-                      style: pw.TextStyle(
-                        font: font,
-                        fontSize: 9,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+          await txn.delete(
+            'loans',
+            where: 'id = ?',
+            whereArgs: [loanId],
+          );
+        }
+
+        final deleted = await txn.delete(
+          'transactions',
+          where: 'id = ?',
+          whereArgs: [id],
         );
-      }
 
-      final directory =
-          await getTemporaryDirectory();
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
 
-      final file = File(
-        '${directory.path}/amar_hisab_report_'
-        '${DateTime.now().millisecondsSinceEpoch}.pdf',
-      );
+        return deleted;
+      },
+    );
+  }
 
-      await file.writeAsBytes(
-        await pdf.save(),
-        flush: true,
-      );
+  // =========================================================
+  // GET SINGLE TRANSACTION
+  // =========================================================
 
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [
-            XFile(
-              file.path,
-              mimeType: 'application/pdf',
-            ),
-          ],
-          text: 'আমার হিসাব রিপোর্ট',
-        ),
-      );
+  Future<Map<String, dynamic>?> getTransaction(
+    int id,
+  ) async {
+    final result = await db.rawQuery(
+      '''
+      SELECT
+        t.*,
+        c.name AS category_name,
+        c.type AS category_type,
+        a.name AS account_name,
+        fa.name AS from_account_name,
+        ta.name AS to_account_name,
+        l.person_name AS loan_person_name,
+        l.type AS loan_type,
+        l.principal AS loan_principal,
+        l.remaining AS loan_remaining
+      FROM transactions t
+      LEFT JOIN categories c
+        ON c.id = t.category_id
+      LEFT JOIN accounts a
+        ON a.id = t.account_id
+      LEFT JOIN accounts fa
+        ON fa.id = t.from_account_id
+      LEFT JOIN accounts ta
+        ON ta.id = t.to_account_id
+      LEFT JOIN loans l
+        ON l.id = t.loan_id
+      WHERE t.id = ?
+      LIMIT 1
+      ''',
+      [id],
+    );
 
-      if (!mounted) return;
+    if (result.isEmpty) return null;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'PDF রিপোর্ট তৈরি হয়েছে।',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
+    return result.first;
+  }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'PDF তৈরি করা যায়নি: $e',
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-        });
-      }
+  // =========================================================
+  // GET TRANSACTIONS
+  // =========================================================
+
+  Future<List<Map<String, dynamic>>> getTransactions({
+    String? type,
+    int? categoryId,
+    int? accountId,
+    int? loanId,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? search,
+  }) async {
+    final where = <String>[];
+    final args = <dynamic>[];
+
+    if (type != null &&
+        type.isNotEmpty &&
+        type != 'all') {
+      where.add('t.type = ?');
+      args.add(type);
     }
-  }
 
-  // ============================================================
-  // PDF OVERVIEW
-  // ============================================================
+    if (categoryId != null) {
+      where.add('t.category_id = ?');
+      args.add(categoryId);
+    }
 
-  List<pw.Widget> _buildPdfOverview(pw.Font font) {
-    return [
-      pw.Center(
-        child: pw.Text(
-          'আমার হিসাব',
-          style: pw.TextStyle(
-            font: font,
-            fontSize: 20,
-            fontWeight: pw.FontWeight.bold,
-          ),
-        ),
-      ),
-      pw.SizedBox(height: 4),
-      pw.Center(
-        child: pw.Text(
-          _periodTitle,
-          style: pw.TextStyle(
-            font: font,
-            fontSize: 14,
-            fontWeight: pw.FontWeight.bold,
-          ),
-        ),
-      ),
-      pw.SizedBox(height: 4),
-      pw.Center(
-        child: pw.Text(
-          '${_dateText(_startDate)} - ${_dateText(_endDate)}',
-          style: pw.TextStyle(
-            font: font,
-            fontSize: 12,
-            color: PdfColors.grey700,
-          ),
-        ),
-      ),
-      pw.SizedBox(height: 18),
-      _pdfSummary(font),
-      pw.SizedBox(height: 18),
-      _pdfCategorySection(
-        font,
-        'আয় খাত',
-        _incomeCategories,
-        PdfColors.green700,
-      ),
-      pw.SizedBox(height: 12),
-      _pdfCategorySection(
-        font,
-        'ব্যয় খাত',
-        _expenseCategories,
-        PdfColors.red700,
-      ),
-      pw.SizedBox(height: 18),
-      _pdfLoanReport(font),
-    ];
-  }
+    if (accountId != null) {
+      where.add('''
+        (
+          t.account_id = ?
+          OR t.from_account_id = ?
+          OR t.to_account_id = ?
+        )
+      ''');
 
-  pw.Widget _pdfSummary(pw.Font font) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(
-          color: PdfColors.grey400,
-        ),
-        borderRadius: const pw.BorderRadius.all(
-          pw.Radius.circular(6),
-        ),
-      ),
-      child: pw.Column(
-        children: [
-          pw.Text(
-            'আয় ও ব্যয়ের সারসংক্ষেপ',
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-          pw.SizedBox(height: 10),
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child: _pdfAmountBox(
-                  font,
-                  'মোট আয়',
-                  _income,
-                  PdfColors.green700,
-                ),
-              ),
-              pw.SizedBox(width: 8),
-              pw.Expanded(
-                child: _pdfAmountBox(
-                  font,
-                  'মোট ব্যয়',
-                  _expense,
-                  PdfColors.red700,
-                ),
-              ),
-              pw.SizedBox(width: 8),
-              pw.Expanded(
-                child: _pdfAmountBox(
-                  font,
-                  _isSurplus ? 'উদ্বৃত্ত' : 'ঘাটতি',
-                  _difference.abs(),
-                  _isSurplus
-                      ? PdfColors.green700
-                      : PdfColors.red700,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      args.add(accountId);
+      args.add(accountId);
+      args.add(accountId);
+    }
+
+    if (loanId != null) {
+      where.add('t.loan_id = ?');
+      args.add(loanId);
+    }
+
+    if (startDate != null) {
+      where.add(
+        't.transaction_date >= ?',
+      );
+      args.add(
+        startDate.toIso8601String(),
+      );
+    }
+
+    if (endDate != null) {
+      where.add(
+        't.transaction_date <= ?',
+      );
+      args.add(
+        endDate.toIso8601String(),
+      );
+    }
+
+    if (search != null &&
+        search.trim().isNotEmpty) {
+      where.add('''
+        (
+          t.note LIKE ?
+          OR c.name LIKE ?
+          OR a.name LIKE ?
+          OR fa.name LIKE ?
+          OR ta.name LIKE ?
+          OR l.person_name LIKE ?
+        )
+      ''');
+
+      final value = '%${search.trim()}%';
+
+      args.add(value);
+      args.add(value);
+      args.add(value);
+      args.add(value);
+      args.add(value);
+      args.add(value);
+    }
+
+    final whereSql = where.isEmpty
+        ? ''
+        : 'WHERE ${where.join(' AND ')}';
+
+    return db.rawQuery(
+      '''
+      SELECT
+        t.*,
+        c.name AS category_name,
+        c.type AS category_type,
+        a.name AS account_name,
+        fa.name AS from_account_name,
+        ta.name AS to_account_name,
+        l.person_name AS loan_person_name,
+        l.type AS loan_type,
+        l.remaining AS loan_remaining
+      FROM transactions t
+      LEFT JOIN categories c
+        ON c.id = t.category_id
+      LEFT JOIN accounts a
+        ON a.id = t.account_id
+      LEFT JOIN accounts fa
+        ON fa.id = t.from_account_id
+      LEFT JOIN accounts ta
+        ON ta.id = t.to_account_id
+      LEFT JOIN loans l
+        ON l.id = t.loan_id
+      $whereSql
+      ORDER BY
+        t.transaction_date DESC,
+        t.id DESC
+      ''',
+      args,
     );
   }
 
-  pw.Widget _pdfAmountBox(
-    pw.Font font,
-    String title,
-    double amount,
-    PdfColor color,
-  ) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.grey100,
-        borderRadius: const pw.BorderRadius.all(
-          pw.Radius.circular(5),
-        ),
-      ),
-      child: pw.Column(
-        children: [
-          pw.Text(
-            title,
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 12,
-              color: PdfColors.grey700,
-            ),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            _money(amount),
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 12,
-              fontWeight: pw.FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // =========================================================
+  // CREATE LOAN
+  // =========================================================
 
-  // ============================================================
-  // PDF CATEGORY
-  // ============================================================
-
-  pw.Widget _pdfCategorySection(
-    pw.Font font,
-    String title,
-    List<Map<String, dynamic>> categories,
-    PdfColor color,
-  ) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(
-          color: PdfColors.grey400,
-        ),
-        borderRadius: const pw.BorderRadius.all(
-          pw.Radius.circular(6),
-        ),
-      ),
-      child: pw.Column(
-        crossAxisAlignment:
-            pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            title,
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-              color: color,
-            ),
-          ),
-          pw.SizedBox(height: 7),
-          if (categories.isEmpty)
-            pw.Text(
-              'কোনো তথ্য নেই',
-              style: pw.TextStyle(
-                font: font,
-                fontSize: 12,
-                color: PdfColors.grey600,
-              ),
-            )
-          else
-            ...categories.map(
-              (category) {
-                final name =
-                    category['category_name']
-                        ?.toString() ??
-                    category['name']?.toString() ??
-                    'অন্যান্য';
-
-                final amount =
-                    ((category['total'] ??
-                                category['amount'] ??
-                                0) as num)
-                        .toDouble();
-
-                return pw.Container(
-                  padding:
-                      const pw.EdgeInsets.symmetric(
-                    vertical: 5,
-                  ),
-                  decoration: const pw.BoxDecoration(
-                    border: pw.Border(
-                      bottom: pw.BorderSide(
-                        color: PdfColors.grey300,
-                      ),
-                    ),
-                  ),
-                  child: pw.Row(
-                    mainAxisAlignment:
-                        pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Expanded(
-                        child: pw.Text(
-                          name,
-                          style: pw.TextStyle(
-                            font: font,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      pw.Text(
-                        _money(amount),
-                        style: pw.TextStyle(
-                          font: font,
-                          fontSize: 12,
-                          fontWeight:
-                              pw.FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // PDF LOAN REPORT
-  // ============================================================
-
-  pw.Widget _pdfLoanReport(pw.Font font) {
-    final people = _loanPersonSummary;
-
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(
-          color: PdfColors.grey400,
-        ),
-        borderRadius: const pw.BorderRadius.all(
-          pw.Radius.circular(6),
-        ),
-      ),
-      child: pw.Column(
-        crossAxisAlignment:
-            pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Loan Report',
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 15,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.blue800,
-            ),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child: _pdfLoanAmount(
-                  font,
-                  'ধার দিয়েছি',
-                  _loanGivenPeriod,
-                  PdfColors.blue700,
-                ),
-              ),
-              pw.SizedBox(width: 6),
-              pw.Expanded(
-                child: _pdfLoanAmount(
-                  font,
-                  'ধার নিয়েছি',
-                  _loanTakenPeriod,
-                  PdfColors.purple700,
-                ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 6),
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child: _pdfLoanAmount(
-                  font,
-                  'ফেরত পেয়েছি',
-                  _loanReceivedPeriod,
-                  PdfColors.green700,
-                ),
-              ),
-              pw.SizedBox(width: 6),
-              pw.Expanded(
-                child: _pdfLoanAmount(
-                  font,
-                  'শোধ করেছি',
-                  _loanPaidPeriod,
-                  PdfColors.orange800,
-                ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 10),
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child: _pdfLoanAmount(
-                  font,
-                  'বর্তমান পাওনা',
-                  _totalReceivable,
-                  PdfColors.blue700,
-                ),
-              ),
-              pw.SizedBox(width: 6),
-              pw.Expanded(
-                child: _pdfLoanAmount(
-                  font,
-                  'বর্তমান দেনা',
-                  _totalPayable,
-                  PdfColors.red700,
-                ),
-              ),
-            ],
-          ),
-          if (people.isNotEmpty) ...[
-            pw.SizedBox(height: 14),
-            pw.Text(
-              'ব্যক্তিভিত্তিক Loan',
-              style: pw.TextStyle(
-                font: font,
-                fontSize: 13,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-            pw.SizedBox(height: 6),
-            _pdfLoanPeopleTable(font, people),
-          ],
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _pdfLoanAmount(
-    pw.Font font,
-    String title,
-    double amount,
-    PdfColor color,
-  ) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(7),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.grey100,
-        borderRadius: const pw.BorderRadius.all(
-          pw.Radius.circular(4),
-        ),
-      ),
-      child: pw.Column(
-        crossAxisAlignment:
-            pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            title,
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 11,
-              color: PdfColors.grey700,
-            ),
-          ),
-          pw.SizedBox(height: 3),
-          pw.Text(
-            _money(amount),
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 12,
-              fontWeight: pw.FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _pdfLoanPeopleTable(
-    pw.Font font,
-    List<Map<String, dynamic>> people,
-  ) {
-    return pw.Table(
-      border: pw.TableBorder.all(
-        color: PdfColors.grey300,
-      ),
-      columnWidths: const {
-        0: pw.FlexColumnWidth(2.2),
-        1: pw.FlexColumnWidth(1.4),
-        2: pw.FlexColumnWidth(1.4),
-        3: pw.FlexColumnWidth(1.4),
-        4: pw.FlexColumnWidth(1.4),
-      },
-      children: [
-        pw.TableRow(
-          decoration: const pw.BoxDecoration(
-            color: PdfColors.grey200,
-          ),
-          children: [
-            _pdfCell(
-              font,
-              'ব্যক্তি',
-              bold: true,
-            ),
-            _pdfCell(
-              font,
-              'দিয়েছি',
-              bold: true,
-            ),
-            _pdfCell(
-              font,
-              'নিয়েছি',
-              bold: true,
-            ),
-            _pdfCell(
-              font,
-              'পাওনা',
-              bold: true,
-            ),
-            _pdfCell(
-              font,
-              'দেনা',
-              bold: true,
-            ),
-          ],
-        ),
-        ...people.map(
-          (person) {
-            return pw.TableRow(
-              children: [
-                _pdfCell(
-                  font,
-                  person['person']?.toString() ?? '',
-                ),
-                _pdfCell(
-                  font,
-                  _money(
-                    person['given'] as double,
-                  ),
-                ),
-                _pdfCell(
-                  font,
-                  _money(
-                    person['taken'] as double,
-                  ),
-                ),
-                _pdfCell(
-                  font,
-                  _money(
-                    person['receivable'] as double,
-                  ),
-                ),
-                _pdfCell(
-                  font,
-                  _money(
-                    person['payable'] as double,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _pdfCell(
-    pw.Font font,
-    String text, {
-    bool bold = false,
-  }) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.all(5),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          font: font,
-          fontSize: 12,
-          fontWeight: bold
-              ? pw.FontWeight.bold
-              : pw.FontWeight.normal,
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // PDF TRANSACTIONS
-  // ============================================================
-
-  pw.Widget _pdfTransactionTitle(pw.Font font) {
-    return pw.Column(
-      crossAxisAlignment:
-          pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'লেনদেনের বিস্তারিত',
-          style: pw.TextStyle(
-            font: font,
-            fontSize: 16,
-            fontWeight: pw.FontWeight.bold,
-          ),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          '${_dateText(_startDate)} - ${_dateText(_endDate)}',
-          style: pw.TextStyle(
-            font: font,
-            fontSize: 12,
-            color: PdfColors.grey700,
-          ),
-        ),
-        pw.SizedBox(height: 12),
-      ],
-    );
-  }
-
-  List<pw.Widget> _buildAllPdfTransactions(
-    pw.Font font,
-  ) {
-    return _transactions.map(
-      (tx) {
-        final date = _parseDate(
-          tx['transaction_date'],
-        );
-
-        final type =
-            tx['type']?.toString() ?? '';
-
-        final amount =
-            ((tx['amount'] as num?)?.toDouble() ?? 0);
-
-        final category =
-            tx['category_name']?.toString() ?? '';
-
-        final account =
-            tx['account_name']?.toString() ?? '';
-
-        final note =
-            tx['note']?.toString() ?? '';
-
-        final person = _loanPerson(tx);
-
-        String details = '';
-
-        if (person.isNotEmpty) {
-          details = 'ব্যক্তি: $person';
-        }
-
-        if (category.isNotEmpty) {
-          if (details.isNotEmpty) {
-            details += ' | ';
-          }
-
-          details += 'খাত: $category';
-        }
-
-        if (account.isNotEmpty) {
-          if (details.isNotEmpty) {
-            details += ' | ';
-          }
-
-          details += 'অ্যাকাউন্ট: $account';
-        }
-
-        if (note.isNotEmpty) {
-          if (details.isNotEmpty) {
-            details += ' | ';
-          }
-
-          details += 'বিবরণ: $note';
-        }
-
-        if (type == 'transfer') {
-          final from =
-              tx['from_account_name']
-                  ?.toString() ??
-              '';
-
-          final to =
-              tx['to_account_name']
-                  ?.toString() ??
-              '';
-
-          details =
-              'From: $from  →  To: $to';
-        }
-
-        return pw.Container(
-          margin: const pw.EdgeInsets.only(
-            bottom: 7,
-          ),
-          padding: const pw.EdgeInsets.all(8),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(
-              color: PdfColors.grey300,
-            ),
-            borderRadius:
-                const pw.BorderRadius.all(
-              pw.Radius.circular(5),
-            ),
-          ),
-          child: pw.Row(
-            crossAxisAlignment:
-                pw.CrossAxisAlignment.start,
-            children: [
-              pw.SizedBox(
-                width: 65,
-                child: pw.Text(
-                  _dateText(date),
-                  style: pw.TextStyle(
-                    font: font,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              pw.Expanded(
-                child: pw.Column(
-                  crossAxisAlignment:
-                      pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      _transactionType(type),
-                      style: pw.TextStyle(
-                        font: font,
-                        fontSize: 12,
-                        fontWeight:
-                            pw.FontWeight.bold,
-                      ),
-                    ),
-                    if (details.isNotEmpty)
-                      pw.Padding(
-                        padding:
-                            const pw.EdgeInsets.only(
-                          top: 3,
-                        ),
-                        child: pw.Text(
-                          details,
-                          style: pw.TextStyle(
-                            font: font,
-                            fontSize: 12,
-                            color:
-                                PdfColors.grey700,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              pw.SizedBox(width: 8),
-              pw.Text(
-                _money(amount),
-                style: pw.TextStyle(
-                  font: font,
-                  fontSize: 12,
-                  fontWeight:
-                      pw.FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    ).toList();
-  }
-
-  // ============================================================
-  // UI VOUCHER
-  // ============================================================
-
-  Widget _buildVoucher({
-    bool exportMode = false,
-    List<Map<String, dynamic>>? transactions,
-  }) {
-    final txList =
-        transactions ?? _transactions;
-
-    return Container(
-      width: exportMode ? 850 : double.infinity,
-      color: Colors.white,
-      padding: EdgeInsets.all(
-        exportMode ? 28 : 16,
-      ),
-      child: DefaultTextStyle(
-        style: const TextStyle(
-          color: Colors.black87,
-          fontSize: 12,
-        ),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            _buildReportHeader(
-              exportMode: exportMode,
-            ),
-            const SizedBox(height: 18),
-            _buildSummarySection(
-              exportMode: exportMode,
-            ),
-            const SizedBox(height: 18),
-            _buildCategorySection(
-              title: 'আয় খাত',
-              categories: _incomeCategories,
-              color: _incomeColor,
-              exportMode: exportMode,
-            ),
-            const SizedBox(height: 12),
-            _buildCategorySection(
-              title: 'ব্যয় খাত',
-              categories: _expenseCategories,
-              color: _expenseColor,
-              exportMode: exportMode,
-            ),
-            const SizedBox(height: 18),
-            _buildLoanSection(
-              exportMode: exportMode,
-            ),
-            const SizedBox(height: 18),
-            _buildTransactionSection(
-              transactions: txList,
-              exportMode: exportMode,
-            ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                'আমার হিসাব অ্যাপ',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // HEADER
-  // ============================================================
-
-  Widget _buildReportHeader({
-    bool exportMode = false,
-  }) {
-    return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-      children: [
-        Center(
-          child: Text(
-            'আমার হিসাব',
-            style: TextStyle(
-              fontSize: exportMode ? 24 : 20,
-              fontWeight: FontWeight.bold,
-              color: _green,
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Center(
-          child: Text(
-            _periodTitle,
-            style: TextStyle(
-              fontSize: exportMode ? 16 : 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Center(
-          child: Text(
-            '${_dateText(_startDate)} - '
-            '${_dateText(_endDate)}',
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.black54,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // SUMMARY
-  // ============================================================
-
-  Widget _buildSummarySection({
-    bool exportMode = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.grey.shade300,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'আয় ও ব্যয়ের সারসংক্ষেপ',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _summaryCard(
-                  title: 'মোট আয়',
-                  amount: _income,
-                  color: _incomeColor,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _summaryCard(
-                  title: 'মোট ব্যয়',
-                  amount: _expense,
-                  color: _expenseColor,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _summaryCard(
-                  title: _isSurplus
-                      ? 'উদ্বৃত্ত'
-                      : 'ঘাটতি',
-                  amount: _difference.abs(),
-                  color: _isSurplus
-                      ? _incomeColor
-                      : _expenseColor,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryCard({
-    required String title,
+  /// receivable:
+  /// আমি অন্যকে ধার দিয়েছি → টাকা পাব।
+  ///
+  /// payable:
+  /// আমি অন্যের কাছ থেকে ধার নিয়েছি → টাকা দিতে হবে।
+  Future<int> createLoan({
+    required String personName,
+    required String type,
     required double amount,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: color.withValues(
-          alpha: 0.08,
-        ),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _money(amount),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    required int accountId,
+    String? note,
+    required DateTime transactionDate,
+  }) async {
+    if (personName.trim().isEmpty) {
+      throw Exception(
+        'Person name is required.',
+      );
+    }
 
-  // ============================================================
-  // CATEGORY
-  // ============================================================
+    if (amount <= 0) {
+      throw Exception(
+        'Loan amount must be greater than zero.',
+      );
+    }
 
-  Widget _buildCategorySection({
-    required String title,
-    required List<Map<String, dynamic>> categories,
-    required Color color,
-    bool exportMode = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.grey.shade300,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 7),
-          if (categories.isEmpty)
-            const Text(
-              'কোনো তথ্য নেই',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            )
-          else
-            ...categories.map(
-              (category) {
-                final name =
-                    category['category_name']
-                        ?.toString() ??
-                    category['name']?.toString() ??
-                    'অন্যান্য';
-
-                final amount =
-                    ((category['total'] ??
-                                category['amount'] ??
-                                0) as num)
-                        .toDouble();
-
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Colors.grey.shade200,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        _money(amount),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight:
-                              FontWeight.bold,
-                          color: color,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // LOAN SECTION
-  // ============================================================
-
-  Widget _buildLoanSection({
-    bool exportMode = false,
-  }) {
-    final people = _loanPersonSummary;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.grey.shade300,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Loan Report',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1565C0),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _loanSummaryCard(
-                  'ধার দিয়েছি',
-                  _loanGivenPeriod,
-                  _loanGiveColor,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _loanSummaryCard(
-                  'ধার নিয়েছি',
-                  _loanTakenPeriod,
-                  _loanTakeColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _loanSummaryCard(
-                  'ফেরত পেয়েছি',
-                  _loanReceivedPeriod,
-                  _loanReceiveColor,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _loanSummaryCard(
-                  'শোধ করেছি',
-                  _loanPaidPeriod,
-                  _loanPaidColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _loanSummaryCard(
-                  'বর্তমান পাওনা',
-                  _totalReceivable,
-                  _loanGiveColor,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _loanSummaryCard(
-                  'বর্তমান দেনা',
-                  _totalPayable,
-                  _loanTakeColor,
-                ),
-              ),
-            ],
-          ),
-          if (people.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            const Text(
-              'ব্যক্তিভিত্তিক Loan',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 7),
-            ...people.map(
-              _buildLoanPersonCard,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _loanSummaryCard(
-    String title,
-    double amount,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: color.withValues(
-          alpha: 0.07,
-        ),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _money(amount),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoanPersonCard(
-    Map<String, dynamic> person,
-  ) {
-    final name =
-        person['person']?.toString() ?? '';
-
-    final given =
-        person['given'] as double;
-
-    final taken =
-        person['taken'] as double;
-
-    final received =
-        person['received'] as double;
-
-    final paid =
-        person['paid'] as double;
-
-    final receivable =
-        person['receivable'] as double;
-
-    final payable =
-        person['payable'] as double;
-
-    return Container(
-      margin: const EdgeInsets.only(
-        bottom: 8,
-      ),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(
-          color: Colors.grey.shade200,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Text(
-            name,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 7),
-          Wrap(
-            spacing: 14,
-            runSpacing: 6,
-            children: [
-              _loanPersonValue(
-                'দিয়েছি',
-                given,
-                _loanGiveColor,
-              ),
-              _loanPersonValue(
-                'নিয়েছি',
-                taken,
-                _loanTakeColor,
-              ),
-              _loanPersonValue(
-                'ফেরত',
-                received,
-                _loanReceiveColor,
-              ),
-              _loanPersonValue(
-                'শোধ',
-                paid,
-                _loanPaidColor,
-              ),
-              _loanPersonValue(
-                'পাওনা',
-                receivable,
-                _loanGiveColor,
-              ),
-              _loanPersonValue(
-                'দেনা',
-                payable,
-                _loanTakeColor,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _loanPersonValue(
-    String title,
-    double amount,
-    Color color,
-  ) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$title: ',
-          style: const TextStyle(
-            fontSize: 11,
-            color: Colors.black54,
-          ),
-        ),
-        Text(
-          _money(amount),
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // TRANSACTION SECTION
-  // ============================================================
-
-  Widget _buildTransactionSection({
-    required List<Map<String, dynamic>> transactions,
-    bool exportMode = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.grey.shade300,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'লেনদেনের বিস্তারিত',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (transactions.isEmpty)
-            const Text(
-              'এই সময়ের মধ্যে কোনো লেনদেন নেই।',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-              ),
-            )
-          else
-            ...transactions.map(
-              (tx) => _transactionRow(
-                tx,
-                exportMode: exportMode,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _transactionRow(
-    Map<String, dynamic> tx, {
-    bool exportMode = false,
-  }) {
-    final type =
-        tx['type']?.toString() ?? '';
-
-    final amount =
-        ((tx['amount'] as num?)?.toDouble() ?? 0);
-
-    final date = _parseDate(
-      tx['transaction_date'],
-    );
-
-    final color =
-        _transactionColor(type);
-
-    final person =
-        _loanPerson(tx);
-
-    final category =
-        tx['category_name']?.toString() ?? '';
+    if (type != 'receivable' &&
+        type != 'payable') {
+      throw Exception(
+        'Loan type must be receivable or payable.',
+      );
+    }
 
     final account =
-        tx['account_name']?.toString() ?? '';
+        await getAccount(accountId);
 
-    final note =
-        tx['note']?.toString() ?? '';
-
-    String subtitle = '';
-
-    if (person.isNotEmpty) {
-      subtitle = 'ব্যক্তি: $person';
+    if (account == null) {
+      throw Exception(
+        'Account not found.',
+      );
     }
 
-    if (category.isNotEmpty) {
-      if (subtitle.isNotEmpty) {
-        subtitle += ' • ';
-      }
+    return db.transaction(
+      (txn) async {
+        final now =
+            DateTime.now().toIso8601String();
 
-      subtitle += 'খাত: $category';
-    }
-
-    if (account.isNotEmpty) {
-      if (subtitle.isNotEmpty) {
-        subtitle += ' • ';
-      }
-
-      subtitle += 'অ্যাকাউন্ট: $account';
-    }
-
-    if (note.isNotEmpty) {
-      if (subtitle.isNotEmpty) {
-        subtitle += ' • ';
-      }
-
-      subtitle += note;
-    }
-
-    if (type == 'transfer') {
-      final from =
-          tx['from_account_name']
-              ?.toString() ??
-          '';
-
-      final to =
-          tx['to_account_name']
-              ?.toString() ??
-          '';
-
-      subtitle =
-          '$from → $to';
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(
-        bottom: 7,
-      ),
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.grey.shade200,
-        ),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color.withValues(
-                alpha: 0.1,
-              ),
-              borderRadius:
-                  BorderRadius.circular(6),
-            ),
-            child: Icon(
-              _transactionIcon(type),
-              size: 18,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _transactionType(type),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight:
-                              FontWeight.bold,
-                          color: color,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      _money(amount),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight:
-                            FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _dateText(date),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.black54,
-                  ),
-                ),
-                if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.black54,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // PERIOD BUTTON
-  // ============================================================
-
-  Widget _periodButton(
-    String value,
-    String title,
-  ) {
-    final selected =
-        _period == value;
-
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          _changePeriod(value);
-        },
-        borderRadius:
-            BorderRadius.circular(7),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            vertical: 9,
-          ),
-          decoration: BoxDecoration(
-            color: selected
-                ? _green
-                : Colors.transparent,
-            borderRadius:
-                BorderRadius.circular(7),
-            border: Border.all(
-              color: selected
-                  ? _green
-                  : Colors.grey.shade300,
-            ),
-          ),
-          child: Center(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: selected
-                    ? Colors.white
-                    : Colors.black87,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // EXPORT MENU
-  // ============================================================
-
-  void _showExportMenu() {
-    if (_saving) return;
-
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize:
-                MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'রিপোর্ট Export করুন',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.picture_as_pdf,
-                  color: Colors.red,
-                ),
-                title: const Text(
-                  'PDF হিসেবে Save/Share',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _savePdf();
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.image,
-                  color: Colors.green,
-                ),
-                title: const Text(
-                  'JPG হিসেবে Gallery-তে Save',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _saveJpg();
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.share,
-                  color: Colors.blue,
-                ),
-                title: const Text(
-                  'ছবি Share করুন',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _shareReport();
-                },
-              ),
-            ],
-          ),
+        final loanId = await txn.insert(
+          'loans',
+          {
+            'person_name': personName.trim(),
+            'type': type,
+            'principal': amount,
+            'remaining': amount,
+            'note': note?.trim() ?? '',
+            'created_at': now,
+            'updated_at': now,
+          },
         );
+
+        final transactionType =
+            type == 'receivable'
+                ? 'loan_given'
+                : 'loan_taken';
+
+        await txn.insert(
+          'transactions',
+          {
+            'type': transactionType,
+            'amount': amount,
+            'category_id': null,
+            'account_id': accountId,
+            'from_account_id': null,
+            'to_account_id': null,
+            'loan_id': loanId,
+            'note': note?.trim() ?? '',
+            'transaction_date':
+                transactionDate.toIso8601String(),
+            'created_at': now,
+            'updated_at': now,
+          },
+        );
+
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
+
+        return loanId;
       },
     );
   }
 
-  // ============================================================
-  // SHARE IMAGE
-  // ============================================================
+  // =========================================================
+  // LOAN REPAYMENT
+  // =========================================================
 
-  Future<void> _shareReport() async {
-    if (_saving) return;
+  Future<int> addLoanRepayment({
+    required int loanId,
+    required double amount,
+    required int accountId,
+    String? note,
+    required DateTime transactionDate,
+  }) async {
+    if (amount <= 0) {
+      throw Exception(
+        'Repayment amount must be greater than zero.',
+      );
+    }
 
-    setState(() {
-      _saving = true;
-    });
+    final account =
+        await getAccount(accountId);
 
-    try {
-      final bytes = await _captureReport();
+    if (account == null) {
+      throw Exception(
+        'Account not found.',
+      );
+    }
 
-      final directory =
-          await getTemporaryDirectory();
+    return db.transaction(
+      (txn) async {
+        final loanResult = await txn.query(
+          'loans',
+          where: 'id = ?',
+          whereArgs: [loanId],
+          limit: 1,
+        );
 
-      final file = File(
-        '${directory.path}/amar_hisab_report_'
-        '${DateTime.now().millisecondsSinceEpoch}.png',
+        if (loanResult.isEmpty) {
+          throw Exception(
+            'Loan not found.',
+          );
+        }
+
+        final loan = loanResult.first;
+
+        final remaining =
+            (loan['remaining'] as num?)
+                    ?.toDouble() ??
+                0;
+
+        if (remaining <= 0) {
+          throw Exception(
+            'This loan is already completed.',
+          );
+        }
+
+        if (amount > remaining) {
+          throw Exception(
+            'Repayment cannot be greater than remaining amount.',
+          );
+        }
+
+        final loanType =
+            loan['type']?.toString() ??
+                'receivable';
+
+        final transactionType =
+            loanType == 'receivable'
+                ? 'loan_received'
+                : 'loan_paid';
+
+        final now =
+            DateTime.now().toIso8601String();
+
+        final id = await txn.insert(
+          'transactions',
+          {
+            'type': transactionType,
+            'amount': amount,
+            'category_id': null,
+            'account_id': accountId,
+            'from_account_id': null,
+            'to_account_id': null,
+            'loan_id': loanId,
+            'note': note?.trim() ?? '',
+            'transaction_date':
+                transactionDate.toIso8601String(),
+            'created_at': now,
+            'updated_at': now,
+          },
+        );
+
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
+
+        return id;
+      },
+    );
+  }
+
+  // =========================================================
+  // LOANS
+  // =========================================================
+
+  Future<List<Map<String, dynamic>>> getLoans({
+    String? type,
+    bool activeOnly = false,
+  }) async {
+    final where = <String>[];
+    final args = <dynamic>[];
+
+    if (type != null &&
+        type.isNotEmpty &&
+        type != 'all') {
+      where.add('type = ?');
+      args.add(type);
+    }
+
+    if (activeOnly) {
+      where.add('remaining > 0');
+    }
+
+    final whereSql = where.isEmpty
+        ? ''
+        : 'WHERE ${where.join(' AND ')}';
+
+    return db.rawQuery(
+      '''
+      SELECT
+        id,
+        person_name,
+        type,
+        principal,
+        remaining,
+        note,
+        created_at,
+        updated_at
+      FROM loans
+      $whereSql
+      ORDER BY
+        remaining DESC,
+        id DESC
+      ''',
+      args,
+    );
+  }
+
+  Future<Map<String, dynamic>?> getLoan(
+    int id,
+  ) async {
+    final result = await db.rawQuery(
+      '''
+      SELECT
+        id,
+        person_name,
+        type,
+        principal,
+        remaining,
+        note,
+        created_at,
+        updated_at
+      FROM loans
+      WHERE id = ?
+      LIMIT 1
+      ''',
+      [id],
+    );
+
+    if (result.isEmpty) return null;
+
+    return result.first;
+  }
+
+  Future<double> getTotalReceivable() async {
+    final result = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(remaining), 0) AS total
+      FROM loans
+      WHERE type = 'receivable'
+        AND remaining > 0
+      ''',
+    );
+
+    return (result.first['total'] as num?)
+            ?.toDouble() ??
+        0;
+  }
+
+  Future<double> getTotalPayable() async {
+    final result = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(remaining), 0) AS total
+      FROM loans
+      WHERE type = 'payable'
+        AND remaining > 0
+      ''',
+    );
+
+    return (result.first['total'] as num?)
+            ?.toDouble() ??
+        0;
+  }
+
+  Future<Map<String, double>> getLoanTotals() async {
+    final receivable =
+        await getTotalReceivable();
+
+    final payable =
+        await getTotalPayable();
+
+    return {
+      'receivable': receivable,
+      'payable': payable,
+      'net': receivable - payable,
+    };
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getLoanTransactions(
+    int loanId,
+  ) async {
+    return getTransactions(
+      loanId: loanId,
+    );
+  }
+
+  // =========================================================
+  // RECALCULATE LOAN BALANCES
+  // =========================================================
+
+  Future<void> _recalculateAllLoanBalances(
+    DatabaseExecutor executor,
+  ) async {
+    final loans =
+        await executor.query('loans');
+
+    for (final loan in loans) {
+      final loanId =
+          loan['id'] as int;
+
+      final principal =
+          (loan['principal'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final type =
+          loan['type']?.toString() ??
+              'receivable';
+
+      final repaymentType =
+          type == 'receivable'
+              ? 'loan_received'
+              : 'loan_paid';
+
+      final result =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE loan_id = ?
+          AND type = ?
+        ''',
+        [
+          loanId,
+          repaymentType,
+        ],
       );
 
-      await file.writeAsBytes(
-        bytes,
-        flush: true,
-      );
+      final repaid =
+          (result.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
 
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [
-            XFile(
-              file.path,
-              mimeType: 'image/png',
-            ),
-          ],
-          text: 'আমার হিসাব রিপোর্ট',
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
+      double remaining =
+          principal - repaid;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'রিপোর্ট Share করা যায়নি: $e',
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-        });
+      if (remaining < 0) {
+        remaining = 0;
       }
+
+      await executor.update(
+        'loans',
+        {
+          'remaining': remaining,
+          'updated_at':
+              DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [loanId],
+      );
     }
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
+  // =========================================================
+  // ACCOUNT BALANCE
+  // =========================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'রিপোর্ট',
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Export',
-            onPressed: _saving
-                ? null
-                : _showExportMenu,
-            icon: const Icon(
-              Icons.file_download_outlined,
-            ),
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadReport,
-              child: ListView(
-                padding: const EdgeInsets.all(12),
-                children: [
-                  Row(
-                    children: [
-                      _periodButton(
-                        'weekly',
-                        'সাপ্তাহিক',
-                      ),
-                      const SizedBox(width: 6),
-                      _periodButton(
-                        'monthly',
-                        'মাসিক',
-                      ),
-                      const SizedBox(width: 6),
-                      _periodButton(
-                        'yearly',
-                        'বার্ষিক',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _pickCustomDate,
-                    icon: const Icon(
-                      Icons.date_range,
-                      size: 18,
-                    ),
-                    label: Text(
-                      _period == 'custom'
-                          ? '${_dateText(_startDate)} - '
-                              '${_dateText(_endDate)}'
-                          : 'নিজের সময় নির্বাচন করুন',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Screenshot(
-                    controller:
-                        _screenshotController,
-                    child: _buildVoucher(),
-                  ),
-                ],
-              ),
-            ),
+  Future<void> _recalculateAllAccountBalances(
+    DatabaseExecutor executor,
+  ) async {
+    final accounts =
+        await executor.query('accounts');
+
+    for (final account in accounts) {
+      final accountId =
+          account['id'] as int;
+
+      double balance = 0;
+
+      // Income
+      final incomeResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'income'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // Expense
+      final expenseResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'expense'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // Transfer In
+      final transferInResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'transfer'
+          AND to_account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // Transfer Out
+      final transferOutResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'transfer'
+          AND from_account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // Loan Given
+      final loanGivenResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'loan_given'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // Loan Taken
+      final loanTakenResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'loan_taken'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // Loan Received
+      final loanReceivedResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'loan_received'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // Loan Paid
+      final loanPaidResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'loan_paid'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
+      final income =
+          (incomeResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final expense =
+          (expenseResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final transferIn =
+          (transferInResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final transferOut =
+          (transferOutResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final loanGiven =
+          (loanGivenResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final loanTaken =
+          (loanTakenResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final loanReceived =
+          (loanReceivedResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final loanPaid =
+          (loanPaidResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      balance =
+          income -
+          expense +
+          transferIn -
+          transferOut -
+          loanGiven +
+          loanTaken +
+          loanReceived -
+          loanPaid;
+
+      await executor.update(
+        'accounts',
+        {
+          'balance': balance,
+        },
+        where: 'id = ?',
+        whereArgs: [accountId],
+      );
+    }
+  }
+
+  Future<void> recalculateBalances() async {
+    await db.transaction(
+      (txn) async {
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
+      },
     );
+  }
+
+  // =========================================================
+  // TOTAL BALANCE
+  // =========================================================
+
+  Future<double> getTotalBalance() async {
+    final result = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(balance), 0) AS total
+      FROM accounts
+      ''',
+    );
+
+    return (result.first['total'] as num?)
+            ?.toDouble() ??
+        0;
+  }
+
+  // =========================================================
+  // TOTAL INCOME
+  // =========================================================
+
+  Future<double> getTotalIncome({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final where = <String>[
+      "type = 'income'",
+    ];
+
+    final args = <dynamic>[];
+
+    if (startDate != null) {
+      where.add(
+        'transaction_date >= ?',
+      );
+      args.add(
+        startDate.toIso8601String(),
+      );
+    }
+
+    if (endDate != null) {
+      where.add(
+        'transaction_date <= ?',
+      );
+      args.add(
+        endDate.toIso8601String(),
+      );
+    }
+
+    final result = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(amount), 0) AS total
+      FROM transactions
+      WHERE ${where.join(' AND ')}
+      ''',
+      args,
+    );
+
+    return (result.first['total'] as num?)
+            ?.toDouble() ??
+        0;
+  }
+
+  // =========================================================
+  // TOTAL EXPENSE
+  // =========================================================
+
+  Future<double> getTotalExpense({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final where = <String>[
+      "type = 'expense'",
+    ];
+
+    final args = <dynamic>[];
+
+    if (startDate != null) {
+      where.add(
+        'transaction_date >= ?',
+      );
+      args.add(
+        startDate.toIso8601String(),
+      );
+    }
+
+    if (endDate != null) {
+      where.add(
+        'transaction_date <= ?',
+      );
+      args.add(
+        endDate.toIso8601String(),
+      );
+    }
+
+    final result = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(amount), 0) AS total
+      FROM transactions
+      WHERE ${where.join(' AND ')}
+      ''',
+      args,
+    );
+
+    return (result.first['total'] as num?)
+            ?.toDouble() ??
+        0;
+  }
+
+  // =========================================================
+  // CATEGORY TOTALS
+  // =========================================================
+
+  Future<List<Map<String, dynamic>>>
+      getIncomeByCategory({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    return _getCategoryTotals(
+      type: 'income',
+      startDate: startDate,
+      endDate: endDate,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getExpenseByCategory({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    return _getCategoryTotals(
+      type: 'expense',
+      startDate: startDate,
+      endDate: endDate,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>>
+      _getCategoryTotals({
+    required String type,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final where = <String>[
+      't.type = ?',
+      'c.type = ?',
+    ];
+
+    final args = <dynamic>[
+      type,
+      type,
+    ];
+
+    if (startDate != null) {
+      where.add(
+        't.transaction_date >= ?',
+      );
+      args.add(
+        startDate.toIso8601String(),
+      );
+    }
+
+    if (endDate != null) {
+      where.add(
+        't.transaction_date <= ?',
+      );
+      args.add(
+        endDate.toIso8601String(),
+      );
+    }
+
+    return db.rawQuery(
+      '''
+      SELECT
+        c.id,
+        c.name,
+        c.type,
+        c.icon,
+        c.color,
+        COALESCE(SUM(t.amount), 0) AS total
+      FROM categories c
+      LEFT JOIN transactions t
+        ON t.category_id = c.id
+        AND ${where.join(' AND ')}
+      WHERE c.type = ?
+      GROUP BY
+        c.id,
+        c.name,
+        c.type,
+        c.icon,
+        c.color
+      HAVING total > 0
+      ORDER BY total DESC
+      ''',
+      [
+        ...args,
+        type,
+      ],
+    );
+  }
+
+  // =========================================================
+  // PERIOD TOTALS
+  // =========================================================
+
+  Future<Map<String, double>> getPeriodTotals({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final income =
+        await getTotalIncome(
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    final expense =
+        await getTotalExpense(
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    return {
+      'income': income,
+      'expense': expense,
+      'difference': income - expense,
+    };
+  }
+
+  // =========================================================
+  // SEARCH
+  // =========================================================
+
+  Future<List<Map<String, dynamic>>>
+      searchTransactions(
+    String query,
+  ) async {
+    return getTransactions(
+      search: query,
+    );
+  }
+
+  // =========================================================
+  // CLEAR ALL TRANSACTIONS
+  // =========================================================
+
+  Future<void> clearTransactions() async {
+    await db.transaction(
+      (txn) async {
+        await txn.delete('transactions');
+
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
+      },
+    );
+  }
+
+  // =========================================================
+  // DATABASE CLOSE
+  // =========================================================
+
+  Future<void> close() async {
+    await _db?.close();
+    _db = null;
   }
 }
