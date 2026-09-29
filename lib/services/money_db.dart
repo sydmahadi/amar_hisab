@@ -16,8 +16,9 @@ class MoneyDb {
 
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -27,6 +28,10 @@ class MoneyDb {
     }
     return _db!;
   }
+
+  // =========================================================
+  // DATABASE CREATE
+  // =========================================================
 
   Future<void> _onCreate(
     Database database,
@@ -58,6 +63,19 @@ class MoneyDb {
     ''');
 
     await database.execute('''
+      CREATE TABLE loans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person_name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        principal REAL NOT NULL,
+        remaining REAL NOT NULL,
+        note TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+
+    await database.execute('''
       CREATE TABLE transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT NOT NULL,
@@ -66,6 +84,7 @@ class MoneyDb {
         account_id INTEGER,
         from_account_id INTEGER,
         to_account_id INTEGER,
+        loan_id INTEGER,
         note TEXT,
         transaction_date TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -93,8 +112,68 @@ class MoneyDb {
       ON transactions(account_id)
     ''');
 
+    await database.execute('''
+      CREATE INDEX idx_transactions_loan
+      ON transactions(loan_id)
+    ''');
+
+    await database.execute('''
+      CREATE INDEX idx_loans_type
+      ON loans(type)
+    ''');
+
     await _insertDefaultAccounts(database);
     await _insertDefaultCategories(database);
+  }
+
+  // =========================================================
+  // DATABASE UPGRADE
+  // =========================================================
+
+  Future<void> _onUpgrade(
+    Database database,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      await database.execute('''
+        CREATE TABLE IF NOT EXISTS loans (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          person_name TEXT NOT NULL,
+          type TEXT NOT NULL,
+          principal REAL NOT NULL,
+          remaining REAL NOT NULL,
+          note TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+
+      final columns = await database.rawQuery(
+        'PRAGMA table_info(transactions)',
+      );
+
+      final hasLoanId = columns.any(
+        (column) => column['name'] == 'loan_id',
+      );
+
+      if (!hasLoanId) {
+        await database.execute('''
+          ALTER TABLE transactions
+          ADD COLUMN loan_id INTEGER
+        ''');
+      }
+
+      await database.execute('''
+        CREATE INDEX IF NOT EXISTS idx_transactions_loan
+        ON transactions(loan_id)
+      ''');
+
+      await database.execute('''
+        CREATE INDEX IF NOT EXISTS idx_loans_type
+        ON loans(type)
+      ''');
+    }
   }
 
   // =========================================================
@@ -306,8 +385,7 @@ class MoneyDb {
         'icon': icon,
         'color': color,
         'is_default': 0,
-        'created_at':
-            DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toIso8601String(),
       },
     );
   }
@@ -430,8 +508,7 @@ class MoneyDb {
         'icon': icon,
         'color': color,
         'is_default': 0,
-        'created_at':
-            DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toIso8601String(),
       },
     );
   }
@@ -491,7 +568,7 @@ class MoneyDb {
   }
 
   // =========================================================
-  // TRANSACTIONS
+  // NORMAL TRANSACTIONS
   // =========================================================
 
   Future<int> addTransaction({
@@ -501,6 +578,7 @@ class MoneyDb {
     int? accountId,
     int? fromAccountId,
     int? toAccountId,
+    int? loanId,
     String? note,
     required DateTime transactionDate,
   }) async {
@@ -510,8 +588,7 @@ class MoneyDb {
 
     return db.transaction(
       (txn) async {
-        final now =
-            DateTime.now().toIso8601String();
+        final now = DateTime.now().toIso8601String();
 
         final id = await txn.insert(
           'transactions',
@@ -522,6 +599,7 @@ class MoneyDb {
             'account_id': accountId,
             'from_account_id': fromAccountId,
             'to_account_id': toAccountId,
+            'loan_id': loanId,
             'note': note?.trim() ?? '',
             'transaction_date':
                 transactionDate.toIso8601String(),
@@ -530,9 +608,8 @@ class MoneyDb {
           },
         );
 
-        await _recalculateAllAccountBalances(
-          txn,
-        );
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
 
         return id;
       },
@@ -547,6 +624,7 @@ class MoneyDb {
     int? accountId,
     int? fromAccountId,
     int? toAccountId,
+    int? loanId,
     String? note,
     required DateTime transactionDate,
   }) async {
@@ -565,19 +643,18 @@ class MoneyDb {
             'account_id': accountId,
             'from_account_id': fromAccountId,
             'to_account_id': toAccountId,
+            'loan_id': loanId,
             'note': note?.trim() ?? '',
             'transaction_date':
                 transactionDate.toIso8601String(),
-            'updated_at':
-                DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
           },
           where: 'id = ?',
           whereArgs: [id],
         );
 
-        await _recalculateAllAccountBalances(
-          txn,
-        );
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
 
         return result;
       },
@@ -593,9 +670,8 @@ class MoneyDb {
           whereArgs: [id],
         );
 
-        await _recalculateAllAccountBalances(
-          txn,
-        );
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
 
         return result;
       },
@@ -613,7 +689,9 @@ class MoneyDb {
         c.type AS category_type,
         a.name AS account_name,
         fa.name AS from_account_name,
-        ta.name AS to_account_name
+        ta.name AS to_account_name,
+        l.person_name AS loan_person_name,
+        l.type AS loan_type
       FROM transactions t
       LEFT JOIN categories c
         ON c.id = t.category_id
@@ -623,6 +701,8 @@ class MoneyDb {
         ON fa.id = t.from_account_id
       LEFT JOIN accounts ta
         ON ta.id = t.to_account_id
+      LEFT JOIN loans l
+        ON l.id = t.loan_id
       WHERE t.id = ?
       LIMIT 1
       ''',
@@ -638,6 +718,7 @@ class MoneyDb {
     String? type,
     int? categoryId,
     int? accountId,
+    int? loanId,
     DateTime? startDate,
     DateTime? endDate,
     String? search,
@@ -671,6 +752,11 @@ class MoneyDb {
       args.add(accountId);
     }
 
+    if (loanId != null) {
+      where.add('t.loan_id = ?');
+      args.add(loanId);
+    }
+
     if (startDate != null) {
       where.add('t.transaction_date >= ?');
       args.add(startDate.toIso8601String());
@@ -690,11 +776,13 @@ class MoneyDb {
           OR a.name LIKE ?
           OR fa.name LIKE ?
           OR ta.name LIKE ?
+          OR l.person_name LIKE ?
         )
       ''');
 
       final value = '%${search.trim()}%';
 
+      args.add(value);
       args.add(value);
       args.add(value);
       args.add(value);
@@ -714,7 +802,10 @@ class MoneyDb {
         c.type AS category_type,
         a.name AS account_name,
         fa.name AS from_account_name,
-        ta.name AS to_account_name
+        ta.name AS to_account_name,
+        l.person_name AS loan_person_name,
+        l.type AS loan_type,
+        l.remaining AS loan_remaining
       FROM transactions t
       LEFT JOIN categories c
         ON c.id = t.category_id
@@ -724,6 +815,8 @@ class MoneyDb {
         ON fa.id = t.from_account_id
       LEFT JOIN accounts ta
         ON ta.id = t.to_account_id
+      LEFT JOIN loans l
+        ON l.id = t.loan_id
       $whereSql
       ORDER BY
         t.transaction_date DESC,
@@ -734,7 +827,343 @@ class MoneyDb {
   }
 
   // =========================================================
-  // BALANCE
+  // LOAN - CREATE
+  // =========================================================
+
+  /// type:
+  /// receivable = আমি অন্যকে ধার দিয়েছি, টাকা পাব
+  /// payable   = আমি অন্যের কাছ থেকে ধার নিয়েছি, টাকা দিতে হবে
+  Future<int> createLoan({
+    required String personName,
+    required String type,
+    required double amount,
+    required int accountId,
+    String? note,
+    required DateTime transactionDate,
+  }) async {
+    if (personName.trim().isEmpty) {
+      throw Exception('Person name is required.');
+    }
+
+    if (amount <= 0) {
+      throw Exception('Loan amount must be greater than zero.');
+    }
+
+    if (type != 'receivable' && type != 'payable') {
+      throw Exception(
+        'Loan type must be receivable or payable.',
+      );
+    }
+
+    return db.transaction(
+      (txn) async {
+        final now = DateTime.now().toIso8601String();
+
+        final loanId = await txn.insert(
+          'loans',
+          {
+            'person_name': personName.trim(),
+            'type': type,
+            'principal': amount,
+            'remaining': amount,
+            'note': note?.trim() ?? '',
+            'created_at': now,
+            'updated_at': now,
+          },
+        );
+
+        final transactionType =
+            type == 'receivable'
+                ? 'loan_given'
+                : 'loan_taken';
+
+        await txn.insert(
+          'transactions',
+          {
+            'type': transactionType,
+            'amount': amount,
+            'category_id': null,
+            'account_id': accountId,
+            'from_account_id': null,
+            'to_account_id': null,
+            'loan_id': loanId,
+            'note': note?.trim() ?? '',
+            'transaction_date':
+                transactionDate.toIso8601String(),
+            'created_at': now,
+            'updated_at': now,
+          },
+        );
+
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
+
+        return loanId;
+      },
+    );
+  }
+
+  // =========================================================
+  // LOAN - REPAYMENT
+  // =========================================================
+
+  Future<int> addLoanRepayment({
+    required int loanId,
+    required double amount,
+    required int accountId,
+    String? note,
+    required DateTime transactionDate,
+  }) async {
+    if (amount <= 0) {
+      throw Exception(
+        'Repayment amount must be greater than zero.',
+      );
+    }
+
+    return db.transaction(
+      (txn) async {
+        final loanResult = await txn.query(
+          'loans',
+          where: 'id = ?',
+          whereArgs: [loanId],
+          limit: 1,
+        );
+
+        if (loanResult.isEmpty) {
+          throw Exception('Loan not found.');
+        }
+
+        final loan = loanResult.first;
+
+        final remaining =
+            (loan['remaining'] as num?)?.toDouble() ?? 0;
+
+        if (remaining <= 0) {
+          throw Exception('This loan is already completed.');
+        }
+
+        if (amount > remaining) {
+          throw Exception(
+            'Repayment cannot be greater than remaining amount.',
+          );
+        }
+
+        final loanType =
+            loan['type'] as String? ?? 'receivable';
+
+        final transactionType =
+            loanType == 'receivable'
+                ? 'loan_received'
+                : 'loan_paid';
+
+        final now = DateTime.now().toIso8601String();
+
+        final id = await txn.insert(
+          'transactions',
+          {
+            'type': transactionType,
+            'amount': amount,
+            'category_id': null,
+            'account_id': accountId,
+            'from_account_id': null,
+            'to_account_id': null,
+            'loan_id': loanId,
+            'note': note?.trim() ?? '',
+            'transaction_date':
+                transactionDate.toIso8601String(),
+            'created_at': now,
+            'updated_at': now,
+          },
+        );
+
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
+
+        return id;
+      },
+    );
+  }
+
+  // =========================================================
+  // LOANS
+  // =========================================================
+
+  Future<List<Map<String, dynamic>>> getLoans({
+    String? type,
+    bool activeOnly = false,
+  }) async {
+    final where = <String>[];
+    final args = <dynamic>[];
+
+    if (type != null &&
+        type.isNotEmpty &&
+        type != 'all') {
+      where.add('type = ?');
+      args.add(type);
+    }
+
+    if (activeOnly) {
+      where.add('remaining > 0');
+    }
+
+    final whereSql = where.isEmpty
+        ? ''
+        : 'WHERE ${where.join(' AND ')}';
+
+    return db.rawQuery(
+      '''
+      SELECT
+        id,
+        person_name,
+        type,
+        principal,
+        remaining,
+        note,
+        created_at,
+        updated_at
+      FROM loans
+      $whereSql
+      ORDER BY
+        remaining DESC,
+        id DESC
+      ''',
+      args,
+    );
+  }
+
+  Future<Map<String, dynamic>?> getLoan(
+    int id,
+  ) async {
+    final result = await db.rawQuery(
+      '''
+      SELECT
+        id,
+        person_name,
+        type,
+        principal,
+        remaining,
+        note,
+        created_at,
+        updated_at
+      FROM loans
+      WHERE id = ?
+      LIMIT 1
+      ''',
+      [id],
+    );
+
+    if (result.isEmpty) return null;
+
+    return result.first;
+  }
+
+  Future<double> getTotalReceivable() async {
+    final result = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(remaining), 0) AS total
+      FROM loans
+      WHERE type = 'receivable'
+        AND remaining > 0
+      ''',
+    );
+
+    return (result.first['total'] as num?)
+            ?.toDouble() ??
+        0;
+  }
+
+  Future<double> getTotalPayable() async {
+    final result = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(remaining), 0) AS total
+      FROM loans
+      WHERE type = 'payable'
+        AND remaining > 0
+      ''',
+    );
+
+    return (result.first['total'] as num?)
+            ?.toDouble() ??
+        0;
+  }
+
+  Future<Map<String, double>> getLoanTotals() async {
+    final receivable = await getTotalReceivable();
+    final payable = await getTotalPayable();
+
+    return {
+      'receivable': receivable,
+      'payable': payable,
+      'net': receivable - payable,
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> getLoanTransactions(
+    int loanId,
+  ) async {
+    return getTransactions(
+      loanId: loanId,
+    );
+  }
+
+  // =========================================================
+  // RECALCULATE LOAN BALANCES
+  // =========================================================
+
+  Future<void> _recalculateAllLoanBalances(
+    DatabaseExecutor executor,
+  ) async {
+    final loans = await executor.query('loans');
+
+    for (final loan in loans) {
+      final loanId = loan['id'] as int;
+
+      final principal =
+          (loan['principal'] as num?)?.toDouble() ?? 0;
+
+      final type =
+          loan['type'] as String? ?? 'receivable';
+
+      final repaymentType =
+          type == 'receivable'
+              ? 'loan_received'
+              : 'loan_paid';
+
+      final result = await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE loan_id = ?
+          AND type = ?
+        ''',
+        [loanId, repaymentType],
+      );
+
+      final repaid =
+          (result.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      double remaining = principal - repaid;
+
+      if (remaining < 0) {
+        remaining = 0;
+      }
+
+      await executor.update(
+        'loans',
+        {
+          'remaining': remaining,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [loanId],
+      );
+    }
+  }
+
+  // =========================================================
+  // ACCOUNT BALANCE
   // =========================================================
 
   Future<void> _recalculateAllAccountBalances(
@@ -793,6 +1222,54 @@ class MoneyDb {
         [accountId],
       );
 
+      // আমি অন্যকে ধার দিয়েছি → টাকা আমার account থেকে বের হয়েছে।
+      final loanGivenResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'loan_given'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // আমি ধার নিয়েছি → টাকা আমার account-এ এসেছে।
+      final loanTakenResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'loan_taken'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // আমি যাকে ধার দিয়েছিলাম সে টাকা ফেরত দিয়েছে।
+      final loanReceivedResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'loan_received'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
+      // আমি আমার নেওয়া ধার পরিশোধ করেছি।
+      final loanPaidResult =
+          await executor.rawQuery(
+        '''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE type = 'loan_paid'
+          AND account_id = ?
+        ''',
+        [accountId],
+      );
+
       final income =
           (incomeResult.first['total'] as num?)
                   ?.toDouble() ??
@@ -813,8 +1290,35 @@ class MoneyDb {
                   ?.toDouble() ??
               0;
 
+      final loanGiven =
+          (loanGivenResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final loanTaken =
+          (loanTakenResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final loanReceived =
+          (loanReceivedResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
+      final loanPaid =
+          (loanPaidResult.first['total'] as num?)
+                  ?.toDouble() ??
+              0;
+
       balance =
-          income - expense + transferIn - transferOut;
+          income -
+          expense +
+          transferIn -
+          transferOut -
+          loanGiven +
+          loanTaken +
+          loanReceived -
+          loanPaid;
 
       await executor.update(
         'accounts',
@@ -830,15 +1334,14 @@ class MoneyDb {
   Future<void> recalculateBalances() async {
     await db.transaction(
       (txn) async {
-        await _recalculateAllAccountBalances(
-          txn,
-        );
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
       },
     );
   }
 
   // =========================================================
-  // TOTALS
+  // TOTAL BALANCE
   // =========================================================
 
   Future<double> getTotalBalance() async {
@@ -853,6 +1356,10 @@ class MoneyDb {
             ?.toDouble() ??
         0;
   }
+
+  // =========================================================
+  // TOTAL INCOME
+  // =========================================================
 
   Future<double> getTotalIncome({
     DateTime? startDate,
@@ -887,6 +1394,10 @@ class MoneyDb {
             ?.toDouble() ??
         0;
   }
+
+  // =========================================================
+  // TOTAL EXPENSE
+  // =========================================================
 
   Future<double> getTotalExpense({
     DateTime? startDate,
@@ -1052,9 +1563,8 @@ class MoneyDb {
       (txn) async {
         await txn.delete('transactions');
 
-        await _recalculateAllAccountBalances(
-          txn,
-        );
+        await _recalculateAllAccountBalances(txn);
+        await _recalculateAllLoanBalances(txn);
       },
     );
   }
