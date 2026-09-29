@@ -57,41 +57,57 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
+  // ============================================================
+  // DASHBOARD DATA
+  // ============================================================
+  //
+  // এখানে Income / Expense সব সময়ের জন্য হিসাব করা হচ্ছে।
+  //
+  // উদাহরণ:
+  // ২ মাস আগে Income = 0
+  // ২ মাস আগে Expense = 4,000
+  // এই মাসে Expense = 500
+  //
+  // তাহলে Difference = 0 - 4,500 = -4,500
+  //
+  // Loan নেওয়া নিজে Expense নয়।
+  // Loan দিয়ে পরে যে Expense করা হয়েছে,
+  // সেই Expense transaction-ই এখানে গণনা হবে।
+  //
+  // Transfer এবং Loan transaction সরাসরি
+  // Income/Expense-এর মধ্যে গণনা হবে না।
+  // ============================================================
+
   Future<void> _loadDashboard() async {
     try {
-      final now = DateTime.now();
-
-      final startDate = DateTime(
-        now.year,
-        now.month,
-        1,
-      );
-
-      final endDate = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        23,
-        59,
-        59,
-        999,
-      );
-
-      final period = await _db.getPeriodTotals(
-        startDate: startDate,
-        endDate: endDate,
-      );
-
       final accounts = await _db.getAccounts();
       final transactions = await _db.getTransactions();
       final totalBalance = await _db.getTotalBalance();
 
+      double totalIncome = 0;
+      double totalExpense = 0;
+
+      for (final transaction in transactions) {
+        final type =
+            (transaction['type'] ?? '').toString().toLowerCase();
+
+        final amount = _toDouble(transaction['amount']);
+
+        if (type == 'income') {
+          totalIncome += amount;
+        } else if (type == 'expense') {
+          totalExpense += amount;
+        }
+      }
+
+      final difference = totalIncome - totalExpense;
+
       if (!mounted) return;
 
       setState(() {
-        _income = _toDouble(period['income']);
-        _expense = _toDouble(period['expense']);
-        _difference = _toDouble(period['difference']);
+        _income = totalIncome;
+        _expense = totalExpense;
+        _difference = difference;
         _accountBalance = _toDouble(totalBalance);
 
         _accounts = accounts;
@@ -679,9 +695,8 @@ class _HomeScreenState extends State<HomeScreen> {
       key: _scaffoldKey,
       backgroundColor:
           theme.scaffoldBackgroundColor,
-      drawer: _buildDrawer(),
+      drawer: _buildDrawer,
 
-      // নতুন: সবসময় নিচে ভাসমান "লেনদেন যোগ" বাটন
       floatingActionButton: _buildFloatingAddButton(),
 
       floatingActionButtonLocation:
@@ -731,8 +746,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           child:
                               _buildToolsSection(),
                         ),
-
-                        // FAB-এর জন্য নিচে অতিরিক্ত জায়গা
                         const SliverToBoxAdapter(
                           child:
                               SizedBox(height: 90),
@@ -747,7 +760,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFloatingAddButton() {
-
     final label = _settings.isBangla
         ? 'লেনদেন যোগ'
         : 'Add transaction';
