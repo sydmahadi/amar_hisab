@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../services/app_settings.dart';
@@ -31,24 +33,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _loading = true;
 
-  AppSettings get settings => AppSettings.instance;
-
-  Color _alpha(Color color, double opacity) {
-    return color.withValues(alpha: opacity);
-  }
-
-  Color _secondaryText(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? AppTheme.secondaryTextDark
-        : AppTheme.secondaryTextLight;
-  }
-
-  Color _cardColor(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark
-        ? AppTheme.darkCard
-        : AppTheme.lightCard;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -56,56 +40,41 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    if (mounted) {
-      setState(() {
-        _loading = true;
-      });
-    }
+    setState(() {
+      _loading = true;
+    });
 
     try {
-      await _db.init();
-
       final balance = await _db.getTotalBalance();
       final income = await _db.getTotalIncome();
       final expense = await _db.getTotalExpense();
       final accounts = await _db.getAccounts();
       final transactions = await _db.getTransactions();
 
-      final transactionList =
-          transactions.map<Map<String, dynamic>>((item) {
-        return Map<String, dynamic>.from(item);
-      }).toList();
+      transactions.sort((a, b) {
+        final aDate =
+            DateTime.tryParse(
+              (a['transaction_date'] ?? a['transactionDate'] ?? '').toString(),
+            ) ??
+            DateTime(2000);
 
-      transactionList.sort((a, b) {
-        final ad = _parseDate(
-          a['transaction_date']?.toString() ??
-              a['transactionDate']?.toString(),
-        );
+        final bDate =
+            DateTime.tryParse(
+              (b['transaction_date'] ?? b['transactionDate'] ?? '').toString(),
+            ) ??
+            DateTime(2000);
 
-        final bd = _parseDate(
-          b['transaction_date']?.toString() ??
-              b['transactionDate']?.toString(),
-        );
-
-        if (ad == null && bd == null) return 0;
-        if (ad == null) return 1;
-        if (bd == null) return -1;
-
-        return bd.compareTo(ad);
+        return bDate.compareTo(aDate);
       });
-
-      final accountList = accounts.map<Map<String, dynamic>>((item) {
-        return Map<String, dynamic>.from(item);
-      }).toList();
 
       if (!mounted) return;
 
       setState(() {
-        _balance = balance;
-        _income = income;
-        _expense = expense;
-        _accounts = accountList;
-        _recentTransactions = transactionList.take(5).toList();
+        _balance = _toDouble(balance);
+        _income = _toDouble(income);
+        _expense = _toDouble(expense);
+        _accounts = List<Map<String, dynamic>>.from(accounts);
+        _recentTransactions = transactions.take(5).toList();
         _loading = false;
       });
     } catch (_) {
@@ -117,24 +86,83 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  DateTime? _parseDate(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return null;
-    }
-
-    return DateTime.tryParse(value);
+  double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   String _money(double value) {
-    return value.abs().toStringAsFixed(2);
+    return value.toStringAsFixed(2);
   }
 
-  String _dateText(String? value) {
-    final date = _parseDate(value);
+  Color _alpha(Color color, double opacity) {
+    return color.withValues(alpha: opacity);
+  }
 
-    if (date == null) {
-      return '';
+  Color _transactionColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'income':
+        return AppTheme.incomeColor;
+      case 'expense':
+        return AppTheme.expenseColor;
+      case 'transfer':
+        return AppTheme.transferColor;
+      default:
+        return AppTheme.gold;
     }
+  }
+
+  IconData _transactionIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'income':
+        return Icons.arrow_downward_rounded;
+      case 'expense':
+        return Icons.arrow_upward_rounded;
+      case 'transfer':
+        return Icons.swap_horiz_rounded;
+      default:
+        return Icons.account_balance_wallet_outlined;
+    }
+  }
+
+  String _transactionTitle(Map<String, dynamic> item) {
+    final note = item['note']?.toString().trim();
+
+    if (note != null && note.isNotEmpty) {
+      return note;
+    }
+
+    final category = item['category_name'] ??
+        item['categoryName'] ??
+        item['category'];
+
+    if (category != null && category.toString().trim().isNotEmpty) {
+      return category.toString();
+    }
+
+    final type = item['type']?.toString().toLowerCase();
+
+    switch (type) {
+      case 'income':
+        return AppSettings.instance.isBangla ? 'আয়' : 'Income';
+      case 'expense':
+        return AppSettings.instance.isBangla ? 'ব্যয়' : 'Expense';
+      case 'transfer':
+        return AppSettings.instance.isBangla ? 'ট্রান্সফার' : 'Transfer';
+      default:
+        return AppSettings.instance.isBangla ? 'লেনদেন' : 'Transaction';
+    }
+  }
+
+  String _accountName(Map<String, dynamic> account) {
+    return account['name']?.toString() ??
+        (AppSettings.instance.isBangla ? 'অ্যাকাউন্ট' : 'Account');
+  }
+
+  String _formatDate(dynamic value) {
+    final date = DateTime.tryParse(value?.toString() ?? '');
+
+    if (date == null) return '';
 
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
@@ -149,18 +177,22 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    await _loadData();
+    if (mounted) {
+      _loadData();
+    }
   }
 
   Future<void> _openTransactions() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const TransactionsScreen(),
+        builder: (_) => const TransactionScreen(),
       ),
     );
 
-    await _loadData();
+    if (mounted) {
+      _loadData();
+    }
   }
 
   Future<void> _openAccounts() async {
@@ -171,7 +203,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    await _loadData();
+    if (mounted) {
+      _loadData();
+    }
   }
 
   Future<void> _openCategories() async {
@@ -181,8 +215,6 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => const CategoriesScreen(),
       ),
     );
-
-    await _loadData();
   }
 
   Future<void> _openStatistics() async {
@@ -192,8 +224,6 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => const StatisticsScreen(),
       ),
     );
-
-    await _loadData();
   }
 
   Future<void> _openReport() async {
@@ -203,8 +233,6 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => const ReportScreen(),
       ),
     );
-
-    await _loadData();
   }
 
   Future<void> _openSettings() async {
@@ -215,7 +243,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    await _loadData();
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _openAbout() async {
@@ -225,162 +255,196 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => const AboutScreen(),
       ),
     );
-
-    await _loadData();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final settings = AppSettings.instance;
+    final isDark = settings.isDarkMode;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? AppTheme.darkBackground
-          : AppTheme.lightBackground,
-      appBar: _buildAppBar(context),
-      drawer: _buildDrawer(context),
-      floatingActionButton: _buildAddButton(),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        color: AppTheme.green,
-        child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  color: AppTheme.gold,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      floatingActionButton: _buildFloatingButton(theme),
+      drawer: _buildDrawer(theme),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _PremiumBackground(
+              isDark: isDark,
+            ),
+          ),
+
+          SafeArea(
+            child: RefreshIndicator(
+              color: AppTheme.green,
+              onRefresh: _loadData,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
-              )
-            : ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                children: [
-                  _buildBalanceCard(context),
-                  const SizedBox(height: 16),
-                  _buildIncomeExpenseCards(context),
-                  const SizedBox(height: 22),
-                  _buildSectionTitle(
-                    context,
-                    title: settings.t('quickActions'),
-                    icon: Icons.flash_on_rounded,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _buildTopBar(theme),
                   ),
-                  const SizedBox(height: 10),
-                  _buildQuickActions(context),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle(
-                    context,
-                    title: settings.t('recentTransactions'),
-                    icon: Icons.receipt_long_rounded,
-                    actionText: settings.t('viewAll'),
-                    onAction: _openTransactions,
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 110),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        _buildBalanceCard(theme),
+                        const SizedBox(height: 18),
+                        _buildSummary(theme),
+                        const SizedBox(height: 24),
+                        _buildSectionTitle(
+                          theme,
+                          settings.isBangla
+                              ? 'দ্রুত কাজ'
+                              : 'Quick Actions',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildQuickActions(theme),
+                        const SizedBox(height: 26),
+                        _buildSectionTitle(
+                          theme,
+                          settings.isBangla
+                              ? 'সাম্প্রতিক লেনদেন'
+                              : 'Recent Transactions',
+                          actionText: settings.isBangla
+                              ? 'সব দেখুন'
+                              : 'View All',
+                          onAction: _openTransactions,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildRecentTransactions(theme),
+                        const SizedBox(height: 26),
+                        _buildSectionTitle(
+                          theme,
+                          settings.isBangla
+                              ? 'অ্যাকাউন্টসমূহ'
+                              : 'Accounts',
+                          actionText:
+                              settings.isBangla ? 'সব দেখুন' : 'View All',
+                          onAction: _openAccounts,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildAccounts(theme),
+                        const SizedBox(height: 26),
+                        _buildSectionTitle(
+                          theme,
+                          settings.isBangla
+                              ? 'প্রয়োজনীয় টুল'
+                              : 'Useful Tools',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTools(theme),
+                      ]),
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  _buildRecentTransactions(context),
-                  const SizedBox(height: 24),
-                  _buildSectionTitle(
-                    context,
-                    title: settings.t('accounts'),
-                    icon: Icons.account_balance_wallet_rounded,
-                    actionText: settings.t('viewAll'),
-                    onAction: _openAccounts,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildAccounts(context),
-                  const SizedBox(height: 24),
-                  _buildTools(context),
                 ],
               ),
+            ),
+          ),
+
+          if (_loading)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: _alpha(
+                    theme.scaffoldBackgroundColor,
+                    0.25,
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return AppBar(
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      backgroundColor: Colors.transparent,
-      surfaceTintColor: Colors.transparent,
-      leading: Builder(
-        builder: (context) {
-          return IconButton(
-            onPressed: () => Scaffold.of(context).openDrawer(),
-            tooltip: settings.t('menu'),
-            icon: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: isDark
-                    ? AppTheme.darkCard
-                    : AppTheme.lightCard,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _alpha(AppTheme.gold, 0.25),
-                ),
-              ),
-              child: const Icon(
-                Icons.menu_rounded,
-                color: AppTheme.gold,
-              ),
-            ),
-          );
-        },
+  Widget _buildTopBar(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+      child: Row(
+        children: [
+          Builder(
+            builder: (context) {
+              return _topActionButton(
+                theme,
+                icon: Icons.menu_rounded,
+                onTap: () {
+                  Scaffold.of(context).openDrawer();
+                },
+              );
+            },
+          ),
+          const Spacer(),
+          _topActionButton(
+            theme,
+            icon: Icons.bar_chart_rounded,
+            onTap: _openStatistics,
+          ),
+          const SizedBox(width: 8),
+          _topActionButton(
+            theme,
+            icon: Icons.settings_outlined,
+            onTap: _openSettings,
+          ),
+        ],
       ),
-      title: const SizedBox.shrink(),
-      actions: [
-        _topActionButton(
-          context,
-          icon: Icons.bar_chart_rounded,
-          onTap: _openStatistics,
-        ),
-        const SizedBox(width: 2),
-        _topActionButton(
-          context,
-          icon: Icons.settings_rounded,
-          onTap: _openSettings,
-        ),
-        const SizedBox(width: 10),
-      ],
     );
   }
 
   Widget _topActionButton(
-    BuildContext context, {
+    ThemeData theme, {
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return IconButton(
-      onPressed: onTap,
-      icon: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: isDark
-              ? AppTheme.darkCard
-              : AppTheme.lightCard,
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(
-            color: _alpha(AppTheme.gold, 0.20),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: _alpha(
+              theme.colorScheme.surface,
+              Theme.of(context).brightness == Brightness.dark
+                  ? 0.78
+                  : 0.88,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: _alpha(
+                theme.colorScheme.onSurface,
+                0.07,
+              ),
+            ),
           ),
-        ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: isDark
-              ? AppTheme.goldLight
-              : AppTheme.darkGreen,
+          child: Icon(
+            icon,
+            size: 21,
+            color: theme.colorScheme.onSurface,
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBalanceCard(BuildContext context) {
+  Widget _buildBalanceCard(ThemeData theme) {
+    final settings = AppSettings.instance;
+
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        borderRadius: BorderRadius.circular(28),
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -388,109 +452,109 @@ class _HomeScreenState extends State<HomeScreen> {
             AppTheme.green,
           ],
         ),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(
-          color: _alpha(AppTheme.gold, 0.42),
-        ),
         boxShadow: [
           BoxShadow(
-            color: _alpha(AppTheme.darkGreen, 0.25),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            color: _alpha(AppTheme.green, 0.18),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 43,
-                height: 43,
-                decoration: BoxDecoration(
-                  color: _alpha(Colors.white, 0.11),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: _alpha(AppTheme.goldLight, 0.32),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet_rounded,
-                  color: AppTheme.goldLight,
-                  size: 21,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  settings.t('totalBalance'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
+          Positioned(
+            right: -30,
+            top: -30,
+            child: Container(
+              width: 130,
+              height: 130,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
                   color: _alpha(Colors.white, 0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.account_balance_rounded,
-                  color: AppTheme.goldLight,
-                  size: 17,
+                  width: 20,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Text(
-            _money(_balance),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            settings.t('currentBalance'),
-            style: TextStyle(
-              color: _alpha(Colors.white, 0.65),
-              fontSize: 12,
+          Positioned(
+            right: 20,
+            bottom: -50,
+            child: Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _alpha(AppTheme.gold, 0.09),
+              ),
             ),
           ),
-          const SizedBox(height: 20),
-          Container(
-            height: 1,
-            color: _alpha(Colors.white, 0.12),
-          ),
-          const SizedBox(height: 14),
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _balanceMiniInfo(
-                  icon: Icons.trending_up_rounded,
-                  title: settings.t('income'),
-                  amount: _money(_income),
+              Row(
+                children: [
+                  Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: _alpha(Colors.white, 0.82),
+                    size: 19,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    settings.isBangla
+                        ? 'মোট ব্যালেন্স'
+                        : 'Total Balance',
+                    style: TextStyle(
+                      color: _alpha(Colors.white, 0.82),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 13),
+              Text(
+                '৳ ${_money(_balance)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                 ),
               ),
+              const SizedBox(height: 17),
               Container(
-                width: 1,
-                height: 38,
-                color: _alpha(Colors.white, 0.14),
+                height: 1,
+                color: _alpha(Colors.white, 0.10),
               ),
-              Expanded(
-                child: _balanceMiniInfo(
-                  icon: Icons.trending_down_rounded,
-                  title: settings.t('expense'),
-                  amount: _money(_expense),
-                ),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  Expanded(
+                    child: _balanceMini(
+                      theme,
+                      icon: Icons.arrow_downward_rounded,
+                      title: settings.isBangla ? 'আয়' : 'Income',
+                      value: '৳ ${_money(_income)}',
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 38,
+                    color: _alpha(Colors.white, 0.10),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 18),
+                      child: _balanceMini(
+                        theme,
+                        icon: Icons.arrow_upward_rounded,
+                        title: settings.isBangla ? 'ব্যয়' : 'Expense',
+                        value: '৳ ${_money(_expense)}',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -499,28 +563,34 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _balanceMiniInfo({
+  Widget _balanceMini(
+    ThemeData theme, {
     required IconData icon,
     required String title,
-    required String amount,
+    required String value,
   }) {
     return Row(
       children: [
-        const SizedBox(width: 4),
-        Icon(
-          icon,
-          color: AppTheme.goldLight,
-          size: 18,
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: _alpha(Colors.white, 0.10),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: _alpha(Colors.white, 0.85),
+            size: 16,
+          ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
+        const SizedBox(width: 9),
+        Flexible(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: _alpha(Colors.white, 0.65),
                   fontSize: 11,
@@ -528,13 +598,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 2),
               Text(
-                amount,
+                value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
                   fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
               ),
             ],
@@ -544,28 +614,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildIncomeExpenseCards(BuildContext context) {
+  Widget _buildSummary(ThemeData theme) {
+    final settings = AppSettings.instance;
+
     return Row(
       children: [
         Expanded(
           child: _summaryCard(
-            context,
-            icon: Icons.arrow_downward_rounded,
-            title: settings.t('income'),
-            amount: _income,
-            iconColor: AppTheme.green,
-            onTap: _openTransactions,
+            theme,
+            icon: Icons.trending_down_rounded,
+            title: settings.isBangla ? 'আজকের আয়' : 'Income',
+            value: '৳ ${_money(_income)}',
+            color: AppTheme.incomeColor,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _summaryCard(
-            context,
-            icon: Icons.arrow_upward_rounded,
-            title: settings.t('expense'),
-            amount: _expense,
-            iconColor: AppTheme.gold,
-            onTap: _openTransactions,
+            theme,
+            icon: Icons.trending_up_rounded,
+            title: settings.isBangla ? 'আজকের ব্যয়' : 'Expense',
+            value: '৳ ${_money(_expense)}',
+            color: AppTheme.expenseColor,
           ),
         ),
       ],
@@ -573,114 +643,83 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _summaryCard(
-    BuildContext context, {
+    ThemeData theme, {
     required IconData icon,
     required String title,
-    required double amount,
-    required Color iconColor,
-    required VoidCallback onTap,
+    required String value,
+    required Color color,
   }) {
-    final cardColor = _cardColor(context);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: _alpha(iconColor, 0.16),
+        border: Border.all(
+          color: _alpha(theme.colorScheme.onSurface, 0.055),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: _alpha(color, 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
             ),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _alpha(iconColor, 0.10),
-                  borderRadius: BorderRadius.circular(13),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 20,
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _secondaryText(context),
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _money(amount),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodyLarge
-                            ?.color,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildSectionTitle(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
+    ThemeData theme,
+    String title, {
     String? actionText,
     VoidCallback? onAction,
   }) {
     return Row(
       children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: _alpha(AppTheme.gold, 0.10),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            icon,
-            size: 17,
-            color: AppTheme.gold,
-          ),
-        ),
-        const SizedBox(width: 9),
         Expanded(
           child: Text(
             title,
             style: TextStyle(
-              color: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.color,
-              fontSize: 16,
+              color: theme.colorScheme.onSurface,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -688,17 +727,12 @@ class _HomeScreenState extends State<HomeScreen> {
         if (actionText != null && onAction != null)
           TextButton(
             onPressed: onAction,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
             child: Text(
               actionText,
               style: const TextStyle(
                 color: AppTheme.gold,
-                fontSize: 12,
                 fontWeight: FontWeight.w700,
+                fontSize: 12,
               ),
             ),
           ),
@@ -706,108 +740,107 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildQuickActions(ThemeData theme) {
+    final settings = AppSettings.instance;
+
     return Row(
       children: [
         Expanded(
           child: _quickAction(
-            context,
+            theme,
             icon: Icons.add_rounded,
-            title: settings.t('addTransaction'),
-            subtitle: settings.t('entry'),
-            iconColor: AppTheme.green,
-            onTap: _openAddTransaction,
+            title: settings.isBangla ? 'আয়' : 'Income',
+            color: AppTheme.incomeColor,
+            onTap: () => _openAddWithType('income'),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _quickAction(
-            context,
-            icon: Icons.receipt_long_rounded,
-            title: settings.t('transactions'),
-            subtitle: settings.t('viewAll'),
-            iconColor: AppTheme.gold,
-            onTap: _openTransactions,
+            theme,
+            icon: Icons.remove_rounded,
+            title: settings.isBangla ? 'ব্যয়' : 'Expense',
+            color: AppTheme.expenseColor,
+            onTap: () => _openAddWithType('expense'),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _quickAction(
-            context,
-            icon: Icons.bar_chart_rounded,
-            title: settings.t('statistics'),
-            subtitle: settings.t('viewAll'),
-            iconColor: AppTheme.greenLight,
-            onTap: _openStatistics,
+            theme,
+            icon: Icons.swap_horiz_rounded,
+            title: settings.isBangla ? 'ট্রান্সফার' : 'Transfer',
+            color: AppTheme.transferColor,
+            onTap: () => _openAddWithType('transfer'),
           ),
         ),
       ],
     );
   }
 
+  Future<void> _openAddWithType(String type) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddTransactionScreen(
+          initialType: type,
+        ),
+      ),
+    );
+
+    if (mounted) {
+      _loadData();
+    }
+  }
+
   Widget _quickAction(
-    BuildContext context, {
+    ThemeData theme, {
     required IconData icon,
     required String title,
-    required String subtitle,
-    required Color iconColor,
+    required Color color,
     required VoidCallback onTap,
   }) {
-    final cardColor = _cardColor(context);
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(19),
-        child: Container(
-          height: 108,
-          padding: const EdgeInsets.all(12),
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(
+            vertical: 17,
+            horizontal: 8,
+          ),
           decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(19),
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: _alpha(iconColor, 0.15),
+              color: _alpha(theme.colorScheme.onSurface, 0.055),
             ),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 43,
+                height: 43,
                 decoration: BoxDecoration(
-                  color: _alpha(iconColor, 0.10),
-                  borderRadius: BorderRadius.circular(12),
+                  color: _alpha(color, 0.10),
+                  shape: BoxShape.circle,
                 ),
                 child: Icon(
                   icon,
-                  color: iconColor,
-                  size: 20,
+                  color: color,
+                  size: 22,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 9),
               Text(
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.color,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: _secondaryText(context),
-                  fontSize: 9.5,
+                  color: theme.colorScheme.onSurface,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -817,453 +850,293 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildRecentTransactions(BuildContext context) {
+  Widget _buildRecentTransactions(ThemeData theme) {
+    final settings = AppSettings.instance;
+
     if (_recentTransactions.isEmpty) {
       return _emptyCard(
-        context,
+        theme,
         icon: Icons.receipt_long_outlined,
-        text: settings.t('noTransactions'),
-        buttonText: settings.t('addTransaction'),
-        onPressed: _openAddTransaction,
+        text: settings.isBangla
+            ? 'এখনও কোনো লেনদেন নেই'
+            : 'No transactions yet',
       );
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: _cardColor(context),
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: _alpha(AppTheme.gold, 0.12),
+          color: _alpha(theme.colorScheme.onSurface, 0.055),
         ),
       ),
       child: Column(
-        children: [
-          for (int i = 0; i < _recentTransactions.length; i++) ...[
-            _transactionItem(
-              context,
-              _recentTransactions[i],
-            ),
-            if (i != _recentTransactions.length - 1)
-              Divider(
-                height: 1,
-                indent: 72,
-                endIndent: 16,
-                color: _alpha(
-                  Theme.of(context).dividerColor,
-                  0.10,
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
+        children: List.generate(
+          _recentTransactions.length,
+          (index) {
+            final item = _recentTransactions[index];
+            final type = item['type']?.toString() ?? '';
+            final color = _transactionColor(type);
+            final amount = _toDouble(item['amount']);
+            final date =
+                item['transaction_date'] ?? item['transactionDate'];
 
-  Widget _transactionItem(
-    BuildContext context,
-    Map<String, dynamic> transaction,
-  ) {
-    final type = (transaction['type'] ?? '').toString().toLowerCase();
-
-    final isIncome = type == 'income';
-    final isTransfer = type == 'transfer';
-
-    final color = isIncome
-        ? AppTheme.green
-        : isTransfer
-            ? AppTheme.gold
-            : Colors.redAccent;
-
-    final icon = isIncome
-        ? Icons.arrow_downward_rounded
-        : isTransfer
-            ? Icons.swap_horiz_rounded
-            : Icons.arrow_upward_rounded;
-
-    final amount = _toDouble(transaction['amount']);
-
-    final note = (transaction['note'] ?? '').toString().trim();
-
-    final date = transaction['transaction_date']?.toString() ??
-        transaction['transactionDate']?.toString();
-
-    String title;
-
-    if (note.isNotEmpty) {
-      title = note;
-    } else if (isIncome) {
-      title = settings.t('income');
-    } else if (isTransfer) {
-      title = settings.t('transfer');
-    } else {
-      title = settings.t('expense');
-    }
-
-    final amountPrefix = isIncome ? '+' : '-';
-
-    return InkWell(
-      onTap: _openTransactions,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 13,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: _alpha(color, 0.10),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
+            return Column(
+              children: [
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 5,
+                  ),
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: _alpha(color, 0.10),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _transactionIcon(type),
+                      color: color,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    _transactionTitle(item),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.color,
-                      fontSize: 13,
+                      color: theme.colorScheme.onSurface,
                       fontWeight: FontWeight.w700,
+                      fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _dateText(date),
+                  subtitle: Text(
+                    _formatDate(date),
                     style: TextStyle(
-                      color: _secondaryText(context),
-                      fontSize: 10.5,
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 10,
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '$amountPrefix${_money(amount)}',
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
+                  trailing: Text(
+                    '${type.toLowerCase() == 'expense' ? '-' : '+'}৳ ${_money(amount)}',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (index != _recentTransactions.length - 1)
+                  Divider(
+                    height: 1,
+                    indent: 72,
+                    endIndent: 15,
+                    color: _alpha(
+                      theme.colorScheme.onSurface,
+                      0.055,
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
-  double _toDouble(dynamic value) {
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    return double.tryParse(value?.toString() ?? '') ?? 0;
-  }
-
-  Widget _buildAccounts(BuildContext context) {
+  Widget _buildAccounts(ThemeData theme) {
     if (_accounts.isEmpty) {
       return _emptyCard(
-        context,
-        icon: Icons.account_balance_wallet_outlined,
-        text: settings.t('noAccounts'),
-        buttonText: settings.t('accounts'),
-        onPressed: _openAccounts,
+        theme,
+        icon: Icons.account_balance_outlined,
+        text: AppSettings.instance.isBangla
+            ? 'কোনো অ্যাকাউন্ট নেই'
+            : 'No accounts',
       );
     }
 
     return SizedBox(
-      height: 104,
+      height: 118,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         itemCount: _accounts.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
-          return _accountCard(
-            context,
-            _accounts[index],
+          final account = _accounts[index];
+          final balance = _toDouble(account['balance']);
+
+          return Container(
+            width: 155,
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _alpha(
+                  theme.colorScheme.onSurface,
+                  0.055,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: _alpha(AppTheme.gold, 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: AppTheme.gold,
+                    size: 18,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  _accountName(account),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '৳ ${_money(balance)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _accountCard(
-    BuildContext context,
-    Map<String, dynamic> account,
-  ) {
-    final name = (account['name'] ?? '').toString();
-    final balance = _toDouble(account['balance']);
+  Widget _buildTools(ThemeData theme) {
+    final settings = AppSettings.instance;
 
-    return InkWell(
-      onTap: _openAccounts,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: 155,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: _cardColor(context),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: _alpha(AppTheme.gold, 0.14),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: _alpha(AppTheme.green, 0.10),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.wallet_rounded,
-                    color: AppTheme.green,
-                    size: 17,
-                  ),
-                ),
-                const Spacer(),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppTheme.gold,
-                  size: 18,
-                ),
-              ],
-            ),
-            const Spacer(),
-            Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Theme.of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.color,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              _money(balance),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppTheme.gold,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              settings.t('balance'),
-              style: TextStyle(
-                color: _secondaryText(context),
-                fontSize: 9.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTools(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _cardColor(context),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: _alpha(AppTheme.gold, 0.12),
-        ),
-      ),
-      child: Column(
-        children: [
-          _toolTile(
-            context,
-            icon: Icons.analytics_outlined,
-            title: settings.t('statistics'),
-            subtitle: settings.t('statisticsSubtitle'),
-            onTap: _openStatistics,
-          ),
-          _toolDivider(context),
-          _toolTile(
-            context,
-            icon: Icons.description_outlined,
-            title: settings.t('report'),
-            subtitle: settings.t('reportSubtitle'),
-            onTap: _openReport,
-          ),
-          _toolDivider(context),
-          _toolTile(
-            context,
+    return Row(
+      children: [
+        Expanded(
+          child: _toolCard(
+            theme,
             icon: Icons.category_outlined,
-            title: settings.t('categories'),
-            subtitle: settings.t('categoriesSubtitle'),
+            title: settings.isBangla ? 'খাত' : 'Categories',
             onTap: _openCategories,
           ),
-          _toolDivider(context),
-          _toolTile(
-            context,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _toolCard(
+            theme,
+            icon: Icons.description_outlined,
+            title: settings.isBangla ? 'রিপোর্ট' : 'Report',
+            onTap: _openReport,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _toolCard(
+            theme,
             icon: Icons.info_outline_rounded,
-            title: settings.t('about'),
-            subtitle: settings.t('aboutSubtitle'),
+            title: settings.isBangla ? 'তথ্য' : 'About',
             onTap: _openAbout,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _toolTile(
-    BuildContext context, {
+  Widget _toolCard(
+    ThemeData theme, {
     required IconData icon,
     required String title,
-    required String subtitle,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 4,
-          vertical: 9,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: _alpha(AppTheme.gold, 0.09),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 6,
+          ),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: _alpha(theme.colorScheme.onSurface, 0.055),
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
                 icon,
                 color: AppTheme.gold,
-                size: 21,
+                size: 22,
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.color,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _secondaryText(context),
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppTheme.gold,
-              size: 20,
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _toolDivider(BuildContext context) {
-    return Divider(
-      height: 1,
-      indent: 54,
-      color: _alpha(
-        Theme.of(context).dividerColor,
-        0.10,
       ),
     );
   }
 
   Widget _emptyCard(
-    BuildContext context, {
+    ThemeData theme, {
     required IconData icon,
     required String text,
-    required String buttonText,
-    required VoidCallback onPressed,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 28),
       decoration: BoxDecoration(
-        color: _cardColor(context),
-        borderRadius: BorderRadius.circular(20),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: _alpha(AppTheme.gold, 0.12),
+          color: _alpha(theme.colorScheme.onSurface, 0.055),
         ),
       ),
       child: Column(
         children: [
           Icon(
             icon,
-            color: _alpha(AppTheme.gold, 0.75),
-            size: 34,
+            size: 30,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 8),
           Text(
             text,
-            textAlign: TextAlign.center,
             style: TextStyle(
-              color: _secondaryText(context),
+              color: theme.colorScheme.onSurfaceVariant,
               fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: onPressed,
-            icon: const Icon(
-              Icons.add_rounded,
-              size: 18,
-            ),
-            label: Text(buttonText),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppTheme.gold,
-              side: BorderSide(
-                color: _alpha(AppTheme.gold, 0.40),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(13),
-              ),
             ),
           ),
         ],
@@ -1271,70 +1144,76 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAddButton() {
-    return FloatingActionButton(
-      heroTag: 'home_add_transaction',
-      onPressed: _openAddTransaction,
-      backgroundColor: AppTheme.green,
-      foregroundColor: Colors.white,
-      elevation: 7,
-      tooltip: settings.t('addTransaction'),
-      child: const Icon(
-        Icons.add_rounded,
-        size: 29,
+  Widget _buildFloatingButton(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: FloatingActionButton(
+        heroTag: 'add_transaction_fab',
+        onPressed: _openAddTransaction,
+        elevation: 8,
+        backgroundColor: AppTheme.green,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
+        child: const Icon(
+          Icons.add_rounded,
+          size: 29,
+        ),
       ),
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Drawer _buildDrawer(ThemeData theme) {
+    final settings = AppSettings.instance;
 
     return Drawer(
-      backgroundColor: isDark
-          ? AppTheme.darkSurface
-          : AppTheme.lightSurface,
+      backgroundColor: theme.scaffoldBackgroundColor,
       child: SafeArea(
         child: Column(
           children: [
             Container(
-              margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              padding: const EdgeInsets.all(18),
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [
                     AppTheme.darkGreen,
                     AppTheme.green,
                   ],
                 ),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: _alpha(AppTheme.gold, 0.35),
-                ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 46,
-                    height: 46,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
                       color: _alpha(Colors.white, 0.10),
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
-                      Icons.account_balance_wallet_rounded,
+                      Icons.account_balance_wallet_outlined,
                       color: AppTheme.goldLight,
-                      size: 23,
+                      size: 26,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      settings.t('moneyManager'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  const SizedBox(height: 15),
+                  Text(
+                    settings.t('appName'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    settings.isBangla
+                        ? 'সহজে আপনার হিসাব রাখুন'
+                        : 'Manage your money simply',
+                    style: TextStyle(
+                      color: _alpha(Colors.white, 0.68),
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -1344,74 +1223,92 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
+                  vertical: 12,
                 ),
                 children: [
                   _drawerItem(
-                    context,
-                    icon: Icons.add_circle_outline_rounded,
-                    title: settings.t('addTransaction'),
-                    onTap: _openAddTransaction,
+                    theme,
+                    icon: Icons.dashboard_outlined,
+                    title: settings.isBangla ? 'হোম' : 'Home',
+                    onTap: () => Navigator.pop(context),
                   ),
                   _drawerItem(
-                    context,
+                    theme,
                     icon: Icons.receipt_long_outlined,
-                    title: settings.t('transactions'),
-                    onTap: _openTransactions,
+                    title: settings.isBangla
+                        ? 'লেনদেন'
+                        : 'Transactions',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openTransactions();
+                    },
                   ),
                   _drawerItem(
-                    context,
+                    theme,
                     icon: Icons.account_balance_wallet_outlined,
-                    title: settings.t('accounts'),
-                    onTap: _openAccounts,
+                    title: settings.isBangla ? 'অ্যাকাউন্ট' : 'Accounts',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openAccounts();
+                    },
                   ),
                   _drawerItem(
-                    context,
+                    theme,
                     icon: Icons.category_outlined,
-                    title: settings.t('categories'),
-                    onTap: _openCategories,
+                    title: settings.isBangla ? 'খাত' : 'Categories',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openCategories();
+                    },
                   ),
                   _drawerItem(
-                    context,
+                    theme,
                     icon: Icons.bar_chart_rounded,
-                    title: settings.t('statistics'),
-                    onTap: _openStatistics,
+                    title: settings.isBangla ? 'পরিসংখ্যান' : 'Statistics',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openStatistics();
+                    },
                   ),
                   _drawerItem(
-                    context,
+                    theme,
                     icon: Icons.description_outlined,
-                    title: settings.t('report'),
-                    onTap: _openReport,
-                  ),
-                  const SizedBox(height: 8),
-                  Divider(
-                    color: _alpha(
-                      Theme.of(context).dividerColor,
-                      0.15,
-                    ),
+                    title: settings.isBangla ? 'রিপোর্ট' : 'Report',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openReport();
+                    },
                   ),
                   _drawerItem(
-                    context,
+                    theme,
                     icon: Icons.settings_outlined,
-                    title: settings.t('settings'),
-                    onTap: _openSettings,
+                    title: settings.isBangla ? 'সেটিংস' : 'Settings',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openSettings();
+                    },
                   ),
                   _drawerItem(
-                    context,
+                    theme,
                     icon: Icons.info_outline_rounded,
-                    title: settings.t('about'),
-                    onTap: _openAbout,
+                    title: settings.isBangla ? 'অ্যাপ সম্পর্কে' : 'About',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openAbout();
+                    },
                   ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               child: Text(
-                settings.t('appFooter'),
-                textAlign: TextAlign.center,
+                settings.isBangla
+                    ? 'আমার হিসাব'
+                    : 'Amar Hisab',
                 style: TextStyle(
-                  color: _secondaryText(context),
-                  fontSize: 10,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
                 ),
               ),
             ),
@@ -1422,33 +1319,227 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _drawerItem(
-    BuildContext context, {
+    ThemeData theme, {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      onTap: onTap,
-      dense: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-      leading: Icon(
-        icon,
-        color: AppTheme.gold,
-        size: 21,
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: ListTile(
+        onTap: onTap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        leading: Icon(
+          icon,
+          size: 21,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          size: 19,
+          color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
-      trailing: const Icon(
-        Icons.chevron_right_rounded,
-        size: 18,
+    );
+  }
+}
+
+class _PremiumBackground extends StatelessWidget {
+  final bool isDark;
+
+  const _PremiumBackground({
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _PremiumBackgroundPainter(
+          isDark: isDark,
+        ),
+        child: const SizedBox.expand(),
       ),
     );
+  }
+}
+
+class _PremiumBackgroundPainter extends CustomPainter {
+  final bool isDark;
+
+  _PremiumBackgroundPainter({
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bgPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = isDark
+          ? const Color(0xFF08120F)
+          : const Color(0xFFF4F1E9);
+
+    canvas.drawRect(
+      Offset.zero & size,
+      bgPaint,
+    );
+
+    // Large soft green circle
+    final greenPaint = Paint()
+      ..color = isDark
+          ? const Color(0x121F7655)
+          : const Color(0x0D176B45)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(
+      Offset(size.width * 0.98, size.height * 0.16),
+      size.width * 0.62,
+      greenPaint,
+    );
+
+    // Gold circle
+    final goldPaint = Paint()
+      ..color = isDark
+          ? const Color(0x0CC9A45C)
+          : const Color(0x0FC9A45C)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(
+      Offset(size.width * 0.04, size.height * 0.52),
+      size.width * 0.38,
+      goldPaint,
+    );
+
+    // Large curved ring
+    final ringPaint = Paint()
+      ..color = isDark
+          ? const Color(0x102D8A63)
+          : const Color(0x0A176B45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 34;
+
+    canvas.drawCircle(
+      Offset(size.width * 0.90, size.height * 0.74),
+      size.width * 0.45,
+      ringPaint,
+    );
+
+    // Thin decorative ring
+    final thinRingPaint = Paint()
+      ..color = isDark
+          ? const Color(0x0CC9A45C)
+          : const Color(0x0AC9A45C)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    canvas.drawCircle(
+      Offset(size.width * 0.08, size.height * 0.20),
+      90,
+      thinRingPaint,
+    );
+
+    // Small floating dots
+    final dotPaint = Paint()
+      ..color = isDark
+          ? const Color(0x16C9A45C)
+          : const Color(0x14B99550)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(
+      Offset(size.width * 0.82, size.height * 0.34),
+      5,
+      dotPaint,
+    );
+
+    canvas.drawCircle(
+      Offset(size.width * 0.88, size.height * 0.37),
+      3,
+      dotPaint,
+    );
+
+    canvas.drawCircle(
+      Offset(size.width * 0.15, size.height * 0.67),
+      4,
+      dotPaint,
+    );
+
+    // Very subtle diagonal curved shape
+    final path = Path();
+
+    path.moveTo(
+      size.width * 0.65,
+      0,
+    );
+
+    path.cubicTo(
+      size.width * 0.80,
+      size.height * 0.08,
+      size.width * 0.78,
+      size.height * 0.20,
+      size.width * 0.98,
+      size.height * 0.27,
+    );
+
+    path.lineTo(
+      size.width,
+      size.height * 0.34,
+    );
+
+    path.lineTo(
+      size.width,
+      0,
+    );
+
+    path.close();
+
+    final shapePaint = Paint()
+      ..color = isDark
+          ? const Color(0x071F7655)
+          : const Color(0x08176B45)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(
+      path,
+      shapePaint,
+    );
+
+    // Small gold arc
+    final arcPaint = Paint()
+      ..color = isDark
+          ? const Color(0x18C9A45C)
+          : const Color(0x12C9A45C)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawArc(
+      Rect.fromCircle(
+        center: Offset(
+          size.width * 0.12,
+          size.height * 0.82,
+        ),
+        radius: 48,
+      ),
+      -math.pi * 0.25,
+      math.pi * 0.95,
+      false,
+      arcPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(
+    covariant _PremiumBackgroundPainter oldDelegate,
+  ) {
+    return oldDelegate.isDark != isDark;
   }
 }
