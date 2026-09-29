@@ -57,27 +57,16 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {});
   }
 
-  // ============================================================
-  // DASHBOARD DATA
-  // ============================================================
+  // ------------------------------------------------------------
+  // Dashboard data
+  // ------------------------------------------------------------
   //
-  // এখানে Income / Expense সব সময়ের জন্য হিসাব করা হচ্ছে।
+  // এখানে Income এবং Expense পুরো হিসাবের সব transaction থেকে
+  // নেওয়া হচ্ছে।
   //
-  // উদাহরণ:
-  // ২ মাস আগে Income = 0
-  // ২ মাস আগে Expense = 4,000
-  // এই মাসে Expense = 500
+  // Loan নেওয়া / Loan দেওয়া / Loan পরিশোধ / Transfer
+  // এখানে Income বা Expense হিসেবে ধরা হচ্ছে না।
   //
-  // তাহলে Difference = 0 - 4,500 = -4,500
-  //
-  // Loan নেওয়া নিজে Expense নয়।
-  // Loan দিয়ে পরে যে Expense করা হয়েছে,
-  // সেই Expense transaction-ই এখানে গণনা হবে।
-  //
-  // Transfer এবং Loan transaction সরাসরি
-  // Income/Expense-এর মধ্যে গণনা হবে না।
-  // ============================================================
-
   Future<void> _loadDashboard() async {
     try {
       final accounts = await _db.getAccounts();
@@ -269,6 +258,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return _money(amount);
   }
 
+  // ------------------------------------------------------------
+  // Navigation
+  // ------------------------------------------------------------
+
   Future<void> _openAddTransaction() async {
     final result = await Navigator.of(context).push(
       MaterialPageRoute(
@@ -389,6 +382,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {});
   }
+
+  // ------------------------------------------------------------
+  // Settings
+  // ------------------------------------------------------------
 
   void _showSettings() {
     _scaffoldKey.currentState?.closeDrawer();
@@ -684,6 +681,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // Build
+  // ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -693,11 +694,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
+
       backgroundColor:
           theme.scaffoldBackgroundColor,
-      drawer: _buildDrawer,
 
-      floatingActionButton: _buildFloatingAddButton(),
+      // IMPORTANT:
+      // এখানে _buildDrawer() হবে।
+      // _buildDrawer দিলে Drawer Function() হয়ে যায়।
+      drawer: _buildDrawer(),
+
+      floatingActionButton:
+          _buildFloatingAddButton(),
 
       floatingActionButtonLocation:
           FloatingActionButtonLocation.endFloat,
@@ -758,6 +765,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // Floating Add Button
+  // ------------------------------------------------------------
 
   Widget _buildFloatingAddButton() {
     final label = _settings.isBangla
@@ -834,6 +845,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // Header
+  // ------------------------------------------------------------
+
   Widget _buildHeader() {
     return Padding(
       padding:
@@ -905,6 +920,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // Balance Card
+  // ------------------------------------------------------------
 
   Widget _buildBalanceCard() {
     final positive = _difference >= 0;
@@ -1172,6 +1191,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // Quick Actions
+  // ------------------------------------------------------------
+
   Widget _buildQuickActions() {
     return Padding(
       padding:
@@ -1301,6 +1324,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // Accounts
+  // ------------------------------------------------------------
 
   Widget _buildAccountSection() {
     final theme = Theme.of(context);
@@ -1467,6 +1494,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // Recent Transactions
+  // ------------------------------------------------------------
 
   Widget _buildRecentSection() {
     final theme = Theme.of(context);
@@ -1729,6 +1760,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // Tools
+  // ------------------------------------------------------------
 
   Widget _buildToolsSection() {
     return Padding(
@@ -2006,6 +2041,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // Drawer
+  // ------------------------------------------------------------
+
   Drawer _buildDrawer() {
     final theme = Theme.of(context);
 
@@ -2117,6 +2156,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
+                  // Theme
                   Container(
                     margin:
                         const EdgeInsets.symmetric(
@@ -2219,6 +2259,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
+                  // Language
                   Container(
                     margin:
                         const EdgeInsets.symmetric(
@@ -2531,6 +2572,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
+// ------------------------------------------------------------
+// Islamic Background
+// ------------------------------------------------------------
 
 class IslamicBackgroundPainter
     extends CustomPainter {
