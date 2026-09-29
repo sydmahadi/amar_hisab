@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../services/app_settings.dart';
@@ -260,23 +259,33 @@ class _AddTransactionScreenState
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(_text('নতুন খাত যোগ করুন', 'Add Category')),
+        title: Text(
+          _text('নতুন খাত যোগ করুন', 'Add Category'),
+        ),
         content: TextField(
           controller: controller,
           autofocus: true,
           decoration: InputDecoration(
-            labelText: _text('খাতের নাম', 'Category Name'),
+            labelText: _text(
+              'খাতের নাম',
+              'Category Name',
+            ),
           ),
           onSubmitted: (value) {
             if (value.trim().isNotEmpty) {
-              Navigator.pop(dialogContext, value.trim());
+              Navigator.pop(
+                dialogContext,
+                value.trim(),
+              );
             }
           },
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text(_text('বাতিল', 'Cancel')),
+            child: Text(
+              _text('বাতিল', 'Cancel'),
+            ),
           ),
           FilledButton(
             onPressed: () {
@@ -287,7 +296,9 @@ class _AddTransactionScreenState
                 );
               }
             },
-            child: Text(_text('যোগ করুন', 'Add')),
+            child: Text(
+              _text('যোগ করুন', 'Add'),
+            ),
           ),
         ],
       ),
@@ -308,7 +319,10 @@ class _AddTransactionScreenState
             name.trim().toLowerCase(),
       )) {
         _showMessage(
-          _text('এই খাতটি আগে থেকেই আছে', 'Category already exists'),
+          _text(
+            'এই খাতটি আগে থেকেই আছে',
+            'Category already exists',
+          ),
           isError: true,
         );
         return;
@@ -321,7 +335,8 @@ class _AddTransactionScreenState
         color: AppTheme.green.toARGB32(),
       );
 
-      final categories = await MoneyDb.instance.getCategories(
+      final categories =
+          await MoneyDb.instance.getCategories(
         type: _type,
       );
 
@@ -332,9 +347,14 @@ class _AddTransactionScreenState
         _selectedCategoryId = id;
       });
 
-      _showMessage(_text('খাত যোগ হয়েছে', 'Category added'));
+      _showMessage(
+        _text('খাত যোগ হয়েছে', 'Category added'),
+      );
     } catch (e) {
-      _showMessage(_errorText(e), isError: true);
+      _showMessage(
+        _errorText(e),
+        isError: true,
+      );
     }
   }
 
@@ -349,27 +369,6 @@ class _AddTransactionScreenState
       return loan['type']?.toString() == desiredType &&
           remaining > 0;
     }).toList();
-  }
-
-  Future<void> _refreshLoans() async {
-    final loans = await MoneyDb.instance.getLoans();
-
-    if (!mounted) return;
-
-    setState(() {
-      _loans = loans;
-
-      if (_isLoanRepayment &&
-          !_repaymentLoans.any(
-            (loan) =>
-                (loan['id'] as num?)?.toInt() ==
-                _selectedLoanId,
-          )) {
-        _selectedLoanId = _repaymentLoans.isEmpty
-            ? null
-            : (_repaymentLoans.first['id'] as num?)?.toInt();
-      }
-    });
   }
 
   Future<void> _selectDate() async {
@@ -394,7 +393,9 @@ class _AddTransactionScreenState
   }
 
   String _dateText() {
-    final day = _selectedDate.day.toString().padLeft(2, '0');
+    final day =
+        _selectedDate.day.toString().padLeft(2, '0');
+
     final month =
         _selectedDate.month.toString().padLeft(2, '0');
 
@@ -407,14 +408,22 @@ class _AddTransactionScreenState
     switch (name.toLowerCase()) {
       case 'cash':
         return _text('ক্যাশ', 'Cash');
+
       case 'bkash':
         return _text('বিকাশ', 'Bkash');
+
       case 'nagad':
         return _text('নগদ', 'Nagad');
+
       case 'bank account':
-        return _text('ব্যাংক অ্যাকাউন্ট', 'Bank Account');
+        return _text(
+          'ব্যাংক অ্যাকাউন্ট',
+          'Bank Account',
+        );
+
       case 'card':
         return _text('কার্ড', 'Card');
+
       default:
         return name;
     }
@@ -424,18 +433,37 @@ class _AddTransactionScreenState
     switch (type) {
       case 'income':
         return _text('আয়', 'Income');
+
       case 'expense':
         return _text('ব্যয়', 'Expense');
+
       case 'transfer':
         return _text('ট্রান্সফার', 'Transfer');
+
       case 'loan_given':
-        return _text('ধার দিয়েছি', 'Loan Given');
+        return _text(
+          'ধার দিয়েছি',
+          'Loan Given',
+        );
+
       case 'loan_taken':
-        return _text('ধার নিয়েছি', 'Loan Taken');
+        return _text(
+          'ধার নিয়েছি',
+          'Loan Taken',
+        );
+
       case 'loan_received':
-        return _text('ধার ফেরত পেয়েছি', 'Loan Received');
+        return _text(
+          'ধার ফেরত পেয়েছি',
+          'Loan Received',
+        );
+
       case 'loan_paid':
-        return _text('ধার শোধ করেছি', 'Loan Repaid');
+        return _text(
+          'ধার শোধ করেছি',
+          'Loan Repaid',
+        );
+
       default:
         return type;
     }
@@ -445,14 +473,18 @@ class _AddTransactionScreenState
     switch (type) {
       case 'income':
         return const Color(0xFF2E9D68);
+
       case 'transfer':
         return const Color(0xFF3F7FD6);
+
       case 'loan_given':
       case 'loan_received':
         return const Color(0xFFB99550);
+
       case 'loan_taken':
       case 'loan_paid':
         return const Color(0xFF8E72C7);
+
       default:
         return const Color(0xFFD9534F);
     }
@@ -462,16 +494,22 @@ class _AddTransactionScreenState
     switch (type) {
       case 'income':
         return Icons.south_west_rounded;
+
       case 'transfer':
         return Icons.swap_horiz_rounded;
+
       case 'loan_given':
         return Icons.call_made_rounded;
+
       case 'loan_taken':
         return Icons.call_received_rounded;
+
       case 'loan_received':
         return Icons.payments_outlined;
+
       case 'loan_paid':
         return Icons.price_check_rounded;
+
       default:
         return Icons.north_east_rounded;
     }
@@ -492,7 +530,10 @@ class _AddTransactionScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _text('লেনদেনের ধরন', 'Transaction Type'),
+          _text(
+            'লেনদেনের ধরন',
+            'Transaction Type',
+          ),
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -508,9 +549,12 @@ class _AddTransactionScreenState
 
             return InkWell(
               borderRadius: BorderRadius.circular(14),
-              onTap: _saving ? null : () => _onTypeChanged(type),
+              onTap: _saving
+                  ? null
+                  : () => _onTypeChanged(type),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
+                duration:
+                    const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 12,
@@ -519,7 +563,8 @@ class _AddTransactionScreenState
                   color: selected
                       ? color.withValues(alpha: 0.14)
                       : Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius:
+                      BorderRadius.circular(14),
                   border: Border.all(
                     color: selected
                         ? color
@@ -571,16 +616,22 @@ class _AddTransactionScreenState
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Text(
-            _text('টাকার পরিমাণ', 'Amount'),
-            style: Theme.of(context).textTheme.bodySmall,
+            _text(
+              'টাকার পরিমাণ',
+              'Amount',
+            ),
+            style:
+                Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 5),
           TextFormField(
             controller: _amountController,
-            keyboardType: const TextInputType.numberWithOptions(
+            keyboardType:
+                const TextInputType.numberWithOptions(
               decimal: true,
             ),
             style: TextStyle(
@@ -618,18 +669,26 @@ class _AddTransactionScreenState
   Widget _buildAccountDropdown() {
     if (_accounts.isEmpty) {
       return _emptyMessage(
-        _text('কোনো অ্যাকাউন্ট নেই', 'No accounts available'),
+        _text(
+          'কোনো অ্যাকাউন্ট নেই',
+          'No accounts available',
+        ),
       );
     }
 
     return DropdownButtonFormField<int>(
       initialValue: _accounts.any(
-        (a) => (a['id'] as num?)?.toInt() == _selectedAccountId,
+        (a) =>
+            (a['id'] as num?)?.toInt() ==
+            _selectedAccountId,
       )
           ? _selectedAccountId
           : null,
       decoration: InputDecoration(
-        labelText: _text('অ্যাকাউন্ট', 'Account'),
+        labelText: _text(
+          'অ্যাকাউন্ট',
+          'Account',
+        ),
         prefixIcon: const Icon(
           Icons.account_balance_wallet_outlined,
         ),
@@ -639,13 +698,17 @@ class _AddTransactionScreenState
 
         return DropdownMenuItem<int>(
           value: id,
-          child: Text(_accountName(account)),
+          child: Text(
+            _accountName(account),
+          ),
         );
       }).toList(),
       onChanged: _saving
           ? null
           : (value) {
-              setState(() => _selectedAccountId = value);
+              setState(
+                () => _selectedAccountId = value,
+              );
             },
     );
   }
@@ -664,20 +727,29 @@ class _AddTransactionScreenState
       children: [
         DropdownButtonFormField<int>(
           initialValue: _accounts.any(
-            (a) => (a['id'] as num?)?.toInt() == _fromAccountId,
+            (a) =>
+                (a['id'] as num?)?.toInt() ==
+                _fromAccountId,
           )
               ? _fromAccountId
               : null,
           decoration: InputDecoration(
-            labelText: _text('যে অ্যাকাউন্ট থেকে', 'From Account'),
-            prefixIcon: const Icon(Icons.call_made_rounded),
+            labelText: _text(
+              'যে অ্যাকাউন্ট থেকে',
+              'From Account',
+            ),
+            prefixIcon: const Icon(
+              Icons.call_made_rounded,
+            ),
           ),
           items: _accounts.map((account) {
             final id = (account['id'] as num).toInt();
 
             return DropdownMenuItem<int>(
               value: id,
-              child: Text(_accountName(account)),
+              child: Text(
+                _accountName(account),
+              ),
             );
           }).toList(),
           onChanged: _saving
@@ -686,10 +758,16 @@ class _AddTransactionScreenState
                   setState(() {
                     _fromAccountId = value;
 
-                    if (_fromAccountId == _toAccountId) {
+                    if (_fromAccountId ==
+                        _toAccountId) {
                       _toAccountId = _accounts
-                          .map((a) => (a['id'] as num).toInt())
-                          .firstWhere((id) => id != value);
+                          .map(
+                            (a) =>
+                                (a['id'] as num).toInt(),
+                          )
+                          .firstWhere(
+                            (id) => id != value,
+                          );
                     }
                   });
                 },
@@ -703,13 +781,20 @@ class _AddTransactionScreenState
         const SizedBox(height: 12),
         DropdownButtonFormField<int>(
           initialValue: _accounts.any(
-            (a) => (a['id'] as num?)?.toInt() == _toAccountId,
+            (a) =>
+                (a['id'] as num?)?.toInt() ==
+                _toAccountId,
           )
               ? _toAccountId
               : null,
           decoration: InputDecoration(
-            labelText: _text('যে অ্যাকাউন্টে', 'To Account'),
-            prefixIcon: const Icon(Icons.call_received_rounded),
+            labelText: _text(
+              'যে অ্যাকাউন্টে',
+              'To Account',
+            ),
+            prefixIcon: const Icon(
+              Icons.call_received_rounded,
+            ),
           ),
           items: _accounts
               .where(
@@ -718,17 +803,22 @@ class _AddTransactionScreenState
                     _fromAccountId,
               )
               .map((account) {
-            final id = (account['id'] as num).toInt();
+            final id =
+                (account['id'] as num).toInt();
 
             return DropdownMenuItem<int>(
               value: id,
-              child: Text(_accountName(account)),
+              child: Text(
+                _accountName(account),
+              ),
             );
           }).toList(),
           onChanged: _saving
               ? null
               : (value) {
-                  setState(() => _toAccountId = value);
+                  setState(
+                    () => _toAccountId = value,
+                  );
                 },
         ),
       ],
@@ -748,13 +838,17 @@ class _AddTransactionScreenState
                 ? _selectedCategoryId
                 : null,
             decoration: InputDecoration(
-              labelText: _text('খাত', 'Category'),
+              labelText: _text(
+                'খাত',
+                'Category',
+              ),
               prefixIcon: const Icon(
                 Icons.category_outlined,
               ),
             ),
             items: _categories.map((category) {
-              final id = (category['id'] as num).toInt();
+              final id =
+                  (category['id'] as num).toInt();
 
               return DropdownMenuItem<int>(
                 value: id,
@@ -767,16 +861,22 @@ class _AddTransactionScreenState
                 ? null
                 : (value) {
                     setState(
-                      () => _selectedCategoryId = value,
+                      () => _selectedCategoryId =
+                          value,
                     );
                   },
           ),
         ),
         const SizedBox(width: 8),
         IconButton.filledTonal(
-          tooltip: _text('নতুন খাত যোগ করুন', 'Add Category'),
+          tooltip: _text(
+            'নতুন খাত যোগ করুন',
+            'Add Category',
+          ),
           onPressed: _saving ? null : _addCategory,
-          icon: const Icon(Icons.add_rounded),
+          icon: const Icon(
+            Icons.add_rounded,
+          ),
         ),
       ],
     );
@@ -787,15 +887,21 @@ class _AddTransactionScreenState
       controller: _personController,
       readOnly: _isEdit,
       decoration: InputDecoration(
-        labelText: _text('ব্যক্তির নাম', 'Person Name'),
+        labelText: _text(
+          'ব্যক্তির নাম',
+          'Person Name',
+        ),
         hintText: _text(
           'যেমন: রহিম',
           'Example: Rahim',
         ),
-        prefixIcon: const Icon(Icons.person_outline_rounded),
+        prefixIcon: const Icon(
+          Icons.person_outline_rounded,
+        ),
       ),
       validator: (value) {
-        if (_isNewLoan && (value ?? '').trim().isEmpty) {
+        if (_isNewLoan &&
+            (value ?? '').trim().isEmpty) {
           return _text(
             'ব্যক্তির নাম লিখুন',
             'Enter the person name',
@@ -825,18 +931,26 @@ class _AddTransactionScreenState
     return DropdownButtonFormField<int>(
       initialValue: _repaymentLoans.any(
         (loan) =>
-            (loan['id'] as num?)?.toInt() == _selectedLoanId,
+            (loan['id'] as num?)?.toInt() ==
+            _selectedLoanId,
       )
           ? _selectedLoanId
           : null,
       decoration: InputDecoration(
-        labelText: _text('ধার নির্বাচন করুন', 'Select Loan'),
-        prefixIcon: const Icon(Icons.people_alt_outlined),
+        labelText: _text(
+          'ধার নির্বাচন করুন',
+          'Select Loan',
+        ),
+        prefixIcon: const Icon(
+          Icons.people_alt_outlined,
+        ),
       ),
       items: _repaymentLoans.map((loan) {
         final id = (loan['id'] as num).toInt();
+
         final remaining =
-            (loan['remaining'] as num?)?.toDouble() ?? 0;
+            (loan['remaining'] as num?)?.toDouble() ??
+                0;
 
         return DropdownMenuItem<int>(
           value: id,
@@ -849,7 +963,9 @@ class _AddTransactionScreenState
       onChanged: _saving
           ? null
           : (value) {
-              setState(() => _selectedLoanId = value);
+              setState(
+                () => _selectedLoanId = value,
+              );
             },
     );
   }
@@ -860,15 +976,22 @@ class _AddTransactionScreenState
       onTap: _saving ? null : _selectDate,
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: _text('তারিখ', 'Date'),
+          labelText: _text(
+            'তারিখ',
+            'Date',
+          ),
           prefixIcon: const Icon(
             Icons.calendar_month_rounded,
           ),
         ),
         child: Row(
           children: [
-            Expanded(child: Text(_dateText())),
-            const Icon(Icons.keyboard_arrow_down_rounded),
+            Expanded(
+              child: Text(_dateText()),
+            ),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+            ),
           ],
         ),
       ),
@@ -880,14 +1003,19 @@ class _AddTransactionScreenState
       controller: _noteController,
       maxLines: 3,
       decoration: InputDecoration(
-        labelText: _text('নোট / বিবরণ', 'Note / Description'),
+        labelText: _text(
+          'নোট / বিবরণ',
+          'Note / Description',
+        ),
         hintText: _text(
           'প্রয়োজনে বিস্তারিত লিখুন',
           'Add details if needed',
         ),
         prefixIcon: const Padding(
           padding: EdgeInsets.only(bottom: 36),
-          child: Icon(Icons.note_alt_outlined),
+          child: Icon(
+            Icons.note_alt_outlined,
+          ),
         ),
       ),
     );
@@ -915,7 +1043,10 @@ class _AddTransactionScreenState
 
     if (amount == null || amount <= 0) {
       _showMessage(
-        _text('সঠিক পরিমাণ লিখুন', 'Enter a valid amount'),
+        _text(
+          'সঠিক পরিমাণ লিখুন',
+          'Enter a valid amount',
+        ),
         isError: true,
       );
       return;
@@ -923,16 +1054,23 @@ class _AddTransactionScreenState
 
     if (_accounts.isEmpty) {
       _showMessage(
-        _text('কোনো অ্যাকাউন্ট নেই', 'No accounts available'),
+        _text(
+          'কোনো অ্যাকাউন্ট নেই',
+          'No accounts available',
+        ),
         isError: true,
       );
       return;
     }
 
     if (_isTransfer) {
-      if (_fromAccountId == null || _toAccountId == null) {
+      if (_fromAccountId == null ||
+          _toAccountId == null) {
         _showMessage(
-          _text('দুটি অ্যাকাউন্ট নির্বাচন করুন', 'Select both accounts'),
+          _text(
+            'দুটি অ্যাকাউন্ট নির্বাচন করুন',
+            'Select both accounts',
+          ),
           isError: true,
         );
         return;
@@ -950,16 +1088,23 @@ class _AddTransactionScreenState
       }
     } else if (_selectedAccountId == null) {
       _showMessage(
-        _text('অ্যাকাউন্ট নির্বাচন করুন', 'Select an account'),
+        _text(
+          'অ্যাকাউন্ট নির্বাচন করুন',
+          'Select an account',
+        ),
         isError: true,
       );
       return;
     }
 
-    if ((_type == 'income' || _type == 'expense') &&
+    if ((_type == 'income' ||
+            _type == 'expense') &&
         _selectedCategoryId == null) {
       _showMessage(
-        _text('একটি খাত নির্বাচন করুন', 'Select a category'),
+        _text(
+          'একটি খাত নির্বাচন করুন',
+          'Select a category',
+        ),
         isError: true,
       );
       return;
@@ -989,7 +1134,8 @@ class _AddTransactionScreenState
       );
 
       final remaining =
-          (loan['remaining'] as num?)?.toDouble() ?? 0;
+          (loan['remaining'] as num?)?.toDouble() ??
+              0;
 
       if (amount > remaining) {
         _showMessage(
@@ -1014,17 +1160,23 @@ class _AddTransactionScreenState
           type: _type,
           amount: amount,
           categoryId: _selectedCategoryId,
-          accountId: _isTransfer ? null : _selectedAccountId,
-          fromAccountId: _isTransfer ? _fromAccountId : null,
-          toAccountId: _isTransfer ? _toAccountId : null,
-          loanId: _isLoanTransaction ? _selectedLoanId : null,
+          accountId:
+              _isTransfer ? null : _selectedAccountId,
+          fromAccountId:
+              _isTransfer ? _fromAccountId : null,
+          toAccountId:
+              _isTransfer ? _toAccountId : null,
+          loanId:
+              _isLoanTransaction ? _selectedLoanId : null,
           note: note,
           transactionDate: _selectedDate,
         );
       } else if (_isNewLoan) {
         await MoneyDb.instance.createLoan(
           personName: _personController.text.trim(),
-          type: _isLoanGiven ? 'receivable' : 'payable',
+          type: _isLoanGiven
+              ? 'receivable'
+              : 'payable',
           amount: amount,
           accountId: _selectedAccountId!,
           note: note,
@@ -1043,9 +1195,12 @@ class _AddTransactionScreenState
           type: _type,
           amount: amount,
           categoryId: _selectedCategoryId,
-          accountId: _isTransfer ? null : _selectedAccountId,
-          fromAccountId: _isTransfer ? _fromAccountId : null,
-          toAccountId: _isTransfer ? _toAccountId : null,
+          accountId:
+              _isTransfer ? null : _selectedAccountId,
+          fromAccountId:
+              _isTransfer ? _fromAccountId : null,
+          toAccountId:
+              _isTransfer ? _toAccountId : null,
           note: note,
           transactionDate: _selectedDate,
         );
@@ -1057,7 +1212,10 @@ class _AddTransactionScreenState
     } catch (e) {
       if (!mounted) return;
 
-      _showMessage(_errorText(e), isError: true);
+      _showMessage(
+        _errorText(e),
+        isError: true,
+      );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -1077,8 +1235,9 @@ class _AddTransactionScreenState
         SnackBar(
           content: Text(message),
           behavior: SnackBarBehavior.floating,
-          backgroundColor:
-              isError ? Colors.red.shade700 : AppTheme.green,
+          backgroundColor: isError
+              ? Colors.red.shade700
+              : AppTheme.green,
         ),
       );
   }
@@ -1089,9 +1248,15 @@ class _AddTransactionScreenState
       appBar: AppBar(
         title: Text(
           _isEdit
-              ? _text('লেনদেন সম্পাদনা', 'Edit Transaction')
-              : _text('নতুন লেনদেন', 'New Transaction'),
-      ),
+              ? _text(
+                  'লেনদেন সম্পাদনা',
+                  'Edit Transaction',
+                )
+              : _text(
+                  'নতুন লেনদেন',
+                  'New Transaction',
+                ),
+        ),
       ),
       body: _loading
           ? const Center(
@@ -1138,12 +1303,15 @@ class _AddTransactionScreenState
                     if (_isLoanTransaction) ...[
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding:
+                            const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.gold.withValues(
+                          color:
+                              AppTheme.gold.withValues(
                             alpha: 0.10,
                           ),
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius:
+                              BorderRadius.circular(14),
                         ),
                         child: Row(
                           children: [
@@ -1173,7 +1341,10 @@ class _AddTransactionScreenState
                                                 'নির্বাচিত ধার পরিশোধের হিসাব আপডেট হবে।',
                                                 'The selected loan balance will be reduced.',
                                               ),
-                                style: const TextStyle(fontSize: 12),
+                                style:
+                                    const TextStyle(
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
                           ],
@@ -1190,12 +1361,15 @@ class _AddTransactionScreenState
                     SizedBox(
                       height: 54,
                       child: ElevatedButton.icon(
-                        onPressed: _saving ? null : _saveTransaction,
+                        onPressed: _saving
+                            ? null
+                            : _saveTransaction,
                         icon: _saving
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(
+                                child:
+                                    CircularProgressIndicator(
                                   strokeWidth: 2,
                                   color: Colors.white,
                                 ),
@@ -1207,15 +1381,23 @@ class _AddTransactionScreenState
                               ),
                         label: Text(
                           _saving
-                              ? _text('সংরক্ষণ হচ্ছে...', 'Saving...')
+                              ? _text(
+                                  'সংরক্ষণ হচ্ছে...',
+                                  'Saving...',
+                                )
                               : _isEdit
-                                  ? _text('আপডেট করুন', 'Update')
+                                  ? _text(
+                                      'আপডেট করুন',
+                                      'Update',
+                                    )
                                   : _text(
                                       'লেনদেন সংরক্ষণ করুন',
                                       'Save Transaction',
                                     ),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                          style:
+                              const TextStyle(
+                            fontWeight:
+                                FontWeight.bold,
                             fontSize: 15,
                           ),
                         ),
