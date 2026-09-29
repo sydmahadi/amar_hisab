@@ -51,10 +51,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final endDate = DateTime(
         now.year,
-        now.month + 1,
-        1,
-      ).subtract(
-        const Duration(microseconds: 1),
+        now.month,
+        now.day,
+        23,
+        59,
+        59,
+        999,
       );
 
       final period = await _db.getPeriodTotals(
@@ -213,8 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openAddTransaction() async {
-    final result = await Navigator.push(
-      context,
+    final result = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const AddTransactionScreen(),
       ),
@@ -226,8 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _editTransaction(int id) async {
-    final result = await Navigator.push(
-      context,
+    final result = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AddTransactionScreen(
           transactionId: id,
@@ -246,14 +246,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openScreen(Widget screen) async {
-    Navigator.pop(context);
+    if (!mounted) return;
 
-    await Navigator.push(
-      context,
+    Navigator.of(context).pop();
+
+    await Future<void>.delayed(
+      const Duration(milliseconds: 120),
+    );
+
+    if (!mounted) return;
+
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => screen,
       ),
     );
+
+    if (!mounted) return;
 
     await _loadDashboard();
   }
@@ -284,14 +293,13 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(dialogContext);
+                Navigator.of(dialogContext).pop();
               },
               child: const Text('না'),
             ),
             FilledButton(
               onPressed: () async {
-                Navigator.pop(dialogContext);
-
+                Navigator.of(dialogContext).pop();
                 await _deleteTransaction(id);
               },
               child: const Text('মুছে ফেলুন'),
@@ -306,8 +314,24 @@ class _HomeScreenState extends State<HomeScreen> {
     Scaffold.of(context).openDrawer();
   }
 
+  Future<void> _changeTheme(bool value) async {
+    await _settings.setDarkMode(value);
+
+    if (!mounted) return;
+
+    setState(() {});
+  }
+
+  Future<void> _changeLanguage(String language) async {
+    await _settings.setLanguage(language);
+
+    if (!mounted) return;
+
+    setState(() {});
+  }
+
   void _showSettings() {
-    Navigator.pop(context);
+    Navigator.of(context).pop();
 
     showModalBottomSheet<void>(
       context: context,
@@ -328,9 +352,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return Container(
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .surface,
+                color:
+                    Theme.of(context).colorScheme.surface,
                 borderRadius:
                     const BorderRadius.vertical(
                   top: Radius.circular(30),
@@ -360,9 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: AppTheme.gold
                               .withValues(alpha: .55),
                           borderRadius:
-                              BorderRadius.circular(
-                            20,
-                          ),
+                              BorderRadius.circular(20),
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -393,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(width: 13),
                           const Expanded(
                             child: Text(
-                              'Settings',
+                              'সেটিংস',
                               style: TextStyle(
                                 fontSize: 21,
                                 fontWeight:
@@ -408,10 +429,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         icon: currentDark
                             ? Icons.dark_mode_rounded
                             : Icons.light_mode_rounded,
-                        title: 'Theme',
+                        title: 'থিম',
                         subtitle: currentDark
-                            ? 'Dark Mode'
-                            : 'Light Mode',
+                            ? 'ডার্ক মোড'
+                            : 'লাইট মোড',
                         trailing: Switch(
                           value: currentDark,
                           onChanged:
@@ -430,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _settingTile(
                         icon:
                             Icons.language_rounded,
-                        title: 'Language',
+                        title: 'ভাষা',
                         subtitle: currentBangla
                             ? 'বাংলা'
                             : 'English',
@@ -444,9 +465,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   currentBangla,
                               onTap: () async {
                                 await _settings
-                                    .setLanguage(
-                                  'bn',
-                                );
+                                    .setLanguage('bn');
 
                                 if (!mounted) return;
 
@@ -461,9 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   !currentBangla,
                               onTap: () async {
                                 await _settings
-                                    .setLanguage(
-                                  'en',
-                                );
+                                    .setLanguage('en');
 
                                 if (!mounted) return;
 
@@ -609,6 +626,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     final isDark =
         theme.brightness == Brightness.dark;
 
@@ -674,8 +692,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
-    final theme = Theme.of(context);
-
     return Padding(
       padding:
           const EdgeInsets.fromLTRB(
@@ -690,35 +706,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.menu_rounded,
             onTap: _openDrawer,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'হিসাব ও প্রয়োজনীয় টুল',
-                  style: TextStyle(
-                    color:
-                        theme.colorScheme.onSurface,
-                    fontSize: 19,
-                    fontWeight:
-                        FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'আপনার আয়-ব্যয়ের হিসাব এক নজরে',
-                  style: TextStyle(
-                    color: theme
-                        .colorScheme
-                        .onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const Spacer(),
           _roundButton(
             icon: Icons.refresh_rounded,
             onTap: _loadDashboard,
@@ -755,10 +743,11 @@ class _HomeScreenState extends State<HomeScreen> {
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(
-                  alpha: theme.brightness ==
-                          Brightness.dark
-                      ? .18
-                      : .05,
+                  alpha:
+                      theme.brightness ==
+                              Brightness.dark
+                          ? .18
+                          : .05,
                 ),
                 blurRadius: 12,
                 offset: const Offset(0, 5),
@@ -1596,7 +1585,7 @@ class _HomeScreenState extends State<HomeScreen> {
             CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-            title: 'অন্যান্য',
+            title: 'আরও',
             icon: Icons.grid_view_rounded,
             onTap: () {},
           ),
@@ -1859,16 +1848,23 @@ class _HomeScreenState extends State<HomeScreen> {
   Drawer _buildDrawer() {
     final theme = Theme.of(context);
 
+    final currentDark =
+        theme.brightness == Brightness.dark;
+
+    final currentBangla =
+        _settings.isBangla;
+
     return Drawer(
       backgroundColor:
           theme.scaffoldBackgroundColor,
       width:
           MediaQuery.of(context).size.width *
-              .82,
+              .84,
       child: SafeArea(
         child: Column(
           children: [
             _buildDrawerHeader(),
+
             Expanded(
               child: ListView(
                 padding:
@@ -1884,11 +1880,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: 'হোম',
                     selected: true,
                     onTap: () {
-                      Navigator.pop(
-                        context,
-                      );
+                      Navigator.of(context).pop();
                     },
                   ),
+
                   _drawerItem(
                     icon:
                         Icons.receipt_long_rounded,
@@ -1899,6 +1894,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
+
                   _drawerItem(
                     icon:
                         Icons.account_balance_wallet_rounded,
@@ -1909,6 +1905,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
+
                   _drawerItem(
                     icon:
                         Icons.category_rounded,
@@ -1919,6 +1916,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
+
                   _drawerItem(
                     icon:
                         Icons.bar_chart_rounded,
@@ -1929,6 +1927,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
+
                   _drawerItem(
                     icon:
                         Icons.assessment_rounded,
@@ -1939,6 +1938,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
+
                   Padding(
                     padding:
                         const EdgeInsets.symmetric(
@@ -1954,12 +1954,205 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+
+                  // ----------------------------
+                  // THEME
+                  // ----------------------------
+                  Container(
+                    margin:
+                        const EdgeInsets.symmetric(
+                      horizontal: 3,
+                      vertical: 4,
+                    ),
+                    padding:
+                        const EdgeInsets.fromLTRB(
+                      13,
+                      12,
+                      10,
+                      12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius:
+                          BorderRadius.circular(
+                        17,
+                      ),
+                      border: Border.all(
+                        color: AppTheme.gold
+                            .withValues(
+                          alpha: .18,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 39,
+                          height: 39,
+                          decoration:
+                              BoxDecoration(
+                            color: AppTheme.green
+                                .withValues(
+                              alpha: .13,
+                            ),
+                            borderRadius:
+                                BorderRadius
+                                    .circular(
+                              12,
+                            ),
+                          ),
+                          child: Icon(
+                            currentDark
+                                ? Icons
+                                    .dark_mode_rounded
+                                : Icons
+                                    .light_mode_rounded,
+                            color:
+                                AppTheme.gold,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Text(
+                                'থিম',
+                                style: TextStyle(
+                                  color: theme
+                                      .colorScheme
+                                      .onSurface,
+                                  fontSize: 14,
+                                  fontWeight:
+                                      FontWeight
+                                          .w700,
+                                ),
+                              ),
+                              const SizedBox(
+                                  height: 2),
+                              Text(
+                                currentDark
+                                    ? 'ডার্ক মোড'
+                                    : 'লাইট মোড',
+                                style: TextStyle(
+                                  color: theme
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: currentDark,
+                          onChanged:
+                              _changeTheme,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ----------------------------
+                  // LANGUAGE
+                  // ----------------------------
+                  Container(
+                    margin:
+                        const EdgeInsets.symmetric(
+                      horizontal: 3,
+                      vertical: 4,
+                    ),
+                    padding:
+                        const EdgeInsets.fromLTRB(
+                      13,
+                      12,
+                      10,
+                      12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius:
+                          BorderRadius.circular(
+                        17,
+                      ),
+                      border: Border.all(
+                        color: AppTheme.gold
+                            .withValues(
+                          alpha: .18,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 39,
+                          height: 39,
+                          decoration:
+                              BoxDecoration(
+                            color: AppTheme.green
+                                .withValues(
+                              alpha: .13,
+                            ),
+                            borderRadius:
+                                BorderRadius
+                                    .circular(
+                              12,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.language_rounded,
+                            color:
+                                AppTheme.gold,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Text(
+                            'ভাষা',
+                            style: TextStyle(
+                              color: theme
+                                  .colorScheme
+                                  .onSurface,
+                              fontSize: 14,
+                              fontWeight:
+                                  FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        _languageButton(
+                          label: 'বাংলা',
+                          selected:
+                              currentBangla,
+                          onTap: () {
+                            _changeLanguage('bn');
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                        _languageButton(
+                          label: 'EN',
+                          selected:
+                              !currentBangla,
+                          onTap: () {
+                            _changeLanguage('en');
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 5),
+
                   _drawerItem(
                     icon:
                         Icons.settings_rounded,
                     title: 'সেটিংস',
                     onTap: _showSettings,
                   ),
+
                   _drawerItem(
                     icon:
                         Icons.info_outline_rounded,
@@ -1973,6 +2166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
+
             Padding(
               padding:
                   const EdgeInsets.fromLTRB(
@@ -2062,7 +2256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'হিসাব ও প্রয়োজনীয় টুল',
+                  'আপনার হিসাব পরিচালনা করুন',
                   style: TextStyle(
                     color:
                         AppTheme.goldLight,
