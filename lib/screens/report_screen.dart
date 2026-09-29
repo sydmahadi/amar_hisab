@@ -1,14 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:gallery_saver_plus/gallery_saver.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:screenshot/screenshot.dart';
 
@@ -116,7 +112,9 @@ class _ReportScreenState extends State<ReportScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('রিপোর্ট লোড করা যায়নি: $e'),
+          content: Text(
+            'রিপোর্ট লোড করা যায়নি: $e',
+          ),
         ),
       );
     }
@@ -134,8 +132,11 @@ class _ReportScreenState extends State<ReportScreen> {
 
     switch (period) {
       case 'weekly':
-        final today =
-            DateTime(now.year, now.month, now.day);
+        final today = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        );
 
         final weekday = today.weekday;
 
@@ -155,7 +156,11 @@ class _ReportScreenState extends State<ReportScreen> {
         break;
 
       case 'yearly':
-        start = DateTime(now.year, 1, 1);
+        start = DateTime(
+          now.year,
+          1,
+          1,
+        );
 
         end = DateTime(
           now.year,
@@ -239,9 +244,13 @@ class _ReportScreenState extends State<ReportScreen> {
   // CALCULATIONS
   // ============================================================
 
-  double get _difference => _income - _expense;
+  double get _difference {
+    return _income - _expense;
+  }
 
-  bool get _isSurplus => _difference >= 0;
+  bool get _isSurplus {
+    return _difference >= 0;
+  }
 
   String get _periodTitle {
     switch (_period) {
@@ -268,7 +277,9 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   DateTime _parseDate(dynamic value) {
-    if (value is DateTime) return value;
+    if (value is DateTime) {
+      return value;
+    }
 
     return DateTime.tryParse(
           value?.toString() ?? '',
@@ -304,7 +315,9 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
         ),
       ),
-      delay: const Duration(milliseconds: 250),
+      delay: const Duration(
+        milliseconds: 300,
+      ),
       pixelRatio: 2.5,
     );
   }
@@ -323,7 +336,9 @@ class _ReportScreenState extends State<ReportScreen> {
     try {
       final pngBytes = await _captureReport();
 
-      final decoded = img.decodeImage(pngBytes);
+      final decoded = img.decodeImage(
+        pngBytes,
+      );
 
       if (decoded == null) {
         throw Exception(
@@ -342,7 +357,8 @@ class _ReportScreenState extends State<ReportScreen> {
           await getTemporaryDirectory();
 
       final fileName =
-          'amar_hisab_report_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          'amar_hisab_report_'
+          '${DateTime.now().millisecondsSinceEpoch}.jpg';
 
       final file = File(
         '${directory.path}/$fileName',
@@ -418,7 +434,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
       pdf.addPage(
         pw.Page(
-          pageFormat: PdfPageFormat.a4,
+          pageFormat: pw.PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(18),
           build: (context) {
             return pw.Center(
@@ -435,7 +451,8 @@ class _ReportScreenState extends State<ReportScreen> {
           await getTemporaryDirectory();
 
       final fileName =
-          'amar_hisab_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+          'amar_hisab_report_'
+          '${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       final file = File(
         '${directory.path}/$fileName',
@@ -446,14 +463,16 @@ class _ReportScreenState extends State<ReportScreen> {
         flush: true,
       );
 
-      await Share.shareXFiles(
-        [
-          XFile(
-            file.path,
-            mimeType: 'application/pdf',
-          ),
-        ],
-        subject: 'আমার হিসাব - $_periodTitle',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(
+              file.path,
+              mimeType: 'application/pdf',
+            ),
+          ],
+          subject: 'আমার হিসাব - $_periodTitle',
+        ),
       );
 
       if (!mounted) return;
@@ -502,7 +521,8 @@ class _ReportScreenState extends State<ReportScreen> {
           await getTemporaryDirectory();
 
       final fileName =
-          'amar_hisab_report_${DateTime.now().millisecondsSinceEpoch}.png';
+          'amar_hisab_report_'
+          '${DateTime.now().millisecondsSinceEpoch}.png';
 
       final file = File(
         '${directory.path}/$fileName',
@@ -513,14 +533,16 @@ class _ReportScreenState extends State<ReportScreen> {
         flush: true,
       );
 
-      await Share.shareXFiles(
-        [
-          XFile(
-            file.path,
-            mimeType: 'image/png',
-          ),
-        ],
-        subject: 'আমার হিসাব - $_periodTitle',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(
+              file.path,
+              mimeType: 'image/png',
+            ),
+          ],
+          subject: 'আমার হিসাব - $_periodTitle',
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -643,11 +665,13 @@ class _ReportScreenState extends State<ReportScreen> {
   }) {
     final theme = Theme.of(context);
 
-    final background =
-        exportMode ? Colors.white : theme.scaffoldBackgroundColor;
+    const primary = Color(0xFF176B45);
+    const gold = Color(0xFFB99550);
 
-    final primary = const Color(0xFF176B45);
-    final gold = const Color(0xFFB99550);
+    final background =
+        exportMode
+            ? Colors.white
+            : theme.scaffoldBackgroundColor;
 
     return Container(
       width: exportMode ? 900 : double.infinity,
@@ -662,14 +686,18 @@ class _ReportScreenState extends State<ReportScreen> {
             exportMode ? 0 : 22,
           ),
           border: Border.all(
-            color: gold.withOpacity(0.45),
+            color: gold.withValues(
+              alpha: 0.45,
+            ),
             width: 1.4,
           ),
           boxShadow: exportMode
               ? null
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(
+                      alpha: 0.08,
+                    ),
                     blurRadius: 18,
                     offset: const Offset(0, 8),
                   ),
@@ -712,23 +740,30 @@ class _ReportScreenState extends State<ReportScreen> {
                   Text(
                     _periodTitle,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.92),
+                      color: Colors.white.withValues(
+                        alpha: 0.92,
+                      ),
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 9),
                   Container(
-                    padding: const EdgeInsets.symmetric(
+                    padding:
+                        const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.white.withValues(
+                        alpha: 0.12,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '${_dateText(_startDate)}  —  ${_dateText(_endDate)}',
+                      '${_dateText(_startDate)}  —  '
+                      '${_dateText(_endDate)}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -751,7 +786,8 @@ class _ReportScreenState extends State<ReportScreen> {
                           title: 'মোট আয়',
                           amount: _income,
                           icon: Icons.arrow_downward,
-                          color: const Color(0xFF287A55),
+                          color:
+                              const Color(0xFF287A55),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -760,7 +796,8 @@ class _ReportScreenState extends State<ReportScreen> {
                           title: 'মোট ব্যয়',
                           amount: _expense,
                           icon: Icons.arrow_upward,
-                          color: const Color(0xFFC35E5E),
+                          color:
+                              const Color(0xFFC35E5E),
                         ),
                       ),
                     ],
@@ -769,7 +806,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
+                    padding:
+                        const EdgeInsets.symmetric(
                       horizontal: 18,
                       vertical: 15,
                     ),
@@ -804,18 +842,22 @@ class _ReportScreenState extends State<ReportScreen> {
                             style: const TextStyle(
                               color: Color(0xFF333333),
                               fontSize: 15,
-                              fontWeight: FontWeight.w700,
+                              fontWeight:
+                                  FontWeight.w700,
                             ),
                           ),
                         ),
                         Text(
-                          _money(_difference.abs()),
+                          _money(
+                            _difference.abs(),
+                          ),
                           style: TextStyle(
                             color: _isSurplus
                                 ? const Color(0xFF287A55)
                                 : const Color(0xFFC35E5E),
                             fontSize: 18,
-                            fontWeight: FontWeight.w800,
+                            fontWeight:
+                                FontWeight.w800,
                           ),
                         ),
                       ],
@@ -876,7 +918,9 @@ class _ReportScreenState extends State<ReportScreen> {
                     'আমার হিসাব অ্যাপ',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: primary.withOpacity(0.28),
+                      color: primary.withValues(
+                        alpha: 0.28,
+                      ),
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -886,7 +930,9 @@ class _ReportScreenState extends State<ReportScreen> {
                     'mahadisayeed@gmail.com',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.black.withOpacity(0.20),
+                      color: Colors.black.withValues(
+                        alpha: 0.20,
+                      ),
                       fontSize: 10,
                     ),
                   ),
@@ -899,6 +945,10 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  // ============================================================
+  // SUMMARY BOX
+  // ============================================================
+
   Widget _summaryBox({
     required String title,
     required double amount,
@@ -908,10 +958,14 @@ class _ReportScreenState extends State<ReportScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(
+          alpha: 0.08,
+        ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: color.withOpacity(0.18),
+          color: color.withValues(
+            alpha: 0.18,
+          ),
         ),
       ),
       child: Column(
@@ -954,6 +1008,10 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  // ============================================================
+  // SECTION TITLE
+  // ============================================================
+
   Widget _sectionTitle(
     String title,
     IconData icon,
@@ -967,6 +1025,12 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
       child: Row(
         children: [
+          const Icon(
+            Icons.circle,
+            size: 7,
+            color: Color(0xFF176B45),
+          ),
+          const SizedBox(width: 8),
           Icon(
             icon,
             size: 19,
@@ -985,6 +1049,10 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // CATEGORY SECTION
+  // ============================================================
 
   Widget _categorySection(
     List<Map<String, dynamic>> categories, {
@@ -1015,11 +1083,15 @@ class _ReportScreenState extends State<ReportScreen> {
       );
     }
 
-    final total = categories.fold<double>(
-      0,
-      (sum, item) =>
-          sum +
-          ((item['total'] as num?)?.toDouble() ?? 0),
+    final double total = categories.fold<double>(
+      0.0,
+      (sum, item) {
+        final value =
+            (item['total'] as num?)?.toDouble() ??
+                0.0;
+
+        return sum + value;
+      },
     );
 
     return Padding(
@@ -1041,18 +1113,19 @@ class _ReportScreenState extends State<ReportScreen> {
           children: [
             ...categories.map(
               (item) {
-                final value =
+                final double value =
                     (item['total'] as num?)
                             ?.toDouble() ??
-                        0;
+                        0.0;
 
-                final percentage =
-                    total <= 0
-                        ? 0
-                        : value / total;
+                final double percentage =
+                    total <= 0.0
+                        ? 0.0
+                        : (value / total).toDouble();
 
                 return Padding(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding:
+                      const EdgeInsets.fromLTRB(
                     14,
                     11,
                     14,
@@ -1065,31 +1138,43 @@ class _ReportScreenState extends State<ReportScreen> {
                           Container(
                             width: 9,
                             height: 9,
-                            decoration: BoxDecoration(
+                            decoration:
+                                BoxDecoration(
                               color: income
-                                  ? const Color(0xFF287A55)
-                                  : const Color(0xFFC35E5E),
+                                  ? const Color(
+                                      0xFF287A55,
+                                    )
+                                  : const Color(
+                                      0xFFC35E5E,
+                                    ),
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 9),
                           Expanded(
                             child: Text(
-                              item['name']?.toString() ??
+                              item['name']
+                                      ?.toString() ??
                                   'অন্যান্য',
-                              style: const TextStyle(
-                                color: Color(0xFF333333),
+                              style:
+                                  const TextStyle(
+                                color:
+                                    Color(0xFF333333),
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                                fontWeight:
+                                    FontWeight.w600,
                               ),
                             ),
                           ),
                           Text(
                             _money(value),
-                            style: const TextStyle(
-                              color: Color(0xFF222222),
+                            style:
+                                const TextStyle(
+                              color:
+                                  Color(0xFF222222),
                               fontSize: 13,
-                              fontWeight: FontWeight.w800,
+                              fontWeight:
+                                  FontWeight.w800,
                             ),
                           ),
                         ],
@@ -1098,16 +1183,22 @@ class _ReportScreenState extends State<ReportScreen> {
                       ClipRRect(
                         borderRadius:
                             BorderRadius.circular(20),
-                        child: LinearProgressIndicator(
+                        child:
+                            LinearProgressIndicator(
                           value: percentage,
                           minHeight: 5,
                           backgroundColor:
                               const Color(0xFFE7E3DA),
                           valueColor:
-                              AlwaysStoppedAnimation<Color>(
+                              AlwaysStoppedAnimation<
+                                  Color>(
                             income
-                                ? const Color(0xFF287A55)
-                                : const Color(0xFFC35E5E),
+                                ? const Color(
+                                    0xFF287A55,
+                                  )
+                                : const Color(
+                                    0xFFC35E5E,
+                                  ),
                           ),
                         ),
                       ),
@@ -1153,6 +1244,10 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // TRANSACTIONS
+  // ============================================================
 
   Widget _transactionSection() {
     if (_transactions.isEmpty) {
@@ -1213,8 +1308,9 @@ class _ReportScreenState extends State<ReportScreen> {
     final type =
         tx['type']?.toString() ?? '';
 
-    final amount =
-        (tx['amount'] as num?)?.toDouble() ?? 0;
+    final double amount =
+        (tx['amount'] as num?)?.toDouble() ??
+            0.0;
 
     final date =
         _parseDate(tx['transaction_date']);
@@ -1235,7 +1331,6 @@ class _ReportScreenState extends State<ReportScreen> {
         tx['to_account_name']?.toString();
 
     Color color;
-
     IconData icon;
 
     if (type == 'income') {
@@ -1253,7 +1348,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
     if (type == 'transfer') {
       subtitle =
-          '${fromAccount ?? '—'} → ${toAccount ?? '—'}';
+          '${fromAccount ?? '—'} → '
+          '${toAccount ?? '—'}';
     } else {
       final parts = <String>[];
 
@@ -1296,7 +1392,9 @@ class _ReportScreenState extends State<ReportScreen> {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.10),
+              color: color.withValues(
+                alpha: 0.10,
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1319,7 +1417,8 @@ class _ReportScreenState extends State<ReportScreen> {
                         style: const TextStyle(
                           color: Color(0xFF333333),
                           fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                          fontWeight:
+                              FontWeight.w800,
                         ),
                       ),
                     ),
@@ -1328,7 +1427,8 @@ class _ReportScreenState extends State<ReportScreen> {
                       style: TextStyle(
                         color: color,
                         fontSize: 13,
-                        fontWeight: FontWeight.w900,
+                        fontWeight:
+                            FontWeight.w900,
                       ),
                     ),
                   ],
@@ -1346,7 +1446,8 @@ class _ReportScreenState extends State<ReportScreen> {
                   Text(
                     subtitle,
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    overflow:
+                        TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFF666666),
                       fontSize: 10.5,
@@ -1410,7 +1511,8 @@ class _ReportScreenState extends State<ReportScreen> {
                       10,
                     ),
                     child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                      scrollDirection:
+                          Axis.horizontal,
                       child: Row(
                         children: [
                           _periodButton(
@@ -1445,12 +1547,13 @@ class _ReportScreenState extends State<ReportScreen> {
                         16,
                         10,
                       ),
-                      child: LinearProgressIndicator(),
+                      child:
+                          LinearProgressIndicator(),
                     ),
 
-                  // REPORT
                   Screenshot(
-                    controller: _screenshotController,
+                    controller:
+                        _screenshotController,
                     child: _buildVoucher(),
                   ),
                 ],
@@ -1459,11 +1562,16 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  // ============================================================
+  // PERIOD BUTTON
+  // ============================================================
+
   Widget _periodButton(
     String label,
     String value,
   ) {
-    final selected = _period == value;
+    final selected =
+        _period == value;
 
     return OutlinedButton(
       onPressed: value == 'custom'
@@ -1483,12 +1591,15 @@ class _ReportScreenState extends State<ReportScreen> {
                   .colorScheme
                   .outline,
         ),
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 10,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+        shape:
+            RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(12),
         ),
       ),
       child: Text(label),
