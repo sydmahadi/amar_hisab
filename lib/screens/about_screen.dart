@@ -11,7 +11,6 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBangla = settings.isBangla;
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -63,7 +62,7 @@ class AboutScreen extends StatelessWidget {
                 Icons.edit_note_rounded,
                 isBangla ? 'লেনদেন সম্পাদনা' : 'Edit transactions',
                 isBangla
-                    ? 'প্রয়োজনে পুরোনো লেনদেন পরিবর্তন বা মুছে ফেলুন।'
+                    ? 'প্রয়োজনে পুরোনো লেনদেন পরিবর্তন বা মুছে ফেলুন।'
                     : 'Edit or delete previous transactions when needed.',
               ),
             ],
@@ -75,7 +74,7 @@ class AboutScreen extends StatelessWidget {
             context,
             title: isBangla ? 'অ্যাকাউন্ট ও খাত' : 'Accounts & Categories',
             subtitle: isBangla
-                ? 'নিজের প্রয়োজন অনুযায়ী হিসাব সাজিয়ে নিন'
+                ? 'নিজের প্রয়োজন অনুযায়ী হিসাব সাজিয়ে নিন'
                 : 'Organize your finances your way',
             icon: Icons.account_tree_rounded,
             features: [
@@ -90,7 +89,7 @@ class AboutScreen extends StatelessWidget {
                 Icons.category_rounded,
                 isBangla ? 'নিজের খাত তৈরি করুন' : 'Custom categories',
                 isBangla
-                    ? 'আপনার প্রয়োজন অনুযায়ী নতুন খাত যোগ করুন।'
+                    ? 'আপনার প্রয়োজন অনুযায়ী নতুন খাত যোগ করুন।'
                     : 'Create categories according to your needs.',
               ),
               _FeatureData(
@@ -121,7 +120,7 @@ class AboutScreen extends StatelessWidget {
                 Icons.today_rounded,
                 isBangla ? 'দৈনিক হিসাব' : 'Daily overview',
                 isBangla
-                    ? 'দিনভিত্তিক আয়, ব্যয় ও লেনদেন দেখুন।'
+                    ? 'দিনভিত্তিক আয়, ব্যয় ও লেনদেন দেখুন।'
                     : 'View income, expenses and transactions by day.',
               ),
               _FeatureData(
@@ -135,7 +134,7 @@ class AboutScreen extends StatelessWidget {
                 Icons.calendar_month_rounded,
                 isBangla ? 'মাসিক হিসাব' : 'Monthly overview',
                 isBangla
-                    ? 'মাসভিত্তিক আয় ও ব্যয়ের হিসাব দেখুন।'
+                    ? 'মাসভিত্তিক আয় ও ব্যয়ের হিসাব দেখুন।'
                     : 'Review your monthly income and expenses.',
               ),
               _FeatureData(
@@ -149,7 +148,7 @@ class AboutScreen extends StatelessWidget {
                 Icons.pie_chart_rounded,
                 isBangla ? 'ক্যাটাগরি বিশ্লেষণ' : 'Category analysis',
                 isBangla
-                    ? 'কোন খাতে কত আয় বা ব্যয় হচ্ছে তা দেখুন।'
+                    ? 'কোন খাতে কত আয় বা ব্যয় হচ্ছে তা দেখুন।'
                     : 'See where your income and expenses are going.',
               ),
             ],
@@ -163,9 +162,11 @@ class AboutScreen extends StatelessWidget {
 
           _buildFeatureSection(
             context,
-            title: isBangla ? 'লেনদেন খুঁজে পাওয়া আরও সহজ' : 'Easy Transaction Search',
+            title: isBangla
+                ? 'লেনদেন খুঁজে পাওয়া আরও সহজ'
+                : 'Easy Transaction Search',
             subtitle: isBangla
-                ? 'প্রয়োজনীয় হিসাব দ্রুত খুঁজে নিন'
+                ? 'প্রয়োজনীয় হিসাব দ্রুত খুঁজে নিন'
                 : 'Find the records you need quickly',
             icon: Icons.search_rounded,
             features: [
@@ -173,19 +174,19 @@ class AboutScreen extends StatelessWidget {
                 Icons.search_rounded,
                 isBangla ? 'লেনদেন সার্চ' : 'Transaction search',
                 isBangla
-                    ? 'নাম, নোট বা অন্যান্য তথ্য দিয়ে লেনদেন খুঁজুন।'
+                    ? 'নাম, নোট বা অন্যান্য তথ্য দিয়ে লেনদেন খুঁজুন।'
                     : 'Search transactions by name, note and other details.',
               ),
               _FeatureData(
                 Icons.filter_alt_rounded,
-                isBangla ? 'তারিখ অনুযায়ী ফিল্টার' : 'Date filter',
+                isBangla ? 'তারিখ অনুযায়ী ফিল্টার' : 'Date filter',
                 isBangla
                     ? 'নির্দিষ্ট দিনের লেনদেন আলাদা করে দেখুন।'
                     : 'View transactions for a specific date.',
               ),
               _FeatureData(
                 Icons.calendar_month_rounded,
-                isBangla ? 'মাস অনুযায়ী ফিল্টার' : 'Month filter',
+                isBangla ? 'মাস অনুযায়ী ফিল্টার' : 'Month filter',
                 isBangla
                     ? 'নির্দিষ্ট মাসের হিসাব একসাথে দেখুন।'
                     : 'View all transactions from a specific month.',
@@ -199,7 +200,7 @@ class AboutScreen extends StatelessWidget {
             context,
             title: isBangla ? 'অ্যাপের সুবিধা' : 'App Features',
             subtitle: isBangla
-                ? 'আপনার ব্যবহারের সুবিধার জন্য প্রয়োজনীয় অপশন'
+                ? 'আপনার ব্যবহারের সুবিধার জন্য প্রয়োজনীয় অপশন'
                 : 'Useful options for a better experience',
             icon: Icons.auto_awesome_rounded,
             features: [
@@ -221,14 +222,14 @@ class AboutScreen extends StatelessWidget {
                 Icons.dark_mode_rounded,
                 isBangla ? 'ডার্ক ও লাইট মোড' : 'Dark & light mode',
                 isBangla
-                    ? 'আপনার পছন্দ অনুযায়ী অ্যাপের থিম ব্যবহার করুন।'
+                    ? 'আপনার পছন্দ অনুযায়ী অ্যাপের থিম ব্যবহার করুন।'
                     : 'Use the theme you prefer.',
               ),
               _FeatureData(
                 Icons.language_rounded,
                 isBangla ? 'বাংলা ও ইংরেজি' : 'Bangla & English',
                 isBangla
-                    ? 'বাংলা অথবা ইংরেজি ভাষায় অ্যাপ ব্যবহার করুন।'
+                    ? 'বাংলা অথবা ইংরেজি ভাষায় অ্যাপ ব্যবহার করুন।'
                     : 'Use the app in Bangla or English.',
               ),
               _FeatureData(
@@ -400,7 +401,7 @@ class AboutScreen extends StatelessWidget {
                 const SizedBox(height: 7),
                 Text(
                   isBangla
-                      ? 'আমার হিসাব একটি ব্যক্তিগত Money Manager অ্যাপ। আয়, ব্যয়, অ্যাকাউন্ট, লেনদেন, দেনা-পাওনা, পরিসংখ্যান ও রিপোর্ট—সবকিছু এক জায়গায় সহজভাবে পরিচালনা করার জন্য তৈরি।'
+                      ? 'আমার হিসাব একটি ব্যক্তিগত Money Manager অ্যাপ। আয়, ব্যয়, অ্যাকাউন্ট, লেনদেন, দেনা-পাওনা, পরিসংখ্যান ও রিপোর্ট—সবকিছু এক জায়গায় সহজভাবে পরিচালনা করার জন্য তৈরি।'
                       : 'Amar Hisab is a personal Money Manager app designed to keep income, expenses, accounts, transactions, loans, statistics and reports organized in one place.',
                   style: TextStyle(
                     fontSize: 13,
@@ -611,7 +612,9 @@ class AboutScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isBangla ? 'দেনা-পাওনা ব্যবস্থাপনা' : 'Loan Management',
+                      isBangla
+                          ? 'দেনা-পাওনা ব্যবস্থাপনা'
+                          : 'Loan Management',
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
@@ -620,7 +623,7 @@ class AboutScreen extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       isBangla
-                          ? 'ধার দেওয়া ও নেওয়ার সম্পূর্ণ হিসাব'
+                          ? 'ধার দেওয়া ও নেওয়ার সম্পূর্ণ হিসাব'
                           : 'Complete lending and borrowing records',
                       style: TextStyle(
                         fontSize: 11.5,
@@ -640,25 +643,25 @@ class AboutScreen extends StatelessWidget {
           _loanItem(
             context,
             Icons.arrow_upward_rounded,
-            isBangla ? 'ধার দিয়েছি' : 'Money lent',
+            isBangla ? 'ধার দিয়েছি' : 'Money lent',
             isBangla
-                ? 'কে কত টাকা নিয়েছে এবং কত ফেরত দিয়েছে তা দেখুন।'
+                ? 'কে কত টাকা নিয়েছে এবং কত ফেরত দিয়েছে তা দেখুন।'
                 : 'Track who owes you and how much has been repaid.',
           ),
           const SizedBox(height: 12),
           _loanItem(
             context,
             Icons.arrow_downward_rounded,
-            isBangla ? 'ধার নিয়েছি' : 'Money borrowed',
+            isBangla ? 'ধার নিয়েছি' : 'Money borrowed',
             isBangla
-                ? 'কার কাছ থেকে কত নিয়েছেন এবং কত শোধ করেছেন তা দেখুন।'
+                ? 'কার কাছ থেকে কত নিয়েছেন এবং কত শোধ করেছেন তা দেখুন।'
                 : 'Track what you borrowed and how much you repaid.',
           ),
           const SizedBox(height: 12),
           _loanItem(
             context,
             Icons.person_search_rounded,
-            isBangla ? 'ব্যক্তি অনুযায়ী হিসাব' : 'Person-wise records',
+            isBangla ? 'ব্যক্তি অনুযায়ী হিসাব' : 'Person-wise records',
             isBangla
                 ? 'প্রতিটি ব্যক্তির দেনা-পাওনার আলাদা হিসাব দেখুন।'
                 : 'View separate loan records for each person.',
@@ -667,9 +670,9 @@ class AboutScreen extends StatelessWidget {
           _loanItem(
             context,
             Icons.filter_alt_rounded,
-            isBangla ? 'তারিখ ও মাস অনুযায়ী ফিল্টার' : 'Date & month filters',
+            isBangla ? 'তারিখ ও মাস অনুযায়ী ফিল্টার' : 'Date & month filters',
             isBangla
-                ? 'নির্দিষ্ট সময়ের দেনা-পাওনার তথ্য সহজে খুঁজুন।'
+                ? 'নির্দিষ্ট সময়ের দেনা-পাওনার তথ্য সহজে খুঁজুন।'
                 : 'Find loan activity for a specific date or month.',
           ),
         ],
@@ -790,7 +793,7 @@ class AboutScreen extends StatelessWidget {
             Icons.calendar_month_rounded,
             isBangla ? 'মাসিক রিপোর্ট' : 'Monthly report',
             isBangla
-                ? 'মাসের আয়, ব্যয় ও উদ্বৃত্ত/ঘাটতির সারসংক্ষেপ।'
+                ? 'মাসের আয়, ব্যয় ও উদ্বৃত্ত/ঘাটতির সারসংক্ষেপ।'
                 : 'Monthly income, expenses and surplus/deficit.',
           ),
           _reportItem(
@@ -798,7 +801,7 @@ class AboutScreen extends StatelessWidget {
             Icons.category_rounded,
             isBangla ? 'খাতভিত্তিক রিপোর্ট' : 'Category report',
             isBangla
-                ? 'প্রতিটি খাতে কত আয় বা ব্যয় হয়েছে তার বিস্তারিত হিসাব।'
+                ? 'প্রতিটি খাতে কত আয় বা ব্যয় হয়েছে তার বিস্তারিত হিসাব।'
                 : 'Detailed income and expense breakdown by category.',
           ),
           _reportItem(
@@ -806,7 +809,7 @@ class AboutScreen extends StatelessWidget {
             Icons.handshake_rounded,
             isBangla ? 'দেনা-পাওনা রিপোর্ট' : 'Loan report',
             isBangla
-                ? 'ধার দেওয়া, নেওয়া ও ফেরত/শোধের বিস্তারিত তথ্য।'
+                ? 'ধার দেওয়া, নেওয়া ও ফেরত/শোধের বিস্তারিত তথ্য।'
                 : 'Detailed lending, borrowing and repayment records.',
           ),
           _reportItem(
@@ -814,7 +817,7 @@ class AboutScreen extends StatelessWidget {
             Icons.picture_as_pdf_rounded,
             isBangla ? 'PDF ও JPG Export' : 'PDF & JPG export',
             isBangla
-                ? 'রিপোর্ট PDF বা JPG আকারে সংরক্ষণ করা যায়।'
+                ? 'রিপোর্ট PDF বা JPG আকারে সংরক্ষণ করা যায়।'
                 : 'Save reports as PDF or JPG.',
           ),
         ],
@@ -934,7 +937,7 @@ class AboutScreen extends StatelessWidget {
           _contactRow(
             context,
             Icons.phone_rounded,
-            isBangla ? 'Developed by' : 'Developed by',
+            isBangla ? 'ডেভেলপার' : 'Developer',
             'Sayeed Mahadi',
           ),
           const SizedBox(height: 13),
