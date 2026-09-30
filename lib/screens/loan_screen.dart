@@ -13,7 +13,8 @@ class LoanScreen extends StatefulWidget {
 
 class _LoanScreenState extends State<LoanScreen> {
   final MoneyDb _db = MoneyDb.instance;
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController =
+      TextEditingController();
 
   List<Map<String, dynamic>> _loans = [];
 
@@ -21,7 +22,6 @@ class _LoanScreenState extends State<LoanScreen> {
 
   String _typeFilter = 'all';
   String _statusFilter = 'all';
-  String _dateFilter = 'all';
 
   DateTime? _selectedDate;
   DateTime? _selectedMonth;
@@ -60,11 +60,15 @@ class _LoanScreenState extends State<LoanScreen> {
       final search = _searchController.text.trim().toLowerCase();
 
       List<Map<String, dynamic>> filtered = loans.where((loan) {
-        if (search.isEmpty) return true;
+        if (search.isEmpty) {
+          return true;
+        }
 
         final person =
             (loan['person_name'] ?? '').toString().toLowerCase();
-        final note = (loan['note'] ?? '').toString().toLowerCase();
+
+        final note =
+            (loan['note'] ?? '').toString().toLowerCase();
 
         return person.contains(search) || note.contains(search);
       }).toList();
@@ -78,7 +82,10 @@ class _LoanScreenState extends State<LoanScreen> {
       if (_selectedDate != null) {
         filtered = filtered.where((loan) {
           final date = _parseDate(loan['created_at']);
-          if (date == null) return false;
+
+          if (date == null) {
+            return false;
+          }
 
           return date.year == _selectedDate!.year &&
               date.month == _selectedDate!.month &&
@@ -89,21 +96,28 @@ class _LoanScreenState extends State<LoanScreen> {
       if (_selectedMonth != null) {
         filtered = filtered.where((loan) {
           final date = _parseDate(loan['created_at']);
-          if (date == null) return false;
+
+          if (date == null) {
+            return false;
+          }
 
           return date.year == _selectedMonth!.year &&
               date.month == _selectedMonth!.month;
         }).toList();
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _loans = filtered;
         _loading = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _loans = [];
@@ -113,14 +127,21 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 
   double _toDouble(dynamic value) {
-    if (value is num) return value.toDouble();
+    if (value is num) {
+      return value.toDouble();
+    }
+
     return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   DateTime? _parseDate(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
 
-    if (value is DateTime) return value;
+    if (value is DateTime) {
+      return value;
+    }
 
     return DateTime.tryParse(value.toString());
   }
@@ -132,7 +153,9 @@ class _LoanScreenState extends State<LoanScreen> {
   String _formatDate(dynamic value) {
     final date = _parseDate(value);
 
-    if (date == null) return '';
+    if (date == null) {
+      return '';
+    }
 
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
@@ -203,12 +226,13 @@ class _LoanScreenState extends State<LoanScreen> {
       helpText: 'তারিখ নির্বাচন করুন',
     );
 
-    if (date == null) return;
+    if (date == null) {
+      return;
+    }
 
     setState(() {
       _selectedDate = date;
       _selectedMonth = null;
-      _dateFilter = 'date';
     });
 
     _loadLoans();
@@ -231,7 +255,7 @@ class _LoanScreenState extends State<LoanScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<int>(
-                    value: year,
+                    initialValue: year,
                     decoration: const InputDecoration(
                       labelText: 'বছর',
                     ),
@@ -239,14 +263,17 @@ class _LoanScreenState extends State<LoanScreen> {
                       21,
                       (index) {
                         final y = now.year - 10 + index;
-                        return DropdownMenuItem(
+
+                        return DropdownMenuItem<int>(
                           value: y,
                           child: Text('$y'),
                         );
                       },
                     ),
                     onChanged: (value) {
-                      if (value == null) return;
+                      if (value == null) {
+                        return;
+                      }
 
                       setDialogState(() {
                         year = value;
@@ -255,7 +282,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
-                    value: month,
+                    initialValue: month,
                     decoration: const InputDecoration(
                       labelText: 'মাস',
                     ),
@@ -263,14 +290,17 @@ class _LoanScreenState extends State<LoanScreen> {
                       12,
                       (index) {
                         final m = index + 1;
-                        return DropdownMenuItem(
+
+                        return DropdownMenuItem<int>(
                           value: m,
                           child: Text(_monthName(m)),
                         );
                       },
                     ),
                     onChanged: (value) {
-                      if (value == null) return;
+                      if (value == null) {
+                        return;
+                      }
 
                       setDialogState(() {
                         month = value;
@@ -300,12 +330,13 @@ class _LoanScreenState extends State<LoanScreen> {
       },
     );
 
-    if (selected == null) return;
+    if (selected == null) {
+      return;
+    }
 
     setState(() {
       _selectedMonth = selected;
       _selectedDate = null;
-      _dateFilter = 'month';
     });
 
     _loadLoans();
@@ -315,7 +346,6 @@ class _LoanScreenState extends State<LoanScreen> {
     setState(() {
       _typeFilter = 'all';
       _statusFilter = 'all';
-      _dateFilter = 'all';
       _selectedDate = null;
       _selectedMonth = null;
     });
@@ -331,9 +361,15 @@ class _LoanScreenState extends State<LoanScreen> {
         return SafeArea(
           child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                24,
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'লোন ফিল্টার',
@@ -343,7 +379,6 @@ class _LoanScreenState extends State<LoanScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   const Text(
                     'ধরন',
                     style: TextStyle(
@@ -351,7 +386,6 @@ class _LoanScreenState extends State<LoanScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-
                   _filterTile(
                     title: 'সব লোন',
                     selected: _typeFilter == 'all',
@@ -359,11 +393,11 @@ class _LoanScreenState extends State<LoanScreen> {
                       setState(() {
                         _typeFilter = 'all';
                       });
+
                       Navigator.pop(context);
                       _loadLoans();
                     },
                   ),
-
                   _filterTile(
                     title: 'আমার পাওনা',
                     selected: _typeFilter == 'receivable',
@@ -371,11 +405,11 @@ class _LoanScreenState extends State<LoanScreen> {
                       setState(() {
                         _typeFilter = 'receivable';
                       });
+
                       Navigator.pop(context);
                       _loadLoans();
                     },
                   ),
-
                   _filterTile(
                     title: 'আমার দেনা',
                     selected: _typeFilter == 'payable',
@@ -383,13 +417,12 @@ class _LoanScreenState extends State<LoanScreen> {
                       setState(() {
                         _typeFilter = 'payable';
                       });
+
                       Navigator.pop(context);
                       _loadLoans();
                     },
                   ),
-
                   const Divider(height: 24),
-
                   const Text(
                     'অবস্থা',
                     style: TextStyle(
@@ -397,7 +430,6 @@ class _LoanScreenState extends State<LoanScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-
                   _filterTile(
                     title: 'সব',
                     selected: _statusFilter == 'all',
@@ -405,11 +437,11 @@ class _LoanScreenState extends State<LoanScreen> {
                       setState(() {
                         _statusFilter = 'all';
                       });
+
                       Navigator.pop(context);
                       _loadLoans();
                     },
                   ),
-
                   _filterTile(
                     title: 'চলমান',
                     selected: _statusFilter == 'active',
@@ -417,11 +449,11 @@ class _LoanScreenState extends State<LoanScreen> {
                       setState(() {
                         _statusFilter = 'active';
                       });
+
                       Navigator.pop(context);
                       _loadLoans();
                     },
                   ),
-
                   _filterTile(
                     title: 'সম্পন্ন',
                     selected: _statusFilter == 'completed',
@@ -429,13 +461,12 @@ class _LoanScreenState extends State<LoanScreen> {
                       setState(() {
                         _statusFilter = 'completed';
                       });
+
                       Navigator.pop(context);
                       _loadLoans();
                     },
                   ),
-
                   const Divider(height: 24),
-
                   const Text(
                     'তারিখ',
                     style: TextStyle(
@@ -443,23 +474,30 @@ class _LoanScreenState extends State<LoanScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-
                   ListTile(
-                    leading: const Icon(Icons.calendar_today_outlined),
-                    title: const Text('নির্দিষ্ট তারিখ'),
+                    leading: const Icon(
+                      Icons.calendar_today_outlined,
+                    ),
+                    title: const Text(
+                      'নির্দিষ্ট তারিখ',
+                    ),
                     subtitle: _selectedDate == null
                         ? null
-                        : Text(_formatDate(_selectedDate)),
+                        : Text(
+                            _formatDate(_selectedDate),
+                          ),
                     onTap: () {
                       Navigator.pop(context);
                       _pickDate();
                     },
                   ),
-
                   ListTile(
-                    leading:
-                        const Icon(Icons.calendar_month_outlined),
-                    title: const Text('নির্দিষ্ট মাস'),
+                    leading: const Icon(
+                      Icons.calendar_month_outlined,
+                    ),
+                    title: const Text(
+                      'নির্দিষ্ট মাস',
+                    ),
                     subtitle: _selectedMonth == null
                         ? null
                         : Text(
@@ -471,7 +509,6 @@ class _LoanScreenState extends State<LoanScreen> {
                       _pickMonth();
                     },
                   ),
-
                   if (_hasFilter)
                     SizedBox(
                       width: double.infinity,
@@ -481,7 +518,9 @@ class _LoanScreenState extends State<LoanScreen> {
                           _clearFilters();
                         },
                         icon: const Icon(Icons.clear),
-                        label: const Text('সব ফিল্টার মুছে দিন'),
+                        label: const Text(
+                          'সব ফিল্টার মুছে দিন',
+                        ),
                       ),
                     ),
                 ],
@@ -516,11 +555,16 @@ class _LoanScreenState extends State<LoanScreen> {
   ) async {
     final loanId = loan['id'] as int?;
 
-    if (loanId == null) return;
+    if (loanId == null) {
+      return;
+    }
 
-    final transactions = await _db.getLoanTransactions(loanId);
+    final transactions =
+        await _db.getLoanTransactions(loanId);
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     await showModalBottomSheet(
       context: context,
@@ -533,11 +577,6 @@ class _LoanScreenState extends State<LoanScreen> {
             child: _LoanDetailsSheet(
               loan: loan,
               transactions: transactions,
-              onRefresh: () async {
-                if (!mounted) return;
-
-                await _loadLoans();
-              },
               onEdit: (transactionId) async {
                 Navigator.pop(context);
 
@@ -569,14 +608,20 @@ class _LoanScreenState extends State<LoanScreen> {
     int loanId,
     int? transactionId,
   ) async {
-    if (transactionId == null) return;
+    if (transactionId == null) {
+      return;
+    }
 
     final transactions =
         await _db.getLoanTransactions(loanId);
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    if (transactions.isEmpty) return;
+    if (transactions.isEmpty) {
+      return;
+    }
 
     await Navigator.push(
       context,
@@ -587,7 +632,9 @@ class _LoanScreenState extends State<LoanScreen> {
       ),
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     await _loadLoans();
   }
@@ -598,22 +645,31 @@ class _LoanScreenState extends State<LoanScreen> {
     try {
       await _db.deleteTransaction(transactionId);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('লেনদেন মুছে ফেলা হয়েছে'),
+          content: Text(
+            'লেনদেন মুছে ফেলা হয়েছে',
+          ),
         ),
       );
 
       await _loadLoans();
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
+            e.toString().replaceFirst(
+              'Exception: ',
+              '',
+            ),
           ),
         ),
       );
@@ -625,12 +681,16 @@ class _LoanScreenState extends State<LoanScreen> {
   ) async {
     final loanId = loan['id'] as int?;
 
-    if (loanId == null) return;
+    if (loanId == null) {
+      return;
+    }
 
     final transactions =
         await _db.getLoanTransactions(loanId);
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     final hasRepayment = transactions.any(
       (transaction) {
@@ -659,18 +719,22 @@ class _LoanScreenState extends State<LoanScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('লোন মুছে ফেলবেন?'),
+          title: const Text(
+            'লোন মুছে ফেলবেন?',
+          ),
           content: Text(
             '${loan['person_name'] ?? 'এই লেনদেন'}-এর '
             'লোনটি মুছে যাবে।',
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () =>
+                  Navigator.pop(context, false),
               child: const Text('বাতিল'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () =>
+                  Navigator.pop(context, true),
               child: const Text('মুছে ফেলুন'),
             ),
           ],
@@ -678,41 +742,62 @@ class _LoanScreenState extends State<LoanScreen> {
       },
     );
 
-    if (confirm != true) return;
+    if (confirm != true) {
+      return;
+    }
 
     try {
-      final original = transactions.firstWhere(
-        (transaction) {
-          final type =
-              (transaction['type'] ?? '').toString();
+      Map<String, dynamic>? original;
 
-          return type == 'loan_given' ||
-              type == 'loan_taken';
-        },
-      );
+      for (final transaction in transactions) {
+        final type =
+            (transaction['type'] ?? '').toString();
 
-      final transactionId = original['id'] as int?;
+        if (type == 'loan_given' ||
+            type == 'loan_taken') {
+          original = transaction;
+          break;
+        }
+      }
 
-      if (transactionId == null) return;
+      if (original == null) {
+        return;
+      }
+
+      final transactionId =
+          original['id'] as int?;
+
+      if (transactionId == null) {
+        return;
+      }
 
       await _db.deleteTransaction(transactionId);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('লোন মুছে ফেলা হয়েছে'),
+          content: Text(
+            'লোন মুছে ফেলা হয়েছে',
+          ),
         ),
       );
 
       await _loadLoans();
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
+            e.toString().replaceFirst(
+              'Exception: ',
+              '',
+            ),
           ),
         ),
       );
@@ -724,7 +809,9 @@ class _LoanScreenState extends State<LoanScreen> {
   ) async {
     final loanId = loan['id'] as int?;
 
-    if (loanId == null) return;
+    if (loanId == null) {
+      return;
+    }
 
     final result = await showModalBottomSheet<bool>(
       context: context,
@@ -751,7 +838,9 @@ class _LoanScreenState extends State<LoanScreen> {
       ),
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     await _loadLoans();
   }
@@ -762,7 +851,8 @@ class _LoanScreenState extends State<LoanScreen> {
     required IconData icon,
     required bool positive,
   }) {
-    final color = positive ? Colors.green : Colors.red;
+    final color =
+        positive ? Colors.green : Colors.red;
 
     return Expanded(
       child: Container(
@@ -775,7 +865,8 @@ class _LoanScreenState extends State<LoanScreen> {
           ),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -833,7 +924,8 @@ class _LoanScreenState extends State<LoanScreen> {
     final remaining =
         _toDouble(loan['remaining']);
 
-    final isReceivable = type == 'receivable';
+    final isReceivable =
+        type == 'receivable';
 
     final color =
         isReceivable ? Colors.green : Colors.red;
@@ -915,7 +1007,9 @@ class _LoanScreenState extends State<LoanScreen> {
                           value: 'edit',
                           child: Row(
                             children: [
-                              Icon(Icons.edit_outlined),
+                              Icon(
+                                Icons.edit_outlined,
+                              ),
                               SizedBox(width: 10),
                               Text('এডিট'),
                             ],
@@ -925,7 +1019,9 @@ class _LoanScreenState extends State<LoanScreen> {
                           value: 'delete',
                           child: Row(
                             children: [
-                              Icon(Icons.delete_outline),
+                              Icon(
+                                Icons.delete_outline,
+                              ),
                               SizedBox(width: 10),
                               Text('মুছে ফেলুন'),
                             ],
@@ -953,15 +1049,19 @@ class _LoanScreenState extends State<LoanScreen> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
+                    padding:
+                        const EdgeInsets.symmetric(
                       horizontal: 9,
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
                       color: remaining <= 0
-                          ? Colors.green.withValues(alpha: 0.10)
-                          : Colors.orange.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(10),
+                          ? Colors.green
+                              .withValues(alpha: 0.10)
+                          : Colors.orange
+                              .withValues(alpha: 0.10),
+                      borderRadius:
+                          BorderRadius.circular(10),
                     ),
                     child: Text(
                       status,
@@ -1022,7 +1122,8 @@ class _LoanScreenState extends State<LoanScreen> {
     Color? color,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Text(
           title,
@@ -1049,14 +1150,20 @@ class _LoanScreenState extends State<LoanScreen> {
   ) async {
     final loanId = loan['id'] as int?;
 
-    if (loanId == null) return;
+    if (loanId == null) {
+      return;
+    }
 
     final transactions =
         await _db.getLoanTransactions(loanId);
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
-    if (transactions.isEmpty) return;
+    if (transactions.isEmpty) {
+      return;
+    }
 
     Map<String, dynamic>? original;
 
@@ -1071,12 +1178,16 @@ class _LoanScreenState extends State<LoanScreen> {
       }
     }
 
-    if (original == null) return;
+    if (original == null) {
+      return;
+    }
 
     final transactionId =
         original['id'] as int?;
 
-    if (transactionId == null) return;
+    if (transactionId == null) {
+      return;
+    }
 
     await Navigator.push(
       context,
@@ -1087,7 +1198,9 @@ class _LoanScreenState extends State<LoanScreen> {
       ),
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     await _loadLoans();
   }
@@ -1136,7 +1249,8 @@ class _LoanScreenState extends State<LoanScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton:
+          FloatingActionButton.extended(
         onPressed: _openAddTransaction,
         icon: const Icon(Icons.add),
         label: const Text('নতুন লেনদেন'),
@@ -1144,7 +1258,8 @@ class _LoanScreenState extends State<LoanScreen> {
       body: RefreshIndicator(
         onRefresh: _loadLoans,
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics:
+              const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
@@ -1159,21 +1274,22 @@ class _LoanScreenState extends State<LoanScreen> {
                     _buildSummaryCard(
                       title: 'আমার পাওনা',
                       amount: totalReceivable,
-                      icon: Icons.arrow_downward_rounded,
+                      icon:
+                          Icons.arrow_downward_rounded,
                       positive: true,
                     ),
                     const SizedBox(width: 10),
                     _buildSummaryCard(
                       title: 'আমার দেনা',
                       amount: totalPayable,
-                      icon: Icons.arrow_upward_rounded,
+                      icon:
+                          Icons.arrow_upward_rounded,
                       positive: false,
                     ),
                   ],
                 ),
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -1185,7 +1301,8 @@ class _LoanScreenState extends State<LoanScreen> {
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'নাম বা নোট দিয়ে খুঁজুন',
+                    hintText:
+                        'নাম বা নোট দিয়ে খুঁজুন',
                     prefixIcon:
                         const Icon(Icons.search),
                     suffixIcon:
@@ -1193,10 +1310,12 @@ class _LoanScreenState extends State<LoanScreen> {
                             ? null
                             : IconButton(
                                 onPressed: () {
-                                  _searchController.clear();
+                                  _searchController
+                                      .clear();
                                 },
-                                icon:
-                                    const Icon(Icons.clear),
+                                icon: const Icon(
+                                  Icons.clear,
+                                ),
                               ),
                     filled: true,
                     border: OutlineInputBorder(
@@ -1208,7 +1327,6 @@ class _LoanScreenState extends State<LoanScreen> {
                 ),
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -1258,7 +1376,8 @@ class _LoanScreenState extends State<LoanScreen> {
                           size: 18,
                         ),
                         label: const Text('ফিল্টার'),
-                        style: OutlinedButton.styleFrom(
+                        style:
+                            OutlinedButton.styleFrom(
                           padding:
                               const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -1275,12 +1394,12 @@ class _LoanScreenState extends State<LoanScreen> {
                 ),
               ),
             ),
-
             if (_loading)
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
-                  child: CircularProgressIndicator(),
+                  child:
+                      CircularProgressIndicator(),
                 ),
               )
             else if (_loans.isEmpty)
@@ -1297,7 +1416,8 @@ class _LoanScreenState extends State<LoanScreen> {
                   100,
                 ),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
+                  delegate:
+                      SliverChildBuilderDelegate(
                     (context, index) {
                       return _buildLoanCard(
                         _loans[index],
@@ -1375,22 +1495,25 @@ class _LoanScreenState extends State<LoanScreen> {
 class _LoanDetailsSheet extends StatelessWidget {
   final Map<String, dynamic> loan;
   final List<Map<String, dynamic>> transactions;
-  final Future<void> Function() onRefresh;
-  final Future<void> Function(int transactionId) onEdit;
-  final Future<void> Function(int transactionId) onDelete;
+  final Future<void> Function(int transactionId)
+      onEdit;
+  final Future<void> Function(int transactionId)
+      onDelete;
   final Future<void> Function() onRepayment;
 
   const _LoanDetailsSheet({
     required this.loan,
     required this.transactions,
-    required this.onRefresh,
     required this.onEdit,
     required this.onDelete,
     required this.onRepayment,
   });
 
   double _toDouble(dynamic value) {
-    if (value is num) return value.toDouble();
+    if (value is num) {
+      return value.toDouble();
+    }
+
     return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
@@ -1399,9 +1522,13 @@ class _LoanDetailsSheet extends StatelessWidget {
   }
 
   DateTime? _parseDate(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
 
-    if (value is DateTime) return value;
+    if (value is DateTime) {
+      return value;
+    }
 
     return DateTime.tryParse(value.toString());
   }
@@ -1409,7 +1536,9 @@ class _LoanDetailsSheet extends StatelessWidget {
   String _date(dynamic value) {
     final date = _parseDate(value);
 
-    if (date == null) return '';
+    if (date == null) {
+      return '';
+    }
 
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/'
@@ -1471,7 +1600,8 @@ class _LoanDetailsSheet extends StatelessWidget {
         receivable ? Colors.green : Colors.red;
 
     return Material(
-      color: Theme.of(context).scaffoldBackgroundColor,
+      color: Theme.of(context)
+          .scaffoldBackgroundColor,
       child: Column(
         children: [
           Padding(
@@ -1589,12 +1719,9 @@ class _LoanDetailsSheet extends StatelessWidget {
                     separatorBuilder: (_, __) =>
                         const SizedBox(height: 8),
                     itemBuilder: (context, index) {
-                      final transaction =
-                          transactions[index];
-
                       return _transactionTile(
                         context,
-                        transaction,
+                        transactions[index],
                       );
                     },
                   ),
@@ -1688,9 +1815,12 @@ class _LoanDetailsSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  _date(transaction['transaction_date'] ??
-                      transaction['date'] ??
-                      transaction['created_at']),
+                  _date(
+                    transaction[
+                        'transaction_date'] ??
+                        transaction['date'] ??
+                        transaction['created_at'],
+                  ),
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.grey.shade600,
@@ -1704,7 +1834,8 @@ class _LoanDetailsSheet extends StatelessWidget {
                   Text(
                     transaction['note'].toString(),
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    overflow:
+                        TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade600,
@@ -1790,7 +1921,9 @@ class _LoanDetailsSheet extends StatelessWidget {
       },
     );
 
-    if (result != true) return;
+    if (result != true) {
+      return;
+    }
 
     await onDelete(id);
   }
@@ -1827,7 +1960,10 @@ class _RepaymentSheetState
   bool _saving = false;
 
   double _toDouble(dynamic value) {
-    if (value is num) return value.toDouble();
+    if (value is num) {
+      return value.toDouble();
+    }
+
     return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
@@ -1857,7 +1993,9 @@ class _RepaymentSheetState
     final accounts =
         await widget.db.getAccounts();
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
       _accounts = accounts;
@@ -1877,7 +2015,9 @@ class _RepaymentSheetState
       lastDate: DateTime(2100),
     );
 
-    if (picked == null) return;
+    if (picked == null) {
+      return;
+    }
 
     setState(() {
       _date = picked;
@@ -1885,7 +2025,9 @@ class _RepaymentSheetState
   }
 
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving) {
+      return;
+    }
 
     final amount =
         double.tryParse(
@@ -1929,7 +2071,9 @@ class _RepaymentSheetState
     final loanId =
         widget.loan['id'] as int?;
 
-    if (loanId == null) return;
+    if (loanId == null) {
+      return;
+    }
 
     setState(() {
       _saving = true;
@@ -1946,11 +2090,15 @@ class _RepaymentSheetState
         transactionDate: _date,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       Navigator.pop(context, true);
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _saving = false;
@@ -1981,7 +2129,10 @@ class _RepaymentSheetState
           20,
           8,
           20,
-          20 + MediaQuery.of(context).viewInsets.bottom,
+          20 +
+              MediaQuery.of(context)
+                  .viewInsets
+                  .bottom,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -2018,13 +2169,15 @@ class _RepaymentSheetState
                 child: Row(
                   children: [
                     const Icon(
-                      Icons.account_balance_wallet_outlined,
+                      Icons
+                          .account_balance_wallet_outlined,
                       color: AppTheme.gold,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'বর্তমান বাকি: ৳ ${_remaining.toStringAsFixed(2)}',
+                        'বর্তমান বাকি: '
+                        '৳ ${_remaining.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
@@ -2040,7 +2193,8 @@ class _RepaymentSheetState
                     const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                decoration: const InputDecoration(
+                decoration:
+                    const InputDecoration(
                   labelText: 'পরিমাণ',
                   prefixText: '৳ ',
                   border: OutlineInputBorder(),
@@ -2048,14 +2202,16 @@ class _RepaymentSheetState
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
-                value: _selectedAccountId,
-                decoration: const InputDecoration(
+                initialValue: _selectedAccountId,
+                decoration:
+                    const InputDecoration(
                   labelText: 'অ্যাকাউন্ট',
                   border: OutlineInputBorder(),
                 ),
                 items: _accounts.map((account) {
                   final id =
                       account['id'] as int?;
+
                   final name =
                       (account['name'] ?? '')
                           .toString();
@@ -2075,7 +2231,8 @@ class _RepaymentSheetState
               TextField(
                 controller: _noteController,
                 maxLines: 2,
-                decoration: const InputDecoration(
+                decoration:
+                    const InputDecoration(
                   labelText: 'নোট',
                   border: OutlineInputBorder(),
                 ),
