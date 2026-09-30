@@ -438,11 +438,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             : 'Select dates';
       }
 
-      if (!_settings.isBangla) {
-        return '${_formatDate(_startDate!)} - '
-            '${_formatDate(_endDate!)}';
-      }
-
       return '${_formatDate(_startDate!)} - '
           '${_formatDate(_endDate!)}';
     }
@@ -494,20 +489,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Future<void> _selectCustomDateRange() async {
     final now = DateTime.now();
 
-    final initialStart = _startDate ?? DateTime(
-      now.year,
-      now.month,
-      1,
-    );
+    final initialStart = _startDate ??
+        DateTime(
+          now.year,
+          now.month,
+          1,
+        );
 
-    final initialEnd = _endDate ?? DateTime(
-      now.year,
-      now.month,
-      now.day,
-      23,
-      59,
-      59,
-    );
+    final initialEnd = _endDate ??
+        DateTime(
+          now.year,
+          now.month,
+          now.day,
+          23,
+          59,
+          59,
+        );
 
     final firstDate = DateTime(
       2000,
@@ -521,13 +518,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       now.day,
     );
 
+    final clampedStart = initialStart.isAfter(lastDate)
+        ? lastDate
+        : initialStart.isBefore(firstDate)
+            ? firstDate
+            : initialStart;
+
+    final clampedEnd = initialEnd.isAfter(lastDate)
+        ? lastDate
+        : initialEnd.isBefore(firstDate)
+            ? firstDate
+            : initialEnd;
+
     final initialRange = DateTimeRange(
-      start: initialStart.isAfter(lastDate)
-          ? lastDate
-          : initialStart,
-      end: initialEnd.isAfter(lastDate)
-          ? lastDate
-          : initialEnd,
+      start: clampedStart,
+      end: clampedEnd,
     );
 
     final safeRange = initialRange.start.isAfter(
@@ -556,12 +561,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       saveText: _settings.isBangla
           ? 'সম্পন্ন'
           : 'Done',
-      fieldStartLabel: _settings.isBangla
-          ? 'শুরুর তারিখ'
-          : 'Start date',
-      fieldEndLabel: _settings.isBangla
-          ? 'শেষের তারিখ'
-          : 'End date',
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -601,7 +600,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       );
     });
 
-    _loadStatistics();
+    await _loadStatistics();
   }
 
   Color _categoryColor(
