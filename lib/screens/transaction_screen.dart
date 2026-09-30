@@ -9,14 +9,22 @@ class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
 
   @override
-  State<TransactionsScreen> createState() => _TransactionsScreenState();
+  State<TransactionsScreen> createState() =>
+      _TransactionsScreenState();
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
   List<Map<String, dynamic>> _transactions = [];
 
   bool _loading = true;
-  String _filter = 'all';
+
+  String _typeFilter = 'all';
+
+  String _dateFilter = 'all';
+
+  DateTime? _selectedDate;
+  DateTime? _selectedMonth;
+
   String _searchText = '';
 
   final TextEditingController _searchController =
@@ -56,8 +64,43 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         );
       } else {
         data = await MoneyDb.instance.getTransactions(
-          type: _filter == 'all' ? null : _filter,
+          type: _typeFilter == 'all' ? null : _typeFilter,
         );
+      }
+
+      // --------------------------------------------------------
+      // DATE / MONTH FILTER
+      // --------------------------------------------------------
+
+      if (_dateFilter == 'date' && _selectedDate != null) {
+        final selected = _selectedDate!;
+
+        data = data.where((item) {
+          final date = _parseDate(
+            item['transaction_date']?.toString(),
+          );
+
+          if (date == null) return false;
+
+          return date.year == selected.year &&
+              date.month == selected.month &&
+              date.day == selected.day;
+        }).toList();
+      }
+
+      if (_dateFilter == 'month' && _selectedMonth != null) {
+        final selected = _selectedMonth!;
+
+        data = data.where((item) {
+          final date = _parseDate(
+            item['transaction_date']?.toString(),
+          );
+
+          if (date == null) return false;
+
+          return date.year == selected.year &&
+              date.month == selected.month;
+        }).toList();
       }
 
       if (!mounted) return;
@@ -378,7 +421,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   // ------------------------------------------------------------
-  // TYPE HELPERS
+  // LOAN
   // ------------------------------------------------------------
 
   bool _isLoanType(String type) {
@@ -411,11 +454,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             : 'Loan Paid';
 
       default:
-        return settings.isBangla
-            ? 'ধার'
-            : 'Loan';
+        return settings.isBangla ? 'ধার' : 'Loan';
     }
   }
+
+  // ------------------------------------------------------------
+  // TYPE HELPERS
+  // ------------------------------------------------------------
 
   Color _amountColor(String type) {
     switch (type) {
@@ -634,101 +679,672 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   // ------------------------------------------------------------
-  // FILTER
+  // FILTER LABEL
   // ------------------------------------------------------------
 
-  Widget _buildFilter() {
-    return SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _filterButton(
-            value: 'all',
-            label: settings.t('transactions'),
-          ),
-          const SizedBox(width: 8),
+  String _filterLabel() {
+    if (_dateFilter == 'date' && _selectedDate != null) {
+      final date = _selectedDate!;
 
-          _filterButton(
-            value: 'income',
-            label: settings.t('income'),
-          ),
-          const SizedBox(width: 8),
+      if (settings.isBangla) {
+        return '${date.day}/${date.month}/${date.year}';
+      }
 
-          _filterButton(
-            value: 'expense',
-            label: settings.t('expense'),
-          ),
-          const SizedBox(width: 8),
+      return '${date.month}/${date.day}/${date.year}';
+    }
 
-          _filterButton(
-            value: 'transfer',
-            label: settings.t('transfer'),
-          ),
-          const SizedBox(width: 8),
+    if (_dateFilter == 'month' && _selectedMonth != null) {
+      return _monthName(
+        _selectedMonth!.month,
+        _selectedMonth!.year,
+      );
+    }
 
-          _filterButton(
-            value: 'loan_given',
-            label: settings.isBangla
-                ? 'ধার দিয়েছি'
-                : 'Given',
-          ),
-          const SizedBox(width: 8),
+    if (_typeFilter != 'all') {
+      switch (_typeFilter) {
+        case 'income':
+          return settings.t('income');
 
-          _filterButton(
-            value: 'loan_taken',
-            label: settings.isBangla
-                ? 'ধার নিয়েছি'
-                : 'Taken',
-          ),
-          const SizedBox(width: 8),
+        case 'expense':
+          return settings.t('expense');
 
-          _filterButton(
-            value: 'loan_received',
-            label: settings.isBangla
-                ? 'ফেরত পেয়েছি'
-                : 'Received',
-          ),
-          const SizedBox(width: 8),
+        case 'transfer':
+          return settings.t('transfer');
 
-          _filterButton(
-            value: 'loan_paid',
-            label: settings.isBangla
-                ? 'ধার শোধ'
-                : 'Paid',
-          ),
-        ],
+        case 'loan_given':
+          return settings.isBangla
+              ? 'ধার দিয়েছি'
+              : 'Given';
+
+        case 'loan_taken':
+          return settings.isBangla
+              ? 'ধার নিয়েছি'
+              : 'Taken';
+
+        case 'loan_received':
+          return settings.isBangla
+              ? 'ফেরত পেয়েছি'
+              : 'Received';
+
+        case 'loan_paid':
+          return settings.isBangla
+              ? 'ধার শোধ'
+              : 'Paid';
+      }
+    }
+
+    return settings.isBangla ? 'সব' : 'All';
+  }
+
+  // ------------------------------------------------------------
+  // MONTH NAME
+  // ------------------------------------------------------------
+
+  String _monthName(int month, int year) {
+    const bnMonths = [
+      'জানুয়ারি',
+      'ফেব্রুয়ারি',
+      'মার্চ',
+      'এপ্রিল',
+      'মে',
+      'জুন',
+      'জুলাই',
+      'আগস্ট',
+      'সেপ্টেম্বর',
+      'অক্টোবর',
+      'নভেম্বর',
+      'ডিসেম্বর',
+    ];
+
+    const enMonths = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    if (month < 1 || month > 12) {
+      return year.toString();
+    }
+
+    final name = settings.isBangla
+        ? bnMonths[month - 1]
+        : enMonths[month - 1];
+
+    return '$name $year';
+  }
+
+  // ------------------------------------------------------------
+  // CLEAR FILTER
+  // ------------------------------------------------------------
+
+  Future<void> _clearFilter() async {
+    setState(() {
+      _typeFilter = 'all';
+      _dateFilter = 'all';
+      _selectedDate = null;
+      _selectedMonth = null;
+    });
+
+    await _loadTransactions();
+  }
+
+  // ------------------------------------------------------------
+  // DATE PICKER
+  // ------------------------------------------------------------
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? now,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(
+        now.year + 2,
+        12,
+        31,
       ),
+      helpText: settings.isBangla
+          ? 'তারিখ নির্বাচন করুন'
+          : 'Select date',
+      cancelText: settings.t('cancel'),
+      confirmText: settings.isBangla
+          ? 'নির্বাচন'
+          : 'Select',
+    );
+
+    if (picked == null) return;
+
+    setState(() {
+      _dateFilter = 'date';
+      _selectedDate = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+      );
+
+      _selectedMonth = null;
+    });
+
+    await _loadTransactions();
+  }
+
+  // ------------------------------------------------------------
+  // MONTH PICKER
+  // ------------------------------------------------------------
+
+  Future<void> _pickMonth() async {
+    final now = DateTime.now();
+
+    int selectedMonth =
+        _selectedMonth?.month ?? now.month;
+
+    int selectedYear =
+        _selectedMonth?.year ?? now.year;
+
+    final years = List<int>.generate(
+      31,
+      (index) => now.year - 15 + index,
+    );
+
+    final result =
+        await showModalBottomSheet<Map<String, int>>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  20,
+                  8,
+                  20,
+                  24,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      settings.isBangla
+                          ? 'মাস নির্বাচন করুন'
+                          : 'Select month',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            initialValue: selectedMonth,
+                            decoration: InputDecoration(
+                              labelText: settings.isBangla
+                                  ? 'মাস'
+                                  : 'Month',
+                              prefixIcon: const Icon(
+                                Icons.calendar_month_rounded,
+                              ),
+                            ),
+                            items: List.generate(
+                              12,
+                              (index) {
+                                final month = index + 1;
+
+                                return DropdownMenuItem<int>(
+                                  value: month,
+                                  child: Text(
+                                    _monthName(
+                                      month,
+                                      selectedYear,
+                                    ).split(' ').first,
+                                  ),
+                                );
+                              },
+                            ),
+                            onChanged: (value) {
+                              if (value == null) return;
+
+                              setSheetState(() {
+                                selectedMonth = value;
+                              });
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(width: 12),
+
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            initialValue: selectedYear,
+                            decoration: InputDecoration(
+                              labelText: settings.isBangla
+                                  ? 'বছর'
+                                  : 'Year',
+                              prefixIcon: const Icon(
+                                Icons.date_range_rounded,
+                              ),
+                            ),
+                            items: years.map((year) {
+                              return DropdownMenuItem<int>(
+                                value: year,
+                                child: Text(year.toString()),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+
+                              setSheetState(() {
+                                selectedYear = value;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(
+                            sheetContext,
+                            {
+                              'month': selectedMonth,
+                              'year': selectedYear,
+                            },
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.check_rounded,
+                        ),
+                        label: Text(
+                          settings.isBangla
+                              ? 'নির্বাচন করুন'
+                              : 'Select',
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.green,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (result == null) return;
+
+    setState(() {
+      _dateFilter = 'month';
+
+      _selectedMonth = DateTime(
+        result['year']!,
+        result['month']!,
+        1,
+      );
+
+      _selectedDate = null;
+    });
+
+    await _loadTransactions();
+  }
+
+  // ------------------------------------------------------------
+  // FILTER MENU
+  // ------------------------------------------------------------
+
+  Future<void> _showFilterMenu() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              4,
+              16,
+              24,
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    4,
+                    4,
+                    4,
+                    10,
+                  ),
+                  child: Text(
+                    settings.isBangla
+                        ? 'লেনদেন ফিল্টার'
+                        : 'Transaction filter',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+
+                // ALL
+                ListTile(
+                  leading: const Icon(
+                    Icons.receipt_long_rounded,
+                    color: AppTheme.gold,
+                  ),
+                  title: Text(
+                    settings.isBangla
+                        ? 'সব লেনদেন'
+                        : 'All transactions',
+                  ),
+                  trailing: _dateFilter == 'all' &&
+                          _typeFilter == 'all'
+                      ? const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppTheme.green,
+                        )
+                      : null,
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _clearFilter();
+                  },
+                ),
+
+                const Divider(),
+
+                // DATE
+                ListTile(
+                  leading: const Icon(
+                    Icons.today_rounded,
+                    color: AppTheme.green,
+                  ),
+                  title: Text(
+                    settings.isBangla
+                        ? 'নির্দিষ্ট তারিখ'
+                        : 'Specific date',
+                  ),
+                  subtitle:
+                      _dateFilter == 'date' &&
+                              _selectedDate != null
+                          ? Text(
+                              _filterLabel(),
+                            )
+                          : null,
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                  ),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _pickDate();
+                  },
+                ),
+
+                // MONTH
+                ListTile(
+                  leading: const Icon(
+                    Icons.calendar_month_rounded,
+                    color: AppTheme.green,
+                  ),
+                  title: Text(
+                    settings.isBangla
+                        ? 'নির্দিষ্ট মাস'
+                        : 'Specific month',
+                  ),
+                  subtitle:
+                      _dateFilter == 'month' &&
+                              _selectedMonth != null
+                          ? Text(
+                              _filterLabel(),
+                            )
+                          : null,
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                  ),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _pickMonth();
+                  },
+                ),
+
+                const Divider(),
+
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    4,
+                    8,
+                    4,
+                    4,
+                  ),
+                  child: Text(
+                    settings.isBangla
+                        ? 'লেনদেনের ধরন'
+                        : 'Transaction type',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.color,
+                    ),
+                  ),
+                ),
+
+                _typeFilterTile(
+                  sheetContext,
+                  value: 'income',
+                  icon: Icons.arrow_downward_rounded,
+                  color: Colors.green.shade600,
+                  title: settings.t('income'),
+                ),
+
+                _typeFilterTile(
+                  sheetContext,
+                  value: 'expense',
+                  icon: Icons.arrow_upward_rounded,
+                  color: Colors.red.shade600,
+                  title: settings.t('expense'),
+                ),
+
+                _typeFilterTile(
+                  sheetContext,
+                  value: 'transfer',
+                  icon: Icons.swap_horiz_rounded,
+                  color: AppTheme.gold,
+                  title: settings.t('transfer'),
+                ),
+
+                _typeFilterTile(
+                  sheetContext,
+                  value: 'loan_given',
+                  icon: Icons.call_made_rounded,
+                  color: Colors.orange.shade700,
+                  title: settings.isBangla
+                      ? 'ধার দিয়েছি'
+                      : 'Loan given',
+                ),
+
+                _typeFilterTile(
+                  sheetContext,
+                  value: 'loan_taken',
+                  icon: Icons.call_received_rounded,
+                  color: Colors.blue.shade600,
+                  title: settings.isBangla
+                      ? 'ধার নিয়েছি'
+                      : 'Loan taken',
+                ),
+
+                _typeFilterTile(
+                  sheetContext,
+                  value: 'loan_received',
+                  icon: Icons.assignment_return_rounded,
+                  color: Colors.green.shade700,
+                  title: settings.isBangla
+                      ? 'ধার ফেরত পেয়েছি'
+                      : 'Loan received',
+                ),
+
+                _typeFilterTile(
+                  sheetContext,
+                  value: 'loan_paid',
+                  icon: Icons.payments_outlined,
+                  color: Colors.red.shade700,
+                  title: settings.isBangla
+                      ? 'ধার শোধ করেছি'
+                      : 'Loan paid',
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _filterButton({
+  Widget _typeFilterTile(
+    BuildContext sheetContext, {
     required String value,
-    required String label,
+    required IconData icon,
+    required Color color,
+    required String title,
   }) {
-    final selected = _filter == value;
+    final selected = _typeFilter == value;
 
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) async {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: color,
+      ),
+      title: Text(title),
+      trailing: selected
+          ? const Icon(
+              Icons.check_circle_rounded,
+              color: AppTheme.green,
+            )
+          : null,
+      onTap: () async {
+        Navigator.pop(sheetContext);
+
         setState(() {
-          _filter = value;
+          _typeFilter = value;
+          _dateFilter = 'all';
+          _selectedDate = null;
+          _selectedMonth = null;
         });
 
         await _loadTransactions();
       },
-      selectedColor: AppTheme.green,
-      labelStyle: TextStyle(
-        color: selected
-            ? Colors.white
-            : Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.color,
-        fontWeight:
-            selected ? FontWeight.bold : FontWeight.normal,
-      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // FILTER BAR
+  // ------------------------------------------------------------
+
+  Widget _buildCompactFilterBar() {
+    final hasFilter =
+        _dateFilter != 'all' ||
+        _typeFilter != 'all';
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            hasFilter
+                ? _filterLabel()
+                : (settings.isBangla
+                    ? 'সব লেনদেন'
+                    : 'All transactions'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: hasFilter
+                  ? AppTheme.green
+                  : Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.color,
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 8),
+
+        InkWell(
+          onTap: _showFilterMenu,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+            ),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: hasFilter
+                    ? AppTheme.green
+                    : Theme.of(context)
+                        .dividerColor,
+              ),
+              borderRadius:
+                  BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.filter_list_rounded,
+                  size: 18,
+                  color: hasFilter
+                      ? AppTheme.green
+                      : Theme.of(context)
+                          .iconTheme
+                          .color,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  settings.isBangla
+                      ? 'ফিল্টার'
+                      : 'Filter',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: hasFilter
+                        ? AppTheme.green
+                        : Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -865,7 +1481,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           padding: const EdgeInsets.all(13),
           child: Row(
             children: [
-              // ICON
               Container(
                 width: 48,
                 height: 48,
@@ -884,7 +1499,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
               const SizedBox(width: 12),
 
-              // TITLE + SUBTITLE
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -954,7 +1568,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
               const SizedBox(width: 8),
 
-              // AMOUNT + MENU
               Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.end,
@@ -1036,7 +1649,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   Widget _buildEmptyState() {
     final isFiltered =
-        _filter != 'all' ||
+        _dateFilter != 'all' ||
+        _typeFilter != 'all' ||
         _searchText.trim().isNotEmpty;
 
     return Center(
@@ -1236,9 +1850,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             padding:
                 const EdgeInsets.fromLTRB(
               16,
-              12,
+              10,
               16,
-              8,
+              5,
             ),
             child: _buildSearchField(),
           ),
@@ -1247,11 +1861,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             padding:
                 const EdgeInsets.fromLTRB(
               16,
-              4,
+              2,
               16,
-              10,
+              6,
             ),
-            child: _buildFilter(),
+            child: _buildCompactFilterBar(),
           ),
 
           Expanded(
