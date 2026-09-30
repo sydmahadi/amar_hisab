@@ -31,6 +31,24 @@ jobs:
           channel: stable
           cache: true
 
+      # ---------------------------------------------------------
+      # App name + launcher icon configuration
+      # ---------------------------------------------------------
+      - name: Add launcher icon package
+        run: |
+          dart pub add --dev flutter_launcher_icons:^0.14.4
+
+      - name: Create launcher icon configuration
+        run: |
+          cat > flutter_launcher_icons.yaml <<'EOF'
+          flutter_launcher_icons:
+            android: true
+            ios: false
+            image_path: "icon.png"
+            adaptive_icon_background: "#0F5132"
+            adaptive_icon_foreground: "icon.png"
+          EOF
+
       - name: Install Flutter dependencies
         run: flutter pub get
 
@@ -39,6 +57,64 @@ jobs:
           rm -rf android
           flutter create --platforms=android --org com.sydmahadi .
 
+      # ---------------------------------------------------------
+      # Set app name: আমার হিসাব
+      # ---------------------------------------------------------
+      - name: Set Android app name
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+
+          if not manifest.exists():
+              raise SystemExit(
+                  "ERROR: AndroidManifest.xml not found."
+              )
+
+          content = manifest.read_text()
+
+          updated, count = re.subn(
+              r'android:label="[^"]*"',
+              'android:label="আমার হিসাব"',
+              content,
+              count=1
+          )
+
+          if count == 0:
+              raise SystemExit(
+                  "ERROR: android:label not found."
+              )
+
+          manifest.write_text(updated)
+
+          print("App name set to: আমার হিসাব")
+          print("Manifest:", manifest)
+          PY
+
+      # ---------------------------------------------------------
+      # Generate launcher icon from Root/icon.png
+      # ---------------------------------------------------------
+      - name: Verify icon.png
+        run: |
+          if [ ! -f "icon.png" ]; then
+            echo "ERROR: icon.png was not found in project root."
+            echo "Expected location:"
+            echo "$(pwd)/icon.png"
+            exit 1
+          fi
+
+          echo "icon.png found:"
+          ls -lh icon.png
+
+      - name: Generate launcher icon
+        run: |
+          dart run flutter_launcher_icons -f flutter_launcher_icons.yaml
+
+      # ---------------------------------------------------------
+      # Configure Android compileSdk 36
+      # ---------------------------------------------------------
       - name: Configure Android compileSdk 36
         run: |
           python3 - <<'PY'
@@ -115,6 +191,9 @@ jobs:
                   print(line)
           PY
 
+      # ---------------------------------------------------------
+      # Patch gallery_saver_plus Android compileSdk
+      # ---------------------------------------------------------
       - name: Patch gallery_saver_plus Android compileSdk
         run: |
           python3 - <<'PY'
@@ -226,6 +305,9 @@ jobs:
                       print(line)
           PY
 
+      # ---------------------------------------------------------
+      # Enable AndroidX
+      # ---------------------------------------------------------
       - name: Enable AndroidX
         run: |
           touch android/gradle.properties
@@ -238,8 +320,18 @@ jobs:
             echo 'android.enableJetifier=true' >> android/gradle.properties
           fi
 
+      # ---------------------------------------------------------
+      # Verify configuration
+      # ---------------------------------------------------------
       - name: Verify Android configuration
         run: |
+          echo "========================================"
+          echo "APP NAME"
+          echo "========================================"
+
+          grep -n "android:label" \
+            android/app/src/main/AndroidManifest.xml || true
+
           echo "========================================"
           echo "APP GRADLE"
           echo "========================================"
@@ -260,12 +352,21 @@ jobs:
 
           cat android/gradle.properties
 
+      # ---------------------------------------------------------
+      # Analyze
+      # ---------------------------------------------------------
       - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
 
+      # ---------------------------------------------------------
+      # Build APK
+      # ---------------------------------------------------------
       - name: Build release APK
         run: flutter build apk --release
 
+      # ---------------------------------------------------------
+      # Upload APK
+      # ---------------------------------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
