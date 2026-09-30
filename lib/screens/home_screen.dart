@@ -8,6 +8,7 @@ import 'about_screen.dart';
 import 'accounts_screen.dart';
 import 'add_transaction_screen.dart';
 import 'categories_screen.dart';
+import 'loan_screen.dart';
 import 'report_screen.dart';
 import 'statistics_screen.dart';
 import 'transaction_screen.dart';
@@ -32,6 +33,10 @@ class _HomeScreenState extends State<HomeScreen> {
   double _expense = 0;
   double _difference = 0;
   double _accountBalance = 0;
+
+  // Loan
+  double _receivable = 0;
+  double _payable = 0;
 
   List<Map<String, dynamic>> _accounts = [];
   List<Map<String, dynamic>> _transactions = [];
@@ -60,18 +65,15 @@ class _HomeScreenState extends State<HomeScreen> {
   // ------------------------------------------------------------
   // Dashboard data
   // ------------------------------------------------------------
-  //
-  // এখানে Income এবং Expense পুরো হিসাবের সব transaction থেকে
-  // নেওয়া হচ্ছে।
-  //
-  // Loan নেওয়া / Loan দেওয়া / Loan পরিশোধ / Transfer
-  // এখানে Income বা Expense হিসেবে ধরা হচ্ছে না।
-  //
+
   Future<void> _loadDashboard() async {
     try {
       final accounts = await _db.getAccounts();
       final transactions = await _db.getTransactions();
       final totalBalance = await _db.getTotalBalance();
+
+      // Current loan balances
+      final loanTotals = await _db.getLoanTotals();
 
       double totalIncome = 0;
       double totalExpense = 0;
@@ -91,6 +93,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final difference = totalIncome - totalExpense;
 
+      final receivable =
+          _toDouble(loanTotals['receivable']);
+
+      final payable =
+          _toDouble(loanTotals['payable']);
+
       if (!mounted) return;
 
       setState(() {
@@ -98,6 +106,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _expense = totalExpense;
         _difference = difference;
         _accountBalance = _toDouble(totalBalance);
+
+        _receivable = receivable;
+        _payable = payable;
 
         _accounts = accounts;
         _transactions = transactions.take(8).toList();
@@ -165,12 +176,61 @@ class _HomeScreenState extends State<HomeScreen> {
       return _settings.t('expense');
     }
 
+    if (type == 'loan_given') {
+      return _settings.isBangla
+          ? 'ধার দিয়েছি'
+          : 'Loan given';
+    }
+
+    if (type == 'loan_taken') {
+      return _settings.isBangla
+          ? 'ধার নিয়েছি'
+          : 'Loan taken';
+    }
+
+    if (type == 'loan_received') {
+      return _settings.isBangla
+          ? 'ধার ফেরত পেয়েছি'
+          : 'Loan received';
+    }
+
+    if (type == 'loan_paid') {
+      return _settings.isBangla
+          ? 'ধার শোধ করেছি'
+          : 'Loan paid';
+    }
+
     return _settings.t('transactions');
   }
 
   String _transactionSubtitle(
     Map<String, dynamic> item,
   ) {
+    final type = _type(item);
+
+    if (type == 'loan_given' ||
+        type == 'loan_taken' ||
+        type == 'loan_received' ||
+        type == 'loan_paid') {
+      final person =
+          (item['loan_person_name'] ?? '').toString();
+
+      final note =
+          (item['note'] ?? '').toString();
+
+      if (person.isNotEmpty && note.isNotEmpty) {
+        return '$person • $note';
+      }
+
+      if (person.isNotEmpty) {
+        return person;
+      }
+
+      if (note.isNotEmpty) {
+        return note;
+      }
+    }
+
     final note = (item['note'] ?? '').toString();
 
     if (note.isNotEmpty) {
@@ -694,21 +754,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-
       backgroundColor:
           theme.scaffoldBackgroundColor,
-
-      // IMPORTANT:
-      // এখানে _buildDrawer() হবে।
-      // _buildDrawer দিলে Drawer Function() হয়ে যায়।
       drawer: _buildDrawer(),
-
       floatingActionButton:
           _buildFloatingAddButton(),
-
       floatingActionButtonLocation:
           FloatingActionButtonLocation.endFloat,
-
       body: Stack(
         children: [
           Positioned.fill(
@@ -736,6 +788,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         SliverToBoxAdapter(
                           child:
                               _buildBalanceCard(),
+                        ),
+                        SliverToBoxAdapter(
+                          child:
+                              _buildLoanSection(),
                         ),
                         SliverToBoxAdapter(
                           child:
@@ -1187,6 +1243,185 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // Loan / দেনা-পাওনা
+  // ------------------------------------------------------------
+
+  Widget _buildLoanSection() {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding:
+          const EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        18,
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(
+            title: _settings.isBangla
+                ? 'দেনা-পাওনা'
+                : 'Loans',
+            icon: Icons.handshake_rounded,
+            onTap: () {
+              _openScreen(
+                const LoanScreen(),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _loanSummaryCard(
+                  icon: Icons.arrow_downward_rounded,
+                  title: _settings.isBangla
+                      ? 'আমার পাওনা'
+                      : 'Receivable',
+                  amount: _receivable,
+                  color: AppTheme.incomeColor,
+                  theme: theme,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _loanSummaryCard(
+                  icon: Icons.arrow_upward_rounded,
+                  title: _settings.isBangla
+                      ? 'আমার দেনা'
+                      : 'Payable',
+                  amount: _payable,
+                  color: AppTheme.expenseColor,
+                  theme: theme,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loanSummaryCard({
+    required IconData icon,
+    required String title,
+    required double amount,
+    required Color color,
+    required ThemeData theme,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          _openScreen(
+            const LoanScreen(),
+          );
+        },
+        borderRadius:
+            BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius:
+                BorderRadius.circular(20),
+            border: Border.all(
+              color: color.withValues(
+                alpha: .28,
+              ),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: theme.brightness ==
+                          Brightness.dark
+                      ? .10
+                      : .025,
+                ),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 43,
+                height: 43,
+                decoration: BoxDecoration(
+                  color: color.withValues(
+                    alpha: .12,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(14),
+                  border: Border.all(
+                    color: color.withValues(
+                      alpha: .25,
+                    ),
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: theme
+                            .colorScheme
+                            .onSurfaceVariant,
+                        fontSize: 11,
+                        fontWeight:
+                            FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _money(amount),
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: theme
+                            .colorScheme
+                            .onSurface,
+                        fontSize: 16,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: theme
+                    .colorScheme
+                    .onSurfaceVariant,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1795,33 +2030,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSpacing: 10,
             childAspectRatio: .92,
             children: [
-              _toolCard(
-                icon: Icons.bar_chart_rounded,
-                title: _settings.t('statistics'),
-                onTap: () {
-                  _openScreen(
-                    const StatisticsScreen(),
-                  );
-                },
-              ),
-              _toolCard(
-                icon: Icons.assessment_rounded,
-                title: _settings.t('report'),
-                onTap: () {
-                  _openScreen(
-                    const ReportScreen(),
-                  );
-                },
-              ),
-              _toolCard(
-                icon: Icons.category_rounded,
-                title: _settings.t('categories'),
-                onTap: () {
-                  _openScreen(
-                    const CategoriesScreen(),
-                  );
-                },
-              ),
+              // 1. Transactions
               _toolCard(
                 icon:
                     Icons.receipt_long_rounded,
@@ -1832,6 +2041,41 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
+
+              // 2. Statistics
+              _toolCard(
+                icon: Icons.bar_chart_rounded,
+                title: _settings.t('statistics'),
+                onTap: () {
+                  _openScreen(
+                    const StatisticsScreen(),
+                  );
+                },
+              ),
+
+              // 3. Report
+              _toolCard(
+                icon: Icons.assessment_rounded,
+                title: _settings.t('report'),
+                onTap: () {
+                  _openScreen(
+                    const ReportScreen(),
+                  );
+                },
+              ),
+
+              // 4. Categories
+              _toolCard(
+                icon: Icons.category_rounded,
+                title: _settings.t('categories'),
+                onTap: () {
+                  _openScreen(
+                    const CategoriesScreen(),
+                  );
+                },
+              ),
+
+              // 5. Accounts
               _toolCard(
                 icon:
                     Icons.account_balance_rounded,
@@ -1842,6 +2086,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
+
+              // 6. About
               _toolCard(
                 icon:
                     Icons.info_outline_rounded,
@@ -2136,6 +2382,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () {
                       _openScreen(
                         const ReportScreen(),
+                      );
+                    },
+                  ),
+
+                  // Loan / দেনা-পাওনা
+                  _drawerItem(
+                    icon:
+                        Icons.handshake_rounded,
+                    title: _settings.isBangla
+                        ? 'দেনা-পাওনা'
+                        : 'Loans',
+                    onTap: () {
+                      _openScreen(
+                        const LoanScreen(),
                       );
                     },
                   ),
