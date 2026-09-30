@@ -23,10 +23,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   double _totalIncome = 0.0;
   double _totalExpense = 0.0;
 
-  // অন্যের কাছ থেকে নেওয়া লোন, এখনো যত টাকা শোধ করা হয়নি।
   double _myDebt = 0.0;
-
-  // অন্যকে দেওয়া টাকা, এখনো যত টাকা ফেরত পাওয়া হয়নি।
   double _myReceivable = 0.0;
 
   List<Map<String, dynamic>> _incomeCategories = [];
@@ -139,7 +136,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       final periodTransactions = transactions.where((tx) {
         final date = _transactionDate(tx);
 
-        if (date == null) {
+        if (date == null ||
+            _startDate == null ||
+            _endDate == null) {
           return false;
         }
 
@@ -152,20 +151,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
       final Map<int, Map<String, dynamic>> incomeMap = {};
       final Map<int, Map<String, dynamic>> expenseMap = {};
-
-      // ------------------------------------------------------------
-      // CURRENT LOAN BALANCE
-      //
-      // loan_taken   = আমরা অন্যের কাছ থেকে নিয়েছি
-      // loan_paid    = সেই লোন শোধ করেছি
-      //
-      // আমার দেনা = loan_taken - loan_paid
-      //
-      // loan_given     = আমরা অন্যকে দিয়েছি
-      // loan_received  = অন্যের কাছ থেকে ফেরত পেয়েছি
-      //
-      // আমার পাওনা = loan_given - loan_received
-      // ------------------------------------------------------------
 
       double debt = 0.0;
       double receivable = 0.0;
@@ -205,10 +190,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       if (receivable < 0) {
         receivable = 0.0;
       }
-
-      // ------------------------------------------------------------
-      // INCOME / EXPENSE FOR SELECTED PERIOD
-      // ------------------------------------------------------------
 
       for (final tx in periodTransactions) {
         final type = _stringValue(
@@ -440,7 +421,32 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return buffer.toString();
   }
 
+  String _formatDate(
+    DateTime date,
+  ) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
+
   String _periodLabel() {
+    if (_period == 'custom') {
+      if (_startDate == null ||
+          _endDate == null) {
+        return _settings.isBangla
+            ? 'তারিখ নির্বাচন করুন'
+            : 'Select dates';
+      }
+
+      if (!_settings.isBangla) {
+        return '${_formatDate(_startDate!)} - '
+            '${_formatDate(_endDate!)}';
+      }
+
+      return '${_formatDate(_startDate!)} - '
+          '${_formatDate(_endDate!)}';
+    }
+
     if (!_settings.isBangla) {
       switch (_period) {
         case 'daily':
@@ -482,6 +488,119 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     });
 
     _setPeriod();
+    _loadStatistics();
+  }
+
+  Future<void> _selectCustomDateRange() async {
+    final now = DateTime.now();
+
+    final initialStart = _startDate ?? DateTime(
+      now.year,
+      now.month,
+      1,
+    );
+
+    final initialEnd = _endDate ?? DateTime(
+      now.year,
+      now.month,
+      now.day,
+      23,
+      59,
+      59,
+    );
+
+    final firstDate = DateTime(
+      2000,
+      1,
+      1,
+    );
+
+    final lastDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    );
+
+    final initialRange = DateTimeRange(
+      start: initialStart.isAfter(lastDate)
+          ? lastDate
+          : initialStart,
+      end: initialEnd.isAfter(lastDate)
+          ? lastDate
+          : initialEnd,
+    );
+
+    final safeRange = initialRange.start.isAfter(
+      initialRange.end,
+    )
+        ? DateTimeRange(
+            start: initialRange.end,
+            end: initialRange.end,
+          )
+        : initialRange;
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      initialDateRange: safeRange,
+      helpText: _settings.isBangla
+          ? 'তারিখ নির্বাচন করুন'
+          : 'Select date range',
+      cancelText: _settings.isBangla
+          ? 'বাতিল'
+          : 'Cancel',
+      confirmText: _settings.isBangla
+          ? 'নির্বাচন'
+          : 'Select',
+      saveText: _settings.isBangla
+          ? 'সম্পন্ন'
+          : 'Done',
+      fieldStartLabel: _settings.isBangla
+          ? 'শুরুর তারিখ'
+          : 'Start date',
+      fieldEndLabel: _settings.isBangla
+          ? 'শেষের তারিখ'
+          : 'End date',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context)
+                .colorScheme
+                .copyWith(
+                  primary: AppTheme.green,
+                  onPrimary: Colors.white,
+                  secondary: AppTheme.gold,
+                ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked == null) {
+      return;
+    }
+
+    setState(() {
+      _period = 'custom';
+
+      _startDate = DateTime(
+        picked.start.year,
+        picked.start.month,
+        picked.start.day,
+      );
+
+      _endDate = DateTime(
+        picked.end.year,
+        picked.end.month,
+        picked.end.day,
+        23,
+        59,
+        59,
+      );
+    });
+
     _loadStatistics();
   }
 
@@ -562,6 +681,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 ),
                 children: [
                   _buildPeriodSelector(theme),
+                  const SizedBox(height: 10),
+                  _buildCustomDateButton(theme),
                   const SizedBox(height: 16),
                   _buildSummaryGrid(theme),
                   const SizedBox(height: 20),
@@ -609,7 +730,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       },
     ];
 
-    // Dark/Light দুই mode-এই unselected option স্পষ্ট থাকবে।
     final Color unselectedColor =
         theme.colorScheme.onSurface.withValues(
       alpha: 0.78,
@@ -686,6 +806,108 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildCustomDateButton(
+    ThemeData theme,
+  ) {
+    final selected = _period == 'custom';
+
+    return Material(
+      color: theme.cardColor,
+      borderRadius:
+          BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius:
+            BorderRadius.circular(16),
+        onTap: _selectCustomDateRange,
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
+          ),
+          decoration: BoxDecoration(
+            borderRadius:
+                BorderRadius.circular(16),
+            border: Border.all(
+              color: selected
+                  ? AppTheme.gold.withValues(
+                      alpha: 0.55,
+                    )
+                  : AppTheme.green.withValues(
+                      alpha: 0.15,
+                    ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppTheme.gold.withValues(
+                    alpha: 0.12,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.date_range_rounded,
+                  color: AppTheme.gold,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _settings.isBangla
+                          ? 'নিজের তারিখ নির্বাচন'
+                          : 'Custom Date Range',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                            FontWeight.w700,
+                        color: theme
+                            .colorScheme
+                            .onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      selected
+                          ? _periodLabel()
+                          : (_settings.isBangla
+                              ? 'শুরু ও শেষের তারিখ নির্বাচন করুন'
+                              : 'Select start and end dates'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: theme
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withValues(
+                          alpha: 0.75,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: theme
+                    .colorScheme
+                    .onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -908,7 +1130,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       },
     ];
 
-    // Dark/Light দুই mode-এই unselected tab স্পষ্ট থাকবে।
     final Color unselectedColor =
         theme.colorScheme.onSurface.withValues(
       alpha: 0.78,
@@ -1810,6 +2031,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           _transactionDate(tx);
 
       if (date == null ||
+          _startDate == null ||
+          _endDate == null ||
           date.isBefore(_startDate!) ||
           date.isAfter(_endDate!)) {
         continue;
@@ -2102,6 +2325,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           _transactionDate(tx);
 
       if (date == null ||
+          _startDate == null ||
+          _endDate == null ||
           date.isBefore(_startDate!) ||
           date.isAfter(_endDate!)) {
         return false;
