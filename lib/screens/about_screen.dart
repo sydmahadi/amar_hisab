@@ -933,13 +933,6 @@ class AboutScreen extends StatelessWidget {
                 .dividerColor
                 .withValues(alpha: 0.35),
           ),
-          const SizedBox(height: 12),
-          _contactRow(
-            context,
-            Icons.phone_rounded,
-            isBangla ? 'ডেভেলপার' : 'Developer',
-            'Sayeed Mahadi',
-          ),
           const SizedBox(height: 13),
           _contactRow(
             context,
