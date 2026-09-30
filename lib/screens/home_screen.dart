@@ -40,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Map<String, dynamic>> _accounts = [];
   List<Map<String, dynamic>> _transactions = [];
+  List<Map<String, dynamic>> _categories = [];
 
   @override
   void initState() {
@@ -75,6 +76,9 @@ class _HomeScreenState extends State<HomeScreen> {
       // Current loan balances
       final loanTotals = await _db.getLoanTotals();
 
+      // All categories
+      final categories = await _db.getCategories();
+
       double totalIncome = 0;
       double totalExpense = 0;
 
@@ -99,6 +103,51 @@ class _HomeScreenState extends State<HomeScreen> {
       final payable =
           _toDouble(loanTotals['payable']);
 
+      // ----------------------------------------------------------
+      // Latest 5 categories
+      // ----------------------------------------------------------
+
+      final sortedCategories =
+          List<Map<String, dynamic>>.from(categories);
+
+      sortedCategories.sort((a, b) {
+        final aId = _toDouble(a['id']);
+        final bId = _toDouble(b['id']);
+
+        return bId.compareTo(aId);
+      });
+
+      final recentCategories =
+          <Map<String, dynamic>>[];
+
+      for (final category in sortedCategories.take(5)) {
+        final categoryId =
+            _toDouble(category['id']);
+
+        double total = 0;
+
+        for (final transaction in transactions) {
+          final transactionCategoryId =
+              _toDouble(transaction['category_id']);
+
+          if (transactionCategoryId == categoryId) {
+            final type = _type(transaction);
+
+            if (type == 'income' ||
+                type == 'expense') {
+              total += _toDouble(
+                transaction['amount'],
+              );
+            }
+          }
+        }
+
+        recentCategories.add({
+          ...category,
+          'home_total': total,
+        });
+      }
+
       if (!mounted) return;
 
       setState(() {
@@ -111,7 +160,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _payable = payable;
 
         _accounts = accounts;
-        _transactions = transactions.take(8).toList();
+
+        // Latest 5 transactions
+        _transactions =
+            transactions.take(5).toList();
+
+        // Latest 5 categories
+        _categories = recentCategories;
 
         _loading = false;
       });
@@ -804,6 +859,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         SliverToBoxAdapter(
                           child:
                               _buildRecentSection(),
+                        ),
+                        SliverToBoxAdapter(
+                          child:
+                              _buildRecentCategoriesSection(),
                         ),
                         SliverToBoxAdapter(
                           child:
@@ -1820,6 +1879,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ListTile(
+                          onTap: () {
+                            _openScreen(
+                              const TransactionsScreen(),
+                            );
+                          },
                           contentPadding:
                               const EdgeInsets
                                   .symmetric(
@@ -1997,7 +2061,177 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ------------------------------------------------------------
-  // Tools
+  // Recent Categories
+  // ------------------------------------------------------------
+
+  Widget _buildRecentCategoriesSection() {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding:
+          const EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        18,
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(
+            title: _settings.isBangla
+                ? 'সাম্প্রতিক খাত'
+                : 'Recent Categories',
+            icon: Icons.category_rounded,
+            onTap: () {
+              _openScreen(
+                const CategoriesScreen(),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          if (_categories.isEmpty)
+            _emptyCard(
+              icon: Icons.category_outlined,
+              text: _settings.isBangla
+                  ? 'কোনো ক্যাটাগরি পাওয়া যায়নি'
+                  : 'No categories found',
+            )
+          else
+            Container(
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius:
+                    BorderRadius.circular(22),
+                border: Border.all(
+                  color: AppTheme.gold
+                      .withValues(alpha: .20),
+                ),
+              ),
+              child: Column(
+                children: List.generate(
+                  _categories.length,
+                  (index) {
+                    final category =
+                        _categories[index];
+
+                    final name =
+                        (category['name'] ?? '')
+                            .toString();
+
+                    final amount =
+                        _toDouble(
+                      category['home_total'],
+                    );
+
+                    return Column(
+                      children: [
+                        if (index > 0)
+                          Divider(
+                            height: 1,
+                            indent: 16,
+                            endIndent: 16,
+                            color: AppTheme.gold
+                                .withValues(
+                              alpha: .12,
+                            ),
+                          ),
+                        ListTile(
+                          onTap: () {
+                            _openScreen(
+                              const CategoriesScreen(),
+                            );
+                          },
+                          contentPadding:
+                              const EdgeInsets
+                                  .symmetric(
+                            horizontal: 15,
+                            vertical: 3,
+                          ),
+                          leading: Container(
+                            width: 42,
+                            height: 42,
+                            decoration:
+                                BoxDecoration(
+                              color: AppTheme.green
+                                  .withValues(
+                                alpha: .13,
+                              ),
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                13,
+                              ),
+                              border: Border.all(
+                                color: AppTheme.gold
+                                    .withValues(
+                                  alpha: .25,
+                                ),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.category_rounded,
+                              color:
+                                  AppTheme.gold,
+                              size: 21,
+                            ),
+                          ),
+                          title: Text(
+                            name.isEmpty
+                                ? (_settings
+                                        .isBangla
+                                    ? 'নামহীন খাত'
+                                    : 'Unnamed category')
+                                : name,
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: theme
+                                  .colorScheme
+                                  .onSurface,
+                              fontSize: 13,
+                              fontWeight:
+                                  FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: Text(
+                            _settings.isBangla
+                                ? 'মোট লেনদেন'
+                                : 'Total transactions',
+                            style: TextStyle(
+                              color: theme
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              fontSize: 10,
+                            ),
+                          ),
+                          trailing: Text(
+                            _money(amount),
+                            style: TextStyle(
+                              color: theme
+                                  .colorScheme
+                                  .onSurface,
+                              fontSize: 13,
+                              fontWeight:
+                                  FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // Tools / More
   // ------------------------------------------------------------
 
   Widget _buildToolsSection() {
@@ -2042,7 +2276,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
 
-              // 2. Statistics
+              // 2. Loans
+              _toolCard(
+                icon:
+                    Icons.handshake_rounded,
+                title: _settings.isBangla
+                    ? 'দেনা-পাওনা'
+                    : 'Loans',
+                onTap: () {
+                  _openScreen(
+                    const LoanScreen(),
+                  );
+                },
+              ),
+
+              // 3. Statistics
               _toolCard(
                 icon: Icons.bar_chart_rounded,
                 title: _settings.t('statistics'),
@@ -2053,7 +2301,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
 
-              // 3. Report
+              // 4. Report
               _toolCard(
                 icon: Icons.assessment_rounded,
                 title: _settings.t('report'),
@@ -2064,7 +2312,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
 
-              // 4. Categories
+              // 5. Categories
               _toolCard(
                 icon: Icons.category_rounded,
                 title: _settings.t('categories'),
@@ -2075,7 +2323,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
 
-              // 5. Accounts
+              // 6. Accounts
               _toolCard(
                 icon:
                     Icons.account_balance_rounded,
@@ -2087,7 +2335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
 
-              // 6. About
+              // 7. About
               _toolCard(
                 icon:
                     Icons.info_outline_rounded,
