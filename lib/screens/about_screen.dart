@@ -11,189 +11,253 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isBangla = settings.isBangla;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(settings.t('aboutApp')),
+        centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          40,
-        ),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
         children: [
-          _buildHeader(context),
+          _buildHero(context),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
-          _buildSection(
+          _buildIntro(context),
+
+          const SizedBox(height: 18),
+
+          _buildFeatureSection(
             context,
-            icon: Icons.info_outline_rounded,
-            title: settings.t('appDescription'),
-            child: Text(
-              isBangla
-                  ? 'আমার হিসাব একটি সহজ, সুন্দর ও ব্যবহারবান্ধব ব্যক্তিগত মানি ম্যানেজমেন্ট অ্যাপ। এই অ্যাপের মাধ্যমে দৈনন্দিন আয়, ব্যয়, লেনদেন, অ্যাকাউন্ট এবং বিভিন্ন খাতের হিসাব সহজে সংরক্ষণ ও পরিচালনা করা যায়।'
-                  : 'Amar Hisab is a simple, clean and user-friendly personal money management app. It helps you record and manage daily income, expenses, transactions, accounts and categories easily.',
-              style: const TextStyle(
-                height: 1.7,
-                fontSize: 14,
+            title: isBangla ? 'মানি ম্যানেজমেন্ট' : 'Money Management',
+            subtitle: isBangla
+                ? 'দৈনন্দিন অর্থের হিসাব সহজভাবে পরিচালনা করুন'
+                : 'Manage your daily money easily',
+            icon: Icons.account_balance_wallet_rounded,
+            features: [
+              _FeatureData(
+                Icons.add_circle_rounded,
+                isBangla ? 'আয় যোগ করুন' : 'Add income',
+                isBangla
+                    ? 'আপনার সব ধরনের আয়ের হিসাব রাখুন।'
+                    : 'Keep track of all your income.',
               ),
-            ),
+              _FeatureData(
+                Icons.remove_circle_rounded,
+                isBangla ? 'ব্যয় যোগ করুন' : 'Add expenses',
+                isBangla
+                    ? 'প্রতিদিনের খরচ সুন্দরভাবে সংরক্ষণ করুন।'
+                    : 'Record your daily expenses.',
+              ),
+              _FeatureData(
+                Icons.swap_horiz_rounded,
+                isBangla ? 'অ্যাকাউন্ট ট্রান্সফার' : 'Account transfer',
+                isBangla
+                    ? 'এক অ্যাকাউন্ট থেকে অন্য অ্যাকাউন্টে টাকা স্থানান্তর করুন।'
+                    : 'Transfer money between your accounts.',
+              ),
+              _FeatureData(
+                Icons.edit_note_rounded,
+                isBangla ? 'লেনদেন সম্পাদনা' : 'Edit transactions',
+                isBangla
+                    ? 'প্রয়োজনে পুরোনো লেনদেন পরিবর্তন বা মুছে ফেলুন।'
+                    : 'Edit or delete previous transactions when needed.',
+              ),
+            ],
           ),
 
           const SizedBox(height: 16),
 
-          _buildSection(
+          _buildFeatureSection(
             context,
+            title: isBangla ? 'অ্যাকাউন্ট ও খাত' : 'Accounts & Categories',
+            subtitle: isBangla
+                ? 'নিজের প্রয়োজন অনুযায়ী হিসাব সাজিয়ে নিন'
+                : 'Organize your finances your way',
+            icon: Icons.account_tree_rounded,
+            features: [
+              _FeatureData(
+                Icons.account_balance_wallet_rounded,
+                isBangla ? 'একাধিক অ্যাকাউন্ট' : 'Multiple accounts',
+                isBangla
+                    ? 'Cash, bKash, Nagad, Bank, Card সহ বিভিন্ন অ্যাকাউন্ট পরিচালনা করুন।'
+                    : 'Manage Cash, bKash, Nagad, Bank, Card and more.',
+              ),
+              _FeatureData(
+                Icons.category_rounded,
+                isBangla ? 'নিজের খাত তৈরি করুন' : 'Custom categories',
+                isBangla
+                    ? 'আপনার প্রয়োজন অনুযায়ী নতুন খাত যোগ করুন।'
+                    : 'Create categories according to your needs.',
+              ),
+              _FeatureData(
+                Icons.manage_accounts_rounded,
+                isBangla ? 'খাত পরিচালনা' : 'Category management',
+                isBangla
+                    ? 'নিজের তৈরি খাত সম্পাদনা ও পরিচালনা করুন।'
+                    : 'Edit and manage your custom categories.',
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildLoanHighlight(context),
+
+          const SizedBox(height: 16),
+
+          _buildFeatureSection(
+            context,
+            title: isBangla ? 'পরিসংখ্যান ও বিশ্লেষণ' : 'Statistics & Analysis',
+            subtitle: isBangla
+                ? 'আপনার অর্থের অবস্থার পরিষ্কার চিত্র দেখুন'
+                : 'Get a clear picture of your finances',
+            icon: Icons.analytics_rounded,
+            features: [
+              _FeatureData(
+                Icons.today_rounded,
+                isBangla ? 'দৈনিক হিসাব' : 'Daily overview',
+                isBangla
+                    ? 'দিনভিত্তিক আয়, ব্যয় ও লেনদেন দেখুন।'
+                    : 'View income, expenses and transactions by day.',
+              ),
+              _FeatureData(
+                Icons.date_range_rounded,
+                isBangla ? 'সাপ্তাহিক হিসাব' : 'Weekly overview',
+                isBangla
+                    ? 'সাপ্তাহিক অর্থের হিসাব বিশ্লেষণ করুন।'
+                    : 'Analyze your weekly finances.',
+              ),
+              _FeatureData(
+                Icons.calendar_month_rounded,
+                isBangla ? 'মাসিক হিসাব' : 'Monthly overview',
+                isBangla
+                    ? 'মাসভিত্তিক আয় ও ব্যয়ের হিসাব দেখুন।'
+                    : 'Review your monthly income and expenses.',
+              ),
+              _FeatureData(
+                Icons.calendar_view_month_rounded,
+                isBangla ? 'বার্ষিক হিসাব' : 'Yearly overview',
+                isBangla
+                    ? 'পুরো বছরের আর্থিক হিসাব পর্যবেক্ষণ করুন।'
+                    : 'Review your yearly financial activity.',
+              ),
+              _FeatureData(
+                Icons.pie_chart_rounded,
+                isBangla ? 'ক্যাটাগরি বিশ্লেষণ' : 'Category analysis',
+                isBangla
+                    ? 'কোন খাতে কত আয় বা ব্যয় হচ্ছে তা দেখুন।'
+                    : 'See where your income and expenses are going.',
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildReportHighlight(context),
+
+          const SizedBox(height: 16),
+
+          _buildFeatureSection(
+            context,
+            title: isBangla ? 'লেনদেন খুঁজে পাওয়া আরও সহজ' : 'Easy Transaction Search',
+            subtitle: isBangla
+                ? 'প্রয়োজনীয় হিসাব দ্রুত খুঁজে নিন'
+                : 'Find the records you need quickly',
+            icon: Icons.search_rounded,
+            features: [
+              _FeatureData(
+                Icons.search_rounded,
+                isBangla ? 'লেনদেন সার্চ' : 'Transaction search',
+                isBangla
+                    ? 'নাম, নোট বা অন্যান্য তথ্য দিয়ে লেনদেন খুঁজুন।'
+                    : 'Search transactions by name, note and other details.',
+              ),
+              _FeatureData(
+                Icons.filter_alt_rounded,
+                isBangla ? 'তারিখ অনুযায়ী ফিল্টার' : 'Date filter',
+                isBangla
+                    ? 'নির্দিষ্ট দিনের লেনদেন আলাদা করে দেখুন।'
+                    : 'View transactions for a specific date.',
+              ),
+              _FeatureData(
+                Icons.calendar_month_rounded,
+                isBangla ? 'মাস অনুযায়ী ফিল্টার' : 'Month filter',
+                isBangla
+                    ? 'নির্দিষ্ট মাসের হিসাব একসাথে দেখুন।'
+                    : 'View all transactions from a specific month.',
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildFeatureSection(
+            context,
+            title: isBangla ? 'অ্যাপের সুবিধা' : 'App Features',
+            subtitle: isBangla
+                ? 'আপনার ব্যবহারের সুবিধার জন্য প্রয়োজনীয় অপশন'
+                : 'Useful options for a better experience',
             icon: Icons.auto_awesome_rounded,
-            title: settings.t('features'),
-            child: Column(
-              children: [
-                _featureItem(
-                  context,
-                  Icons.add_card_rounded,
-                  isBangla
-                      ? 'আয়, ব্যয় ও ট্রান্সফার'
-                      : 'Income, Expense & Transfer',
-                ),
-                _featureItem(
-                  context,
-                  Icons.account_balance_wallet_rounded,
-                  isBangla
-                      ? 'একাধিক অ্যাকাউন্ট'
-                      : 'Multiple Accounts',
-                ),
-                _featureItem(
-                  context,
-                  Icons.category_rounded,
-                  isBangla
-                      ? 'নিজের মতো খাত যোগ ও পরিচালনা'
-                      : 'Add and manage custom categories',
-                ),
-                _featureItem(
-                  context,
-                  Icons.edit_note_rounded,
-                  isBangla
-                      ? 'লেনদেন সম্পাদনা ও মুছে ফেলা'
-                      : 'Edit and delete transactions',
-                ),
-                _featureItem(
-                  context,
-                  Icons.bar_chart_rounded,
-                  isBangla
-                      ? 'আয় ও ব্যয়ের পরিসংখ্যান'
-                      : 'Income and expense statistics',
-                ),
-                _featureItem(
-                  context,
-                  Icons.calendar_month_rounded,
-                  isBangla
-                      ? 'দৈনিক, সাপ্তাহিক, মাসিক ও বার্ষিক হিসাব'
-                      : 'Daily, weekly, monthly and yearly records',
-                ),
-                _featureItem(
-                  context,
-                  Icons.assessment_rounded,
-                  isBangla
-                      ? 'মাসিক রিপোর্ট'
-                      : 'Monthly reports',
-                ),
-                _featureItem(
-                  context,
-                  Icons.picture_as_pdf_rounded,
-                  isBangla
-                      ? 'রিপোর্ট PDF/JPG হিসেবে সংরক্ষণ'
-                      : 'Save reports as PDF/JPG',
-                ),
-                _featureItem(
-                  context,
-                  Icons.dark_mode_rounded,
-                  isBangla
-                      ? 'ডার্ক ও লাইট থিম'
-                      : 'Dark and light theme',
-                ),
-                _featureItem(
-                  context,
-                  Icons.language_rounded,
-                  isBangla
-                      ? 'বাংলা ও ইংরেজি ভাষা'
-                      : 'Bangla and English language',
-                ),
-                _featureItem(
-                  context,
-                  Icons.storage_rounded,
-                  isBangla
-                      ? 'ডিভাইসে লোকাল ডেটা সংরক্ষণ'
-                      : 'Local data storage on the device',
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildSection(
-            context,
-            icon: Icons.person_outline_rounded,
-            title: settings.t('developerInfo'),
-            child: Column(
-              children: [
-                _infoRow(
-                  context,
-                  Icons.person_rounded,
-                  settings.t('developedBy'),
-                  'Sayeed Mahadi',
-                ),
-                const SizedBox(height: 14),
-                _infoRow(
-                  context,
-                  Icons.email_rounded,
-                  settings.t('contact'),
-                  'mahadisayeed@gmail.com',
-                ),
-              ],
-            ),
+            features: [
+              _FeatureData(
+                Icons.picture_as_pdf_rounded,
+                isBangla ? 'PDF রিপোর্ট' : 'PDF reports',
+                isBangla
+                    ? 'রিপোর্ট PDF আকারে সংরক্ষণ করুন।'
+                    : 'Save your reports as PDF.',
+              ),
+              _FeatureData(
+                Icons.image_rounded,
+                isBangla ? 'JPG রিপোর্ট' : 'JPG reports',
+                isBangla
+                    ? 'পুরো রিপোর্ট JPG ছবি হিসেবে সংরক্ষণ করুন।'
+                    : 'Save the complete report as a JPG image.',
+              ),
+              _FeatureData(
+                Icons.dark_mode_rounded,
+                isBangla ? 'ডার্ক ও লাইট মোড' : 'Dark & light mode',
+                isBangla
+                    ? 'আপনার পছন্দ অনুযায়ী অ্যাপের থিম ব্যবহার করুন।'
+                    : 'Use the theme you prefer.',
+              ),
+              _FeatureData(
+                Icons.language_rounded,
+                isBangla ? 'বাংলা ও ইংরেজি' : 'Bangla & English',
+                isBangla
+                    ? 'বাংলা অথবা ইংরেজি ভাষায় অ্যাপ ব্যবহার করুন।'
+                    : 'Use the app in Bangla or English.',
+              ),
+              _FeatureData(
+                Icons.storage_rounded,
+                isBangla ? 'লোকাল ডেটা সংরক্ষণ' : 'Local data storage',
+                isBangla
+                    ? 'আপনার হিসাব ডিভাইসেই সংরক্ষিত থাকে।'
+                    : 'Your financial data is stored locally on your device.',
+              ),
+            ],
           ),
 
           const SizedBox(height: 20),
 
-          Center(
-            child: Column(
-              children: [
-                const Text(
-                  'আমার হিসাব',
-                  style: TextStyle(
-                    color: AppTheme.gold,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  isBangla
-                      ? 'সহজে আপনার হিসাব রাখুন'
-                      : 'Manage your money easily',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.color,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildDeveloperCard(context),
+
+          const SizedBox(height: 18),
+
+          _buildFooter(context),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHero(BuildContext context) {
+    final isBangla = settings.isBangla;
+
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
@@ -203,44 +267,89 @@ class AboutScreen extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.darkGreen.withValues(alpha: 0.22),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Container(
-            width: 76,
-            height: 76,
+            width: 86,
+            height: 86,
             decoration: BoxDecoration(
-              color: AppTheme.gold.withValues(alpha: 0.16),
+              color: Colors.white.withValues(alpha: 0.10),
               shape: BoxShape.circle,
               border: Border.all(
-                color: AppTheme.gold.withValues(alpha: 0.45),
+                color: AppTheme.gold.withValues(alpha: 0.65),
                 width: 1.5,
               ),
             ),
             child: const Icon(
               Icons.account_balance_wallet_rounded,
-              size: 40,
               color: AppTheme.gold,
+              size: 45,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 15),
           const Text(
             'আমার হিসাব',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 25,
-              fontWeight: FontWeight.bold,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 7),
           Text(
-            settings.isBangla
-                ? 'সহজে আপনার হিসাব রাখুন'
-                : 'Manage your money easily',
+            isBangla
+                ? 'আপনার অর্থের হিসাব, আপনার হাতেই'
+                : 'Your finances, organized your way',
+            textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.82),
-              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.86),
+              fontSize: 13.5,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 17),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: AppTheme.gold.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: AppTheme.gold.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.verified_rounded,
+                  size: 16,
+                  color: AppTheme.gold,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  isBangla
+                      ? 'সহজ • ব্যক্তিগত • সুন্দর'
+                      : 'Simple • Personal • Beautiful',
+                  style: const TextStyle(
+                    color: AppTheme.goldLight,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -248,49 +357,159 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required Widget child,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(17),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+  Widget _buildIntro(BuildContext context) {
+    final isBangla = settings.isBangla;
+
+    return Container(
+      padding: const EdgeInsets.all(19),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppTheme.gold.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.gold.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.lightbulb_rounded,
+              color: AppTheme.gold,
+              size: 23,
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppTheme.green.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: AppTheme.green,
-                    size: 21,
+                Text(
+                  isBangla ? 'আমার হিসাব কী?' : 'What is Amar Hisab?',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
+                const SizedBox(height: 7),
+                Text(
+                  isBangla
+                      ? 'আমার হিসাব একটি ব্যক্তিগত Money Manager অ্যাপ। আয়, ব্যয়, অ্যাকাউন্ট, লেনদেন, দেনা-পাওনা, পরিসংখ্যান ও রিপোর্ট—সবকিছু এক জায়গায় সহজভাবে পরিচালনা করার জন্য তৈরি।'
+                      : 'Amar Hisab is a personal Money Manager app designed to keep income, expenses, accounts, transactions, loans, statistics and reports organized in one place.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.65,
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withValues(alpha: 0.82),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            child,
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureSection(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required List<_FeatureData> features,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppTheme.green.withValues(alpha: 0.12),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 43,
+                height: 43,
+                decoration: BoxDecoration(
+                  color: AppTheme.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  icon,
+                  color: AppTheme.green,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.color
+                            ?.withValues(alpha: 0.72),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          ...List.generate(
+            features.length,
+            (index) {
+              final feature = features[index];
+
+              return Column(
+                children: [
+                  _featureItem(
+                    context,
+                    feature.icon,
+                    feature.title,
+                    feature.description,
+                  ),
+                  if (index != features.length - 1)
+                    Divider(
+                      height: 18,
+                      color: Theme.of(context)
+                          .dividerColor
+                          .withValues(alpha: 0.35),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -298,28 +517,353 @@ class AboutScreen extends StatelessWidget {
   Widget _featureItem(
     BuildContext context,
     IconData icon,
-    String text,
+    String title,
+    String description,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppTheme.gold.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: AppTheme.gold,
+          ),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.45,
+                  color: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.color
+                      ?.withValues(alpha: 0.72),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoanHighlight(BuildContext context) {
+    final isBangla = settings.isBangla;
+
+    return Container(
+      padding: const EdgeInsets.all(19),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.gold.withValues(alpha: 0.14),
+            AppTheme.green.withValues(alpha: 0.10),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(
+          color: AppTheme.gold.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppTheme.gold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.handshake_rounded,
+                  color: AppTheme.gold,
+                  size: 25,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isBangla ? 'দেনা-পাওনা ব্যবস্থাপনা' : 'Loan Management',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      isBangla
+                          ? 'ধার দেওয়া ও নেওয়ার সম্পূর্ণ হিসাব'
+                          : 'Complete lending and borrowing records',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.color
+                            ?.withValues(alpha: 0.72),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _loanItem(
+            context,
+            Icons.arrow_upward_rounded,
+            isBangla ? 'ধার দিয়েছি' : 'Money lent',
+            isBangla
+                ? 'কে কত টাকা নিয়েছে এবং কত ফেরত দিয়েছে তা দেখুন।'
+                : 'Track who owes you and how much has been repaid.',
+          ),
+          const SizedBox(height: 12),
+          _loanItem(
+            context,
+            Icons.arrow_downward_rounded,
+            isBangla ? 'ধার নিয়েছি' : 'Money borrowed',
+            isBangla
+                ? 'কার কাছ থেকে কত নিয়েছেন এবং কত শোধ করেছেন তা দেখুন।'
+                : 'Track what you borrowed and how much you repaid.',
+          ),
+          const SizedBox(height: 12),
+          _loanItem(
+            context,
+            Icons.person_search_rounded,
+            isBangla ? 'ব্যক্তি অনুযায়ী হিসাব' : 'Person-wise records',
+            isBangla
+                ? 'প্রতিটি ব্যক্তির দেনা-পাওনার আলাদা হিসাব দেখুন।'
+                : 'View separate loan records for each person.',
+          ),
+          const SizedBox(height: 12),
+          _loanItem(
+            context,
+            Icons.filter_alt_rounded,
+            isBangla ? 'তারিখ ও মাস অনুযায়ী ফিল্টার' : 'Date & month filters',
+            isBangla
+                ? 'নির্দিষ্ট সময়ের দেনা-পাওনার তথ্য সহজে খুঁজুন।'
+                : 'Find loan activity for a specific date or month.',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loanItem(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String description,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: AppTheme.gold,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.4,
+                  color: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.color
+                      ?.withValues(alpha: 0.72),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReportHighlight(BuildContext context) {
+    final isBangla = settings.isBangla;
+
+    return Container(
+      padding: const EdgeInsets.all(19),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(
+          color: AppTheme.green.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppTheme.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.description_rounded,
+                  color: AppTheme.green,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isBangla ? 'রিপোর্ট' : 'Reports',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      isBangla
+                          ? 'আপনার হিসাবের বিস্তারিত রিপোর্ট'
+                          : 'Detailed reports of your finances',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.color
+                            ?.withValues(alpha: 0.72),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 15),
+          _reportItem(
+            context,
+            Icons.calendar_month_rounded,
+            isBangla ? 'মাসিক রিপোর্ট' : 'Monthly report',
+            isBangla
+                ? 'মাসের আয়, ব্যয় ও উদ্বৃত্ত/ঘাটতির সারসংক্ষেপ।'
+                : 'Monthly income, expenses and surplus/deficit.',
+          ),
+          _reportItem(
+            context,
+            Icons.category_rounded,
+            isBangla ? 'খাতভিত্তিক রিপোর্ট' : 'Category report',
+            isBangla
+                ? 'প্রতিটি খাতে কত আয় বা ব্যয় হয়েছে তার বিস্তারিত হিসাব।'
+                : 'Detailed income and expense breakdown by category.',
+          ),
+          _reportItem(
+            context,
+            Icons.handshake_rounded,
+            isBangla ? 'দেনা-পাওনা রিপোর্ট' : 'Loan report',
+            isBangla
+                ? 'ধার দেওয়া, নেওয়া ও ফেরত/শোধের বিস্তারিত তথ্য।'
+                : 'Detailed lending, borrowing and repayment records.',
+          ),
+          _reportItem(
+            context,
+            Icons.picture_as_pdf_rounded,
+            isBangla ? 'PDF ও JPG Export' : 'PDF & JPG export',
+            isBangla
+                ? 'রিপোর্ট PDF বা JPG আকারে সংরক্ষণ করা যায়।'
+                : 'Save reports as PDF or JPG.',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportItem(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String description,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 12,
-      ),
+      padding: const EdgeInsets.only(top: 13),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
-            size: 20,
+            size: 19,
             color: AppTheme.gold,
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 14,
-                height: 1.4,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.4,
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.color
+                        ?.withValues(alpha: 0.72),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -327,21 +871,98 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(
+  Widget _buildDeveloperCard(BuildContext context) {
+    final isBangla = settings.isBangla;
+
+    return Container(
+      padding: const EdgeInsets.all(19),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).cardColor,
+            AppTheme.gold.withValues(alpha: 0.06),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(
+          color: AppTheme.gold.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: AppTheme.gold.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: AppTheme.gold,
+              size: 29,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isBangla ? 'অ্যাপটি তৈরি করেছেন' : 'Developed by',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.color,
+            ),
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            'Sayeed Mahadi',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 17),
+          Divider(
+            color: Theme.of(context)
+                .dividerColor
+                .withValues(alpha: 0.35),
+          ),
+          const SizedBox(height: 12),
+          _contactRow(
+            context,
+            Icons.phone_rounded,
+            isBangla ? 'Developed by' : 'Developed by',
+            'Sayeed Mahadi',
+          ),
+          const SizedBox(height: 13),
+          _contactRow(
+            context,
+            Icons.mail_rounded,
+            isBangla ? 'ইমেইল' : 'Email',
+            'mahadisayeed@gmail.com',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _contactRow(
     BuildContext context,
     IconData icon,
     String label,
     String value,
   ) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppTheme.gold.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(11),
+            color: AppTheme.gold.withValues(alpha: 0.11),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
             icon,
@@ -357,18 +978,18 @@ class AboutScreen extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10.5,
                   color: Theme.of(context)
                       .textTheme
                       .bodySmall
                       ?.color,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2),
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -378,4 +999,58 @@ class AboutScreen extends StatelessWidget {
       ],
     );
   }
+
+  Widget _buildFooter(BuildContext context) {
+    final isBangla = settings.isBangla;
+
+    return Column(
+      children: [
+        const Text(
+          'আমার হিসাব',
+          style: TextStyle(
+            color: AppTheme.gold,
+            fontSize: 19,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          isBangla
+              ? 'সহজে আপনার হিসাব রাখুন'
+              : 'Manage your money easily',
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.color,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '© Sayeed Mahadi',
+          style: TextStyle(
+            fontSize: 10.5,
+            color: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.color
+                ?.withValues(alpha: 0.65),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FeatureData {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _FeatureData(
+    this.icon,
+    this.title,
+    this.description,
+  );
 }
