@@ -1008,7 +1008,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 Text(
                   _isSurplus
                       ? 'উদ্বৃত্ত'
-                      : 'ঘাটি',
+                      : 'ঘাটতি',
                   style: TextStyle(
                     color: color,
                     fontWeight:
