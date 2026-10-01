@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -30,6 +31,10 @@ class _ReportScreenState extends State<ReportScreen> {
   static const Color _loanTakeColor = Color(0xFF8E24AA);
   static const Color _loanReceiveColor = Color(0xFF00897B);
   static const Color _loanPaidColor = Color(0xFFEF6C00);
+
+  // A4 portrait at approximately 96 DPI.
+  static const double _a4Width = 794;
+  static const double _a4Height = 1123;
 
   String _period = 'monthly';
 
@@ -502,15 +507,19 @@ class _ReportScreenState extends State<ReportScreen> {
 
                   const SizedBox(height: 12),
 
-                  Screenshot(
-                    controller:
-                        _screenshotController,
-                    child: _buildVoucher(),
+                  // ==================================================
+                  // A4 MAIN REPORT PAGE
+                  // ==================================================
+                  Center(
+                    child: Screenshot(
+                      controller:
+                          _screenshotController,
+                      child: _buildA4ReportPage(),
+                    ),
                   ),
 
                   const SizedBox(height: 14),
 
-                  // সরাসরি Export Buttons
                   _buildExportButtons(),
 
                   const SizedBox(height: 14),
@@ -521,6 +530,53 @@ class _ReportScreenState extends State<ReportScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  // ============================================================
+  // A4 MAIN REPORT PAGE
+  // ============================================================
+
+  Widget _buildA4ReportPage() {
+    return Container(
+      width: _a4Width,
+      height: _a4Height,
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          border: Border.all(
+            color: _gold.withValues(alpha: 0.65),
+            width: 1.2,
+          ),
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: ClipRect(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    width: 698,
+                    child: _buildVoucherContent(),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            _buildSignatureArea(),
+
+            const SizedBox(height: 10),
+
+            _buildVoucherFooter(),
+          ],
+        ),
+      ),
     );
   }
 
@@ -544,7 +600,6 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
             const SizedBox(height: 10),
-
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -576,7 +631,6 @@ class _ReportScreenState extends State<ReportScreen> {
                 ),
               ],
             ),
-
             if (_saving) ...[
               const SizedBox(height: 12),
               const Row(
@@ -741,66 +795,52 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ============================================================
-  // MAIN VOUCHER
+  // MAIN VOUCHER CONTENT
   // ============================================================
 
+  Widget _buildVoucherContent() {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        _buildReportHeader(),
+
+        const SizedBox(height: 14),
+
+        _buildSummarySection(),
+
+        const SizedBox(height: 14),
+
+        _buildCategorySection(
+          title: 'আয়ের খাত',
+          categories: _incomeCategories,
+          color: _incomeColor,
+          emptyText:
+              'এই সময়ে কোনো আয় নেই',
+        ),
+
+        const SizedBox(height: 12),
+
+        _buildCategorySection(
+          title: 'ব্যয়ের খাত',
+          categories: _expenseCategories,
+          color: _expenseColor,
+          emptyText:
+              'এই সময়ে কোনো ব্যয় নেই',
+        ),
+
+        const SizedBox(height: 14),
+
+        _buildLoanSection(),
+      ],
+    );
+  }
+
+  // Kept for compatibility with existing code.
   Widget _buildVoucher({
     bool exportMode = false,
   }) {
-    return Container(
-      width:
-          exportMode ? 850 : double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius:
-            BorderRadius.circular(18),
-        border: Border.all(
-          color:
-              _gold.withValues(alpha: 0.65),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          _buildReportHeader(),
-
-          const SizedBox(height: 16),
-
-          _buildSummarySection(),
-
-          const SizedBox(height: 16),
-
-          _buildCategorySection(
-            title: 'আয়ের খাত',
-            categories: _incomeCategories,
-            color: _incomeColor,
-            emptyText:
-                'এই সময়ে কোনো আয় নেই',
-          ),
-
-          const SizedBox(height: 14),
-
-          _buildCategorySection(
-            title: 'ব্যয়ের খাত',
-            categories: _expenseCategories,
-            color: _expenseColor,
-            emptyText:
-                'এই সময়ে কোনো ব্যয় নেই',
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildLoanSection(),
-
-          const SizedBox(height: 16),
-
-          _buildVoucherFooter(),
-        ],
-      ),
-    );
+    return _buildA4ReportPage();
   }
 
   // ============================================================
@@ -813,7 +853,7 @@ class _ReportScreenState extends State<ReportScreen> {
       padding:
           const EdgeInsets.symmetric(
         horizontal: 14,
-        vertical: 16,
+        vertical: 15,
       ),
       decoration: BoxDecoration(
         color: const Color(0xFF0F5132),
@@ -822,22 +862,13 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
       child: Column(
         children: [
-          const Text(
-            'بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _gold,
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
+          // Bismillah intentionally removed.
           const Text(
             'আমার হিসাব',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: 25,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -884,7 +915,7 @@ class _ReportScreenState extends State<ReportScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 9),
         Row(
           children: [
             Expanded(
@@ -908,7 +939,7 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 9),
         _differenceCard(),
       ],
     );
@@ -921,7 +952,7 @@ class _ReportScreenState extends State<ReportScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius:
             BorderRadius.circular(14),
@@ -968,7 +999,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         borderRadius:
             BorderRadius.circular(14),
@@ -1109,7 +1140,7 @@ class _ReportScreenState extends State<ReportScreen> {
       padding:
           const EdgeInsets.symmetric(
         horizontal: 12,
-        vertical: 10,
+        vertical: 9,
       ),
       decoration: BoxDecoration(
         border: last
@@ -1210,11 +1241,11 @@ class _ReportScreenState extends State<ReportScreen> {
           ],
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 9),
 
         _buildLoanPeriodGrid(),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 9),
 
         Row(
           children: [
@@ -1245,7 +1276,7 @@ class _ReportScreenState extends State<ReportScreen> {
           ],
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
 
         _buildPeopleOutstanding(
           title: 'আমি পাব',
@@ -1255,7 +1286,7 @@ class _ReportScreenState extends State<ReportScreen> {
               'কারো কাছে আমার পাওনা নেই',
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 9),
 
         _buildPeopleOutstanding(
           title: 'আমার কাছে পাবে',
@@ -1355,7 +1386,7 @@ class _ReportScreenState extends State<ReportScreen> {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         borderRadius:
             BorderRadius.circular(14),
@@ -1439,7 +1470,7 @@ class _ReportScreenState extends State<ReportScreen> {
             padding:
                 const EdgeInsets.symmetric(
               horizontal: 12,
-              vertical: 9,
+              vertical: 8,
             ),
             decoration: BoxDecoration(
               color:
@@ -1464,7 +1495,7 @@ class _ReportScreenState extends State<ReportScreen> {
           if (entries.isEmpty)
             Padding(
               padding:
-                  const EdgeInsets.all(12),
+                  const EdgeInsets.all(10),
               child: Text(
                 emptyText,
                 style: TextStyle(
@@ -1486,7 +1517,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   padding:
                       const EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 8,
+                    vertical: 7,
                   ),
                   child: Row(
                     children: [
@@ -1513,6 +1544,47 @@ class _ReportScreenState extends State<ReportScreen> {
                 );
               },
             ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // SIGNATURE AREA
+  // ============================================================
+
+  Widget _buildSignatureArea() {
+    return SizedBox(
+      width: double.infinity,
+      height: 72,
+      child: Row(
+        mainAxisAlignment:
+            MainAxisAlignment.end,
+        crossAxisAlignment:
+            CrossAxisAlignment.end,
+        children: [
+          SizedBox(
+            width: 210,
+            child: Column(
+              mainAxisAlignment:
+                  MainAxisAlignment.end,
+              children: [
+                Container(
+                  height: 1,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'স্বাক্ষর',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1578,7 +1650,7 @@ class _ReportScreenState extends State<ReportScreen> {
           color:
               _gold.withValues(alpha: 0.35),
         ),
-        const SizedBox(height: 7),
+        const SizedBox(height: 5),
         const Text(
           'আমার হিসাব অ্যাপ',
           textAlign: TextAlign.center,
@@ -1586,22 +1658,22 @@ class _ReportScreenState extends State<ReportScreen> {
             color: _gold,
             fontWeight:
                 FontWeight.bold,
-            fontSize: 13,
+            fontSize: 12,
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         const Text(
           'Developed by Sayeed Mahadi',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 10,
           ),
         ),
         const Text(
           'mahadisayeed@gmail.com',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 9,
           ),
         ),
       ],
@@ -1633,7 +1705,7 @@ class _ReportScreenState extends State<ReportScreen> {
         await getTemporaryDirectory();
 
     final file = File(
-      '${directory.path}/amar_hisab_report.png',
+      '${directory.path}/amar_hisab_report_a4.png',
     );
 
     await file.writeAsBytes(
@@ -1746,7 +1818,7 @@ class _ReportScreenState extends State<ReportScreen> {
             .showSnackBar(
           const SnackBar(
             content: Text(
-              'রিপোর্ট JPG হিসেবে Gallery-তে সংরক্ষণ হয়েছে',
+              'রিপোর্ট A4 JPG হিসেবে Gallery-তে সংরক্ষণ হয়েছে',
             ),
           ),
         );
@@ -1865,27 +1937,56 @@ class _ReportScreenState extends State<ReportScreen> {
 
       final pdf = pw.Document();
 
+      // Exactly ONE A4 page for the main report.
       pdf.addPage(
-        pw.MultiPage(
-          pageFormat:
-              PdfPageFormat.a4,
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
           margin:
-              const pw.EdgeInsets.all(28),
+              const pw.EdgeInsets.all(24),
           theme:
               pw.ThemeData.withFont(
             base: font,
             bold: font,
           ),
-          footer: (context) {
-            return _pdfFooter(
-              context,
-              font,
-            );
-          },
           build: (context) {
-            return [
-              _buildPdfOverview(font),
-            ];
+            return pw.Container(
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(
+                  color: PdfColors.amber700,
+                  width: 0.8,
+                ),
+              ),
+              padding:
+                  const pw.EdgeInsets.all(22),
+              child: pw.Column(
+                children: [
+                  pw.Expanded(
+                    child: pw.FittedBox(
+                      fit:
+                          pw.BoxFit.scaleDown,
+                      alignment:
+                          pw.Alignment.topCenter,
+                      child:
+                          _buildPdfOverview(
+                        font,
+                      ),
+                    ),
+                  ),
+
+                  pw.SizedBox(height: 10),
+
+                  _buildPdfSignatureArea(
+                    font,
+                  ),
+
+                  pw.SizedBox(height: 8),
+
+                  _buildPdfFooter(
+                    font,
+                  ),
+                ],
+              ),
+            );
           },
         ),
       );
@@ -1939,120 +2040,147 @@ class _ReportScreenState extends State<ReportScreen> {
   pw.Widget _buildPdfOverview(
     pw.Font font,
   ) {
-    return pw.Column(
-      crossAxisAlignment:
-          pw.CrossAxisAlignment.start,
-      children: [
-        pw.Center(
-          child: pw.Text(
-            'بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ',
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 15,
+    return pw.Container(
+      width: 540,
+      child: pw.Column(
+        crossAxisAlignment:
+            pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: double.infinity,
+            padding:
+                const pw.EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            decoration: pw.BoxDecoration(
+              color:
+                  PdfColor.fromHex('#0F5132'),
+              borderRadius:
+                  pw.BorderRadius.circular(8),
+            ),
+            child: pw.Column(
+              children: [
+                pw.Text(
+                  'আমার হিসাব',
+                  style: pw.TextStyle(
+                    font: font,
+                    fontSize: 23,
+                    fontWeight:
+                        pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  _periodTitle,
+                  style: pw.TextStyle(
+                    font: font,
+                    fontSize: 14,
+                    fontWeight:
+                        pw.FontWeight.bold,
+                    color:
+                        PdfColor.fromHex(
+                      '#C9A45C',
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  _dateRangeText,
+                  style: pw.TextStyle(
+                    font: font,
+                    fontSize: 9,
+                    color: PdfColors.white,
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        pw.SizedBox(height: 8),
-        pw.Center(
-          child: pw.Text(
-            'আমার হিসাব',
+
+          pw.SizedBox(height: 12),
+
+          pw.Text(
+            'সারসংক্ষেপ',
             style: pw.TextStyle(
               font: font,
-              fontSize: 24,
+              fontSize: 14,
               fontWeight:
                   pw.FontWeight.bold,
             ),
           ),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Center(
-          child: pw.Text(
-            _periodTitle,
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 15,
-            ),
-          ),
-        ),
-        pw.Center(
-          child: pw.Text(
-            _dateRangeText,
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 10,
-            ),
-          ),
-        ),
-        pw.SizedBox(height: 18),
 
-        pw.Table(
-          border:
-              pw.TableBorder.all(
-            color: PdfColors.grey400,
-          ),
-          children: [
-            pw.TableRow(
-              children: [
-                _pdfCell(
-                  'মোট আয়',
-                  font,
-                  bold: true,
-                ),
-                _pdfCell(
-                  'মোট ব্যয়',
-                  font,
-                  bold: true,
-                ),
-                _pdfCell(
-                  _isSurplus
-                      ? 'উদ্বৃত্ত'
-                      : 'ঘাটি',
-                  font,
-                  bold: true,
-                ),
-              ],
+          pw.SizedBox(height: 6),
+
+          pw.Table(
+            border:
+                pw.TableBorder.all(
+              color: PdfColors.grey400,
             ),
-            pw.TableRow(
-              children: [
-                _pdfCell(
-                  _money(_income),
-                  font,
-                ),
-                _pdfCell(
-                  _money(_expense),
-                  font,
-                ),
-                _pdfCell(
-                  _money(
-                    _difference.abs(),
+            children: [
+              pw.TableRow(
+                children: [
+                  _pdfCell(
+                    'মোট আয়',
+                    font,
+                    bold: true,
                   ),
-                  font,
-                ),
-              ],
-            ),
-          ],
-        ),
+                  _pdfCell(
+                    'মোট ব্যয়',
+                    font,
+                    bold: true,
+                  ),
+                  _pdfCell(
+                    _isSurplus
+                        ? 'উদ্বৃত্ত'
+                        : 'ঘাটি',
+                    font,
+                    bold: true,
+                  ),
+                ],
+              ),
+              pw.TableRow(
+                children: [
+                  _pdfCell(
+                    _money(_income),
+                    font,
+                  ),
+                  _pdfCell(
+                    _money(_expense),
+                    font,
+                  ),
+                  _pdfCell(
+                    _money(
+                      _difference.abs(),
+                    ),
+                    font,
+                  ),
+                ],
+              ),
+            ],
+          ),
 
-        pw.SizedBox(height: 18),
+          pw.SizedBox(height: 10),
 
-        _pdfCategorySection(
-          'আয়ের খাত',
-          _incomeCategories,
-          font,
-        ),
+          _pdfCategorySection(
+            'আয়ের খাত',
+            _incomeCategories,
+            font,
+          ),
 
-        pw.SizedBox(height: 14),
+          pw.SizedBox(height: 8),
 
-        _pdfCategorySection(
-          'ব্যয়ের খাত',
-          _expenseCategories,
-          font,
-        ),
+          _pdfCategorySection(
+            'ব্যয়ের খাত',
+            _expenseCategories,
+            font,
+          ),
 
-        pw.SizedBox(height: 18),
+          pw.SizedBox(height: 10),
 
-        _pdfLoanReport(font),
-      ],
+          _pdfLoanReport(font),
+        ],
+      ),
     );
   }
 
@@ -2063,12 +2191,12 @@ class _ReportScreenState extends State<ReportScreen> {
   }) {
     return pw.Padding(
       padding:
-          const pw.EdgeInsets.all(7),
+          const pw.EdgeInsets.all(6),
       child: pw.Text(
         text,
         style: pw.TextStyle(
           font: font,
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: bold
               ? pw.FontWeight.bold
               : pw.FontWeight.normal,
@@ -2091,18 +2219,18 @@ class _ReportScreenState extends State<ReportScreen> {
           title,
           style: pw.TextStyle(
             font: font,
-            fontSize: 14,
+            fontSize: 12,
             fontWeight:
                 pw.FontWeight.bold,
           ),
         ),
-        pw.SizedBox(height: 6),
+        pw.SizedBox(height: 4),
         if (categories.isEmpty)
           pw.Text(
             'কোনো তথ্য নেই',
             style: pw.TextStyle(
               font: font,
-              fontSize: 9,
+              fontSize: 8,
             ),
           )
         else
@@ -2196,13 +2324,13 @@ class _ReportScreenState extends State<ReportScreen> {
           'ব্যক্তিগত Loan',
           style: pw.TextStyle(
             font: font,
-            fontSize: 15,
+            fontSize: 13,
             fontWeight:
                 pw.FontWeight.bold,
           ),
         ),
 
-        pw.SizedBox(height: 8),
+        pw.SizedBox(height: 6),
 
         pw.Table(
           border:
@@ -2303,44 +2431,60 @@ class _ReportScreenState extends State<ReportScreen> {
           ],
         ),
 
-        pw.SizedBox(height: 14),
+        pw.SizedBox(height: 8),
 
-        pw.Text(
-          'আমি পাব',
-          style: pw.TextStyle(
-            font: font,
-            fontSize: 12,
-            fontWeight:
-                pw.FontWeight.bold,
-          ),
-        ),
-
-        pw.SizedBox(height: 5),
-
-        _pdfPeopleTable(
-          receivable,
-          font,
-          'কারো কাছে আমার পাওনা নেই',
-        ),
-
-        pw.SizedBox(height: 12),
-
-        pw.Text(
-          'আমার কাছে পাবে',
-          style: pw.TextStyle(
-            font: font,
-            fontSize: 12,
-            fontWeight:
-                pw.FontWeight.bold,
-          ),
-        ),
-
-        pw.SizedBox(height: 5),
-
-        _pdfPeopleTable(
-          payable,
-          font,
-          'কারো কাছে আমার দেনা নেই',
+        pw.Row(
+          crossAxisAlignment:
+              pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment:
+                    pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'আমি পাব',
+                    style: pw.TextStyle(
+                      font: font,
+                      fontSize: 10,
+                      fontWeight:
+                          pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 3),
+                  _pdfPeopleTable(
+                    receivable,
+                    font,
+                    'কারো কাছে আমার পাওনা নেই',
+                  ),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 8),
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment:
+                    pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'আমার কাছে পাবে',
+                    style: pw.TextStyle(
+                      font: font,
+                      fontSize: 10,
+                      fontWeight:
+                          pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 3),
+                  _pdfPeopleTable(
+                    payable,
+                    font,
+                    'কারো কাছে আমার দেনা নেই',
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -2357,7 +2501,7 @@ class _ReportScreenState extends State<ReportScreen> {
         emptyText,
         style: pw.TextStyle(
           font: font,
-          fontSize: 9,
+          fontSize: 7,
         ),
       );
     }
@@ -2406,27 +2550,71 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  pw.Widget _pdfFooter(
-    pw.Context context,
+  pw.Widget _buildPdfSignatureArea(
     pw.Font font,
   ) {
     return pw.Container(
-      alignment: pw.Alignment.center,
-      padding:
-          const pw.EdgeInsets.only(
-        top: 8,
-      ),
-      child: pw.Text(
-        'আমার হিসাব অ্যাপ • '
-        'Developed by Sayeed Mahadi • '
-        'mahadisayeed@gmail.com • '
-        'পৃষ্ঠা ${context.pageNumber}/${context.pagesCount}',
-        textAlign: pw.TextAlign.center,
-        style: pw.TextStyle(
-          font: font,
-          fontSize: 7,
+      width: double.infinity,
+      height: 50,
+      alignment:
+          pw.Alignment.bottomRight,
+      child: pw.Container(
+        width: 150,
+        child: pw.Column(
+          mainAxisAlignment:
+              pw.MainAxisAlignment.end,
+          children: [
+            pw.Container(
+              height: 0.7,
+              color: PdfColors.grey700,
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              'স্বাক্ষর',
+              style: pw.TextStyle(
+                font: font,
+                fontSize: 8,
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  pw.Widget _buildPdfFooter(
+    pw.Font font,
+  ) {
+    return pw.Column(
+      children: [
+        pw.Divider(
+          color: PdfColors.amber700,
+        ),
+        pw.SizedBox(height: 3),
+        pw.Text(
+          'আমার হিসাব অ্যাপ',
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 8,
+            fontWeight:
+                pw.FontWeight.bold,
+          ),
+        ),
+        pw.Text(
+          'Developed by Sayeed Mahadi',
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 7,
+          ),
+        ),
+        pw.Text(
+          'mahadisayeed@gmail.com',
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 7,
+          ),
+        ),
+      ],
     );
   }
 
@@ -2604,6 +2792,14 @@ class TransactionDetailsScreen
 
 class _TransactionDetailsScreenState
     extends State<TransactionDetailsScreen> {
+  static const double _a4Width = 794;
+  static const double _a4Height = 1123;
+
+  // Number of transactions per A4 page.
+  // Keeping this at 5 gives enough room for
+  // category/account/person/note information.
+  static const int _transactionsPerPage = 5;
+
   final ScreenshotController
       _screenshotController =
       ScreenshotController();
@@ -2623,11 +2819,50 @@ class _TransactionDetailsScreenState
   bool _saving = false;
 
   // ============================================================
+  // PAGE CHUNKS
+  // ============================================================
+
+  List<List<Map<String, dynamic>>>
+      get _transactionPages {
+    if (widget.transactions.isEmpty) {
+      return [
+        <Map<String, dynamic>>[],
+      ];
+    }
+
+    final pages =
+        <List<Map<String, dynamic>>>[];
+
+    for (
+      int i = 0;
+      i < widget.transactions.length;
+      i += _transactionsPerPage
+    ) {
+      final int end =
+          (i + _transactionsPerPage >
+                  widget.transactions.length)
+              ? widget.transactions.length
+              : i + _transactionsPerPage;
+
+      pages.add(
+        widget.transactions.sublist(
+          i,
+          end,
+        ),
+      );
+    }
+
+    return pages;
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
 
   @override
   Widget build(BuildContext context) {
+    final pages = _transactionPages;
+
     return Scaffold(
       appBar: AppBar(
         title:
@@ -2637,12 +2872,30 @@ class _TransactionDetailsScreenState
         padding:
             const EdgeInsets.all(14),
         children: [
-          Screenshot(
-            controller:
-                _screenshotController,
-            child:
-                _buildTransactionExportWidget(),
-          ),
+          // Each transaction page is a real A4-sized
+          // portrait page on screen.
+          for (
+            int i = 0;
+            i < pages.length;
+            i++
+          ) ...[
+            Center(
+              child: Screenshot(
+                controller:
+                    i == 0
+                        ? _screenshotController
+                        : ScreenshotController(),
+                child:
+                    _buildA4TransactionPage(
+                  pages[i],
+                  i + 1,
+                  pages.length,
+                ),
+              ),
+            ),
+            if (i != pages.length - 1)
+              const SizedBox(height: 14),
+          ],
 
           const SizedBox(height: 14),
 
@@ -2652,6 +2905,89 @@ class _TransactionDetailsScreenState
         ],
       ),
     );
+  }
+
+  // ============================================================
+  // A4 TRANSACTION PAGE
+  // ============================================================
+
+  Widget _buildA4TransactionPage(
+    List<Map<String, dynamic>> transactions,
+    int pageNumber,
+    int totalPages,
+  ) {
+    return Container(
+      width: _a4Width,
+      height: _a4Height,
+      color: Theme.of(context)
+          .scaffoldBackgroundColor,
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          border: Border.all(
+            color:
+                const Color(0xFFC9A45C)
+                    .withValues(alpha: 0.65),
+            width: 1.2,
+          ),
+        ),
+        child: Column(
+          children: [
+            _buildHeader(),
+
+            const SizedBox(height: 12),
+
+            Expanded(
+              child: ClipRect(
+                child: Column(
+                  children: [
+                    if (transactions.isEmpty)
+                      Expanded(
+                        child:
+                            _emptyTransactions(),
+                      )
+                    else
+                      ...transactions
+                          .asMap()
+                          .entries
+                          .map(
+                        (entry) {
+                          return _buildTransactionCard(
+                            entry.value,
+                            _globalTransactionIndex(
+                              pageNumber,
+                              entry.key,
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            _buildFooter(
+              pageNumber,
+              totalPages,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  int _globalTransactionIndex(
+    int pageNumber,
+    int localIndex,
+  ) {
+    return ((pageNumber - 1) *
+            _transactionsPerPage) +
+        localIndex +
+        1;
   }
 
   // ============================================================
@@ -2763,45 +3099,8 @@ class _TransactionDetailsScreenState
   }
 
   // ============================================================
-  // TRANSACTION EXPORT WIDGET
+  // TRANSACTION HEADER
   // ============================================================
-
-  Widget _buildTransactionExportWidget() {
-    return Container(
-      width: 850,
-      color: Theme.of(context)
-          .scaffoldBackgroundColor,
-      padding: const EdgeInsets.all(4),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-
-          const SizedBox(height: 12),
-
-          if (widget.transactions.isEmpty)
-            _emptyTransactions()
-          else
-            ...widget.transactions
-                .asMap()
-                .entries
-                .map(
-              (entry) {
-                return _buildTransactionCard(
-                  entry.value,
-                  entry.key + 1,
-                );
-              },
-            ),
-
-          const SizedBox(height: 12),
-
-          _buildFooter(),
-        ],
-      ),
-    );
-  }
 
   Widget _buildHeader() {
     return Container(
@@ -2876,6 +3175,8 @@ class _TransactionDetailsScreenState
         ),
       ),
       child: const Column(
+        mainAxisAlignment:
+            MainAxisAlignment.center,
         children: [
           Icon(
             Icons.receipt_long_outlined,
@@ -3142,32 +3443,46 @@ class _TransactionDetailsScreenState
     );
   }
 
-  Widget _buildFooter() {
+  // ============================================================
+  // TRANSACTION FOOTER
+  // ============================================================
+
+  Widget _buildFooter(
+    int pageNumber,
+    int totalPages,
+  ) {
     return Column(
       children: [
         const Divider(
           color: Color(0xFFC9A45C),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         const Text(
           'আমার হিসাব অ্যাপ',
           style: TextStyle(
             color: Color(0xFFC9A45C),
             fontWeight:
                 FontWeight.bold,
-            fontSize: 12,
+            fontSize: 11,
           ),
         ),
         const Text(
           'Developed by Sayeed Mahadi',
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 9,
           ),
         ),
         const Text(
           'mahadisayeed@gmail.com',
           style: TextStyle(
-            fontSize: 9,
+            fontSize: 8,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          'পৃষ্ঠা $pageNumber / $totalPages',
+          style: const TextStyle(
+            fontSize: 8,
           ),
         ),
       ],
@@ -3404,21 +3719,20 @@ class _TransactionDetailsScreenState
   }
 
   // ============================================================
-  // CAPTURE TRANSACTIONS
+  // CAPTURE ONE TRANSACTION A4 PAGE
   // ============================================================
 
-  Future<File?> _captureTransactions() async {
-    final double screenWidth =
-        MediaQuery.of(context).size.width;
-
-    final double exportWidth =
-        screenWidth > 850
-            ? 850
-            : screenWidth - 28;
+  Future<File?> _captureTransactionPage({
+    required List<Map<String, dynamic>>
+        transactions,
+    required int pageNumber,
+    required int totalPages,
+  }) async {
+    final controller =
+        ScreenshotController();
 
     final Uint8List? bytes =
-        await _screenshotController
-            .captureFromLongWidget(
+        await controller.captureFromLongWidget(
       Material(
         color: Theme.of(context)
             .scaffoldBackgroundColor,
@@ -3428,16 +3742,21 @@ class _TransactionDetailsScreenState
             textDirection:
                 TextDirection.ltr,
             child: SizedBox(
-              width: exportWidth,
+              width: _a4Width,
+              height: _a4Height,
               child:
-                  _buildTransactionExportWidget(),
+                  _buildA4TransactionPage(
+                transactions,
+                pageNumber,
+                totalPages,
+              ),
             ),
           ),
         ),
       ),
       delay:
           const Duration(
-        milliseconds: 500,
+        milliseconds: 400,
       ),
       context: context,
       pixelRatio: 2.0,
@@ -3452,7 +3771,7 @@ class _TransactionDetailsScreenState
         await getTemporaryDirectory();
 
     final file = File(
-      '${directory.path}/amar_hisab_transactions.png',
+      '${directory.path}/amar_hisab_transactions_page_$pageNumber.png',
     );
 
     await file.writeAsBytes(
@@ -3475,7 +3794,7 @@ class _TransactionDetailsScreenState
   }
 
   // ============================================================
-  // SAVE TRANSACTION JPG
+  // SAVE TRANSACTION JPG - ALL A4 PAGES
   // ============================================================
 
   Future<void> _saveJpg() async {
@@ -3486,99 +3805,106 @@ class _TransactionDetailsScreenState
     });
 
     try {
-      final File? pngFile =
-          await _captureTransactions();
+      final pages = _transactionPages;
 
-      if (pngFile == null) {
-        throw Exception(
-          'লেনদেনের ছবি তৈরি করা যায়নি',
+      int savedCount = 0;
+
+      for (
+        int i = 0;
+        i < pages.length;
+        i++
+      ) {
+        final File? pngFile =
+            await _captureTransactionPage(
+          transactions: pages[i],
+          pageNumber: i + 1,
+          totalPages: pages.length,
         );
-      }
 
-      final Uint8List pngBytes =
-          await pngFile.readAsBytes();
+        if (pngFile == null) {
+          throw Exception(
+            'Page ${i + 1} এর ছবি তৈরি করা যায়নি',
+          );
+        }
 
-      if (pngBytes.isEmpty) {
-        throw Exception(
-          'PNG ফাইল খালি',
+        final Uint8List pngBytes =
+            await pngFile.readAsBytes();
+
+        if (pngBytes.isEmpty) {
+          throw Exception(
+            'Page ${i + 1} PNG খালি',
+          );
+        }
+
+        final img.Image? decoded =
+            img.decodeImage(pngBytes);
+
+        if (decoded == null) {
+          throw Exception(
+            'Page ${i + 1} ছবি decode করা যায়নি',
+          );
+        }
+
+        final List<int> jpgBytes =
+            img.encodeJpg(
+          decoded,
+          quality: 95,
         );
-      }
 
-      final img.Image? decoded =
-          img.decodeImage(pngBytes);
+        if (jpgBytes.isEmpty) {
+          throw Exception(
+            'Page ${i + 1} JPG তৈরি করা যায়নি',
+          );
+        }
 
-      if (decoded == null) {
-        throw Exception(
-          'ছবি decode করা যায়নি',
+        final directory =
+            await getTemporaryDirectory();
+
+        final file = File(
+          '${directory.path}/amar_hisab_transactions_page_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg',
         );
-      }
 
-      final List<int> jpgBytes =
-          img.encodeJpg(
-        decoded,
-        quality: 95,
-      );
-
-      if (jpgBytes.isEmpty) {
-        throw Exception(
-          'JPG তৈরি করা যায়নি',
+        await file.writeAsBytes(
+          jpgBytes,
+          flush: true,
         );
-      }
 
-      final directory =
-          await getTemporaryDirectory();
+        if (!await file.exists()) {
+          throw Exception(
+            'Page ${i + 1} JPG তৈরি হয়নি',
+          );
+        }
 
-      final file = File(
-        '${directory.path}/amar_hisab_transactions_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
+        final int fileSize =
+            await file.length();
 
-      await file.writeAsBytes(
-        jpgBytes,
-        flush: true,
-      );
+        if (fileSize <= 0) {
+          throw Exception(
+            'Page ${i + 1} JPG খালি',
+          );
+        }
 
-      if (!await file.exists()) {
-        throw Exception(
-          'JPG ফাইল তৈরি হয়নি',
+        final bool? saved =
+            await GallerySaver.saveImage(
+          file.path,
+          albumName: 'আমার হিসাব',
         );
+
+        if (saved == true) {
+          savedCount++;
+        }
       }
-
-      final int fileSize =
-          await file.length();
-
-      if (fileSize <= 0) {
-        throw Exception(
-          'JPG ফাইল খালি',
-        );
-      }
-
-      final bool? saved =
-          await GallerySaver.saveImage(
-        file.path,
-        albumName: 'আমার হিসাব',
-      );
 
       if (!mounted) return;
 
-      if (saved == true) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'লেনদেনের বিস্তারিত JPG হিসেবে Gallery-তে সংরক্ষণ হয়েছে',
-            ),
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            '$savedCount/${pages.length}টি A4 JPG Gallery-তে সংরক্ষণ হয়েছে',
           ),
-        );
-      } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'JPG তৈরি হয়েছে, কিন্তু Gallery-তে সংরক্ষণ করা যায়নি',
-            ),
-          ),
-        );
-      }
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
 
@@ -3600,7 +3926,7 @@ class _TransactionDetailsScreenState
   }
 
   // ============================================================
-  // SHARE TRANSACTIONS IMAGE
+  // SHARE TRANSACTION IMAGES - ALL A4 PAGES
   // ============================================================
 
   Future<void> _shareImage() async {
@@ -3611,25 +3937,42 @@ class _TransactionDetailsScreenState
     });
 
     try {
-      final File? file =
-          await _captureTransactions();
+      final pages = _transactionPages;
 
-      if (file == null) {
-        throw Exception(
-          'ছবি তৈরি করা যায়নি',
+      final List<XFile> files = [];
+
+      for (
+        int i = 0;
+        i < pages.length;
+        i++
+      ) {
+        final File? file =
+            await _captureTransactionPage(
+          transactions: pages[i],
+          pageNumber: i + 1,
+          totalPages: pages.length,
+        );
+
+        if (file == null) {
+          throw Exception(
+            'Page ${i + 1} এর ছবি তৈরি করা যায়নি',
+          );
+        }
+
+        files.add(
+          XFile(file.path),
         );
       }
 
       await SharePlus.instance.share(
         ShareParams(
-          files: [
-            XFile(file.path),
-          ],
+          files: files,
           text:
               'আমার হিসাব - '
               'লেনদেনের বিস্তারিত\n'
               '${_dateText(widget.startDate)} - '
-              '${_dateText(widget.endDate)}',
+              '${_dateText(widget.endDate)}\n'
+              'মোট পৃষ্ঠা: ${pages.length}',
         ),
       );
     } catch (e) {
@@ -3653,7 +3996,7 @@ class _TransactionDetailsScreenState
   }
 
   // ============================================================
-  // TRANSACTION PDF
+  // TRANSACTION PDF - MULTIPLE A4 PAGES
   // ============================================================
 
   Future<pw.Font> _loadPdfFont() async {
@@ -3682,117 +4025,100 @@ class _TransactionDetailsScreenState
 
       final pdf = pw.Document();
 
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat:
-              PdfPageFormat.a4,
-          margin:
-              const pw.EdgeInsets.all(25),
-          theme:
-              pw.ThemeData.withFont(
-            base: font,
-            bold: font,
-          ),
-          footer: (context) {
-            return pw.Container(
-              alignment:
-                  pw.Alignment.center,
-              padding:
-                  const pw.EdgeInsets.only(
-                top: 8,
-              ),
-              child: pw.Text(
-                'আমার হিসাব অ্যাপ • '
-                'Developed by Sayeed Mahadi • '
-                'mahadisayeed@gmail.com • '
-                'পৃষ্ঠা ${context.pageNumber}/${context.pagesCount}',
-                textAlign:
-                    pw.TextAlign.center,
-                style: pw.TextStyle(
-                  font: font,
-                  fontSize: 7,
-                ),
-              ),
-            );
-          },
-          build: (context) {
-            return [
-              pw.Center(
-                child: pw.Text(
-                  'আমার হিসাব',
-                  style: pw.TextStyle(
-                    font: font,
-                    fontSize: 22,
-                    fontWeight:
-                        pw.FontWeight.bold,
+      final pages = _transactionPages;
+
+      for (
+        int pageIndex = 0;
+        pageIndex < pages.length;
+        pageIndex++
+      ) {
+        final pageTransactions =
+            pages[pageIndex];
+
+        pdf.addPage(
+          pw.Page(
+            pageFormat:
+                PdfPageFormat.a4,
+            margin:
+                const pw.EdgeInsets.all(24),
+            theme:
+                pw.ThemeData.withFont(
+              base: font,
+              bold: font,
+            ),
+            build: (context) {
+              return pw.Container(
+                decoration:
+                    pw.BoxDecoration(
+                  border: pw.Border.all(
+                    color:
+                        PdfColors.amber700,
+                    width: 0.8,
                   ),
                 ),
-              ),
-
-              pw.SizedBox(height: 5),
-
-              pw.Center(
-                child: pw.Text(
-                  'লেনদেনের বিস্তারিত',
-                  style: pw.TextStyle(
-                    font: font,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-
-              pw.SizedBox(height: 3),
-
-              pw.Center(
-                child: pw.Text(
-                  widget.periodTitle,
-                  style: pw.TextStyle(
-                    font: font,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-
-              pw.Center(
-                child: pw.Text(
-                  '${_dateText(widget.startDate)} - '
-                  '${_dateText(widget.endDate)}',
-                  style: pw.TextStyle(
-                    font: font,
-                    fontSize: 9,
-                  ),
-                ),
-              ),
-
-              pw.SizedBox(height: 15),
-
-              if (widget.transactions.isEmpty)
-                pw.Center(
-                  child: pw.Text(
-                    'এই সময়ে কোনো লেনদেন নেই',
-                    style: pw.TextStyle(
-                      font: font,
-                      fontSize: 11,
-                    ),
-                  ),
-                )
-              else
-                ...widget.transactions
-                    .asMap()
-                    .entries
-                    .map(
-                  (entry) {
-                    return _pdfTransaction(
-                      entry.value,
-                      entry.key + 1,
+                padding:
+                    const pw.EdgeInsets.all(22),
+                child: pw.Column(
+                  children: [
+                    _buildPdfTransactionHeader(
                       font,
-                    );
-                  },
+                    ),
+
+                    pw.SizedBox(height: 10),
+
+                    pw.Expanded(
+                      child:
+                          pw.Column(
+                        children: [
+                          if (pageTransactions
+                              .isEmpty)
+                            pw.Expanded(
+                              child: pw.Center(
+                                child:
+                                    pw.Text(
+                                  'এই সময়ে কোনো লেনদেন নেই',
+                                  style:
+                                      pw.TextStyle(
+                                    font: font,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            ...pageTransactions
+                                .asMap()
+                                .entries
+                                .map(
+                              (entry) {
+                                return _pdfTransaction(
+                                  entry.value,
+                                  _globalTransactionIndex(
+                                    pageIndex + 1,
+                                    entry.key,
+                                  ),
+                                  font,
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    pw.SizedBox(height: 8),
+
+                    _buildPdfTransactionFooter(
+                      font,
+                      pageIndex + 1,
+                      pages.length,
+                    ),
+                  ],
                 ),
-            ];
-          },
-        ),
-      );
+              );
+            },
+          ),
+        );
+      }
 
       final directory =
           await getTemporaryDirectory();
@@ -3813,7 +4139,8 @@ class _TransactionDetailsScreenState
           ],
           text:
               'আমার হিসাব - '
-              'লেনদেনের বিস্তারিত',
+              'লেনদেনের বিস্তারিত\n'
+              'মোট পৃষ্ঠা: ${pages.length}',
         ),
       );
     } catch (e) {
@@ -3834,6 +4161,114 @@ class _TransactionDetailsScreenState
         });
       }
     }
+  }
+
+  pw.Widget _buildPdfTransactionHeader(
+    pw.Font font,
+  ) {
+    return pw.Container(
+      width: double.infinity,
+      padding:
+          const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color:
+            PdfColor.fromHex('#0F5132'),
+        borderRadius:
+            pw.BorderRadius.circular(8),
+      ),
+      child: pw.Column(
+        children: [
+          pw.Text(
+            'আমার হিসাব',
+            style: pw.TextStyle(
+              font: font,
+              fontSize: 21,
+              fontWeight:
+                  pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            'লেনদেনের বিস্তারিত',
+            style: pw.TextStyle(
+              font: font,
+              fontSize: 14,
+              fontWeight:
+                  pw.FontWeight.bold,
+              color:
+                  PdfColor.fromHex(
+                '#C9A45C',
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 3),
+          pw.Text(
+            widget.periodTitle,
+            style: pw.TextStyle(
+              font: font,
+              fontSize: 9,
+              color: PdfColors.white,
+            ),
+          ),
+          pw.Text(
+            '${_dateText(widget.startDate)} - '
+            '${_dateText(widget.endDate)}',
+            style: pw.TextStyle(
+              font: font,
+              fontSize: 8,
+              color: PdfColors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfTransactionFooter(
+    pw.Font font,
+    int pageNumber,
+    int totalPages,
+  ) {
+    return pw.Column(
+      children: [
+        pw.Divider(
+          color: PdfColors.amber700,
+        ),
+        pw.SizedBox(height: 3),
+        pw.Text(
+          'আমার হিসাব অ্যাপ',
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 8,
+            fontWeight:
+                pw.FontWeight.bold,
+          ),
+        ),
+        pw.Text(
+          'Developed by Sayeed Mahadi',
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 7,
+          ),
+        ),
+        pw.Text(
+          'mahadisayeed@gmail.com',
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 7,
+          ),
+        ),
+        pw.SizedBox(height: 2),
+        pw.Text(
+          'পৃষ্ঠা $pageNumber / $totalPages',
+          style: pw.TextStyle(
+            font: font,
+            fontSize: 7,
+          ),
+        ),
+      ],
+    );
   }
 
   pw.Widget _pdfTransaction(
@@ -3960,10 +4395,10 @@ class _TransactionDetailsScreenState
     return pw.Container(
       margin:
           const pw.EdgeInsets.only(
-        bottom: 8,
+        bottom: 7,
       ),
       padding:
-          const pw.EdgeInsets.all(9),
+          const pw.EdgeInsets.all(8),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(
           color: PdfColors.grey300,
@@ -3982,7 +4417,7 @@ class _TransactionDetailsScreenState
                   '$index. $typeText',
                   style: pw.TextStyle(
                     font: font,
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight:
                         pw.FontWeight.bold,
                   ),
@@ -3992,7 +4427,7 @@ class _TransactionDetailsScreenState
                 _money(amount),
                 style: pw.TextStyle(
                   font: font,
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight:
                       pw.FontWeight.bold,
                 ),
@@ -4005,7 +4440,7 @@ class _TransactionDetailsScreenState
               detail,
               style: pw.TextStyle(
                 font: font,
-                fontSize: 8,
+                fontSize: 7,
               ),
             ),
           ),
