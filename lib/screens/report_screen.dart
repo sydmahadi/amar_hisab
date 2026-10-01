@@ -111,22 +111,38 @@ class _ReportScreenState extends State<ReportScreen> {
       final dynamic loansResult =
           await MoneyDb.instance.getLoans();
 
-      final double loadedIncome = _toDouble(incomeResult);
-      final double loadedExpense = _toDouble(expenseResult);
+      final double loadedIncome =
+          _toDouble(incomeResult);
 
-      final List<Map<String, dynamic>> loadedTransactions =
-          _toDynamicMapList(transactionResult);
+      final double loadedExpense =
+          _toDouble(expenseResult);
 
-      final List<Map<String, dynamic>> loadedIncomeCategories =
-          _toDynamicMapList(incomeCategoryResult);
+      final List<Map<String, dynamic>>
+          loadedTransactions =
+          _toDynamicMapList(
+        transactionResult,
+      );
 
-      final List<Map<String, dynamic>> loadedExpenseCategories =
-          _toDynamicMapList(expenseCategoryResult);
+      final List<Map<String, dynamic>>
+          loadedIncomeCategories =
+          _toDynamicMapList(
+        incomeCategoryResult,
+      );
 
-      final List<Map<String, dynamic>> loadedLoans =
-          _toDynamicMapList(loansResult);
+      final List<Map<String, dynamic>>
+          loadedExpenseCategories =
+          _toDynamicMapList(
+        expenseCategoryResult,
+      );
 
-      final List<Map<String, dynamic>> loadedLoanTransactions =
+      final List<Map<String, dynamic>>
+          loadedLoans =
+          _toDynamicMapList(
+        loansResult,
+      );
+
+      final List<Map<String, dynamic>>
+          loadedLoanTransactions =
           loadedTransactions.where((tx) {
         final type = _transactionType(tx);
 
@@ -142,10 +158,13 @@ class _ReportScreenState extends State<ReportScreen> {
         _income = loadedIncome;
         _expense = loadedExpense;
         _transactions = loadedTransactions;
-        _incomeCategories = loadedIncomeCategories;
-        _expenseCategories = loadedExpenseCategories;
+        _incomeCategories =
+            loadedIncomeCategories;
+        _expenseCategories =
+            loadedExpenseCategories;
         _loans = loadedLoans;
-        _loanPeriodTransactions = loadedLoanTransactions;
+        _loanPeriodTransactions =
+            loadedLoanTransactions;
         _loading = false;
       });
     } catch (e) {
@@ -278,10 +297,13 @@ class _ReportScreenState extends State<ReportScreen> {
     switch (_period) {
       case 'weekly':
         return 'সাপ্তাহিক রিপোর্ট';
+
       case 'yearly':
         return 'বার্ষিক রিপোর্ট';
+
       case 'custom':
         return 'নির্বাচিত সময়ের রিপোর্ট';
+
       case 'monthly':
       default:
         return 'মাসিক রিপোর্ট';
@@ -289,12 +311,15 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   String get _dateRangeText {
-    return '${_dateText(_startDate)} - ${_dateText(_endDate)}';
+    return '${_dateText(_startDate)} - '
+        '${_dateText(_endDate)}';
   }
 
-  double get _difference => _income - _expense;
+  double get _difference =>
+      _income - _expense;
 
-  bool get _isSurplus => _difference >= 0;
+  bool get _isSurplus =>
+      _difference >= 0;
 
   double get _loanGivenPeriod {
     return _loanPeriodAmount('loan_given');
@@ -305,7 +330,9 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   double get _loanReceivedPeriod {
-    return _loanPeriodAmount('loan_received');
+    return _loanPeriodAmount(
+      'loan_received',
+    );
   }
 
   double get _loanPaidPeriod {
@@ -315,7 +342,8 @@ class _ReportScreenState extends State<ReportScreen> {
   double _loanPeriodAmount(String type) {
     double total = 0;
 
-    for (final tx in _loanPeriodTransactions) {
+    for (final tx
+        in _loanPeriodTransactions) {
       if (_transactionType(tx) == type) {
         total += _amount(tx);
       }
@@ -376,13 +404,16 @@ class _ReportScreenState extends State<ReportScreen> {
         ],
       );
 
-      if (type != 'receivable') continue;
+      if (type != 'receivable') {
+        continue;
+      }
 
       final person = _loanPerson(loan);
 
       if (person.isEmpty) continue;
 
-      final remaining = _loanRemaining(loan);
+      final remaining =
+          _loanRemaining(loan);
 
       if (remaining <= 0) continue;
 
@@ -405,13 +436,16 @@ class _ReportScreenState extends State<ReportScreen> {
         ],
       );
 
-      if (type != 'payable') continue;
+      if (type != 'payable') {
+        continue;
+      }
 
       final person = _loanPerson(loan);
 
       if (person.isEmpty) continue;
 
-      final remaining = _loanRemaining(loan);
+      final remaining =
+          _loanRemaining(loan);
 
       if (remaining <= 0) continue;
 
@@ -468,7 +502,8 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(),
+              child:
+                  CircularProgressIndicator(),
             )
           : RefreshIndicator(
               onRefresh: _loadReport,
@@ -500,40 +535,54 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _buildA4ReportPage() {
-    return Container(
+    return SizedBox(
       width: _a4Width,
       height: _a4Height,
-      color:
-          Theme.of(context).scaffoldBackgroundColor,
       child: Container(
-        margin: const EdgeInsets.all(24),
+        color: Theme.of(context)
+            .scaffoldBackgroundColor,
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          border: Border.all(
-            color: _gold.withValues(alpha: 0.65),
-            width: 1.2,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            border: Border.all(
+              color:
+                  _gold.withValues(alpha: 0.65),
+              width: 1.2,
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              child: ClipRect(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.topCenter,
-                  child: SizedBox(
-                    width: 698,
-                    child: _buildVoucherContent(),
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
+            children: [
+              Flexible(
+                fit: FlexFit.loose,
+                child: ClipRect(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment:
+                        Alignment.topCenter,
+                    child: SizedBox(
+                      width: 698,
+                      child:
+                          _buildVoucherContent(),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _buildSignatureArea(),
-            const SizedBox(height: 10),
-            _buildVoucherFooter(),
-          ],
+
+              // Signature আর Expanded নয়।
+              // তাই report content-এর পরেই থাকবে।
+              const SizedBox(height: 8),
+
+              _buildSignatureArea(),
+
+              const SizedBox(height: 6),
+
+              _buildVoucherFooter(),
+            ],
+          ),
         ),
       ),
     );
@@ -563,20 +612,26 @@ class _ReportScreenState extends State<ReportScreen> {
                   icon: Icons.image_rounded,
                   label: 'JPG সংরক্ষণ',
                   onPressed:
-                      _saving ? null : _saveJpg,
+                      _saving
+                          ? null
+                          : _saveJpg,
                 ),
                 _exportButton(
                   icon:
                       Icons.picture_as_pdf_rounded,
                   label: 'PDF তৈরি ও শেয়ার',
                   onPressed:
-                      _saving ? null : _savePdf,
+                      _saving
+                          ? null
+                          : _savePdf,
                 ),
                 _exportButton(
                   icon: Icons.share_rounded,
                   label: 'শেয়ার করুন',
                   onPressed:
-                      _saving ? null : _shareImage,
+                      _saving
+                          ? null
+                          : _shareImage,
                 ),
               ],
             ),
@@ -626,7 +681,8 @@ class _ReportScreenState extends State<ReportScreen> {
         ),
       ),
       style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets.symmetric(
           horizontal: 13,
           vertical: 12,
         ),
@@ -652,7 +708,8 @@ class _ReportScreenState extends State<ReportScreen> {
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               initialValue: _period,
-              decoration: const InputDecoration(
+              decoration:
+                  const InputDecoration(
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(
                   Icons.date_range_rounded,
@@ -714,7 +771,8 @@ class _ReportScreenState extends State<ReportScreen> {
                   Expanded(
                     child: Text(
                       _dateRangeText,
-                      style: const TextStyle(
+                      style:
+                          const TextStyle(
                         fontWeight:
                             FontWeight.w600,
                       ),
@@ -722,10 +780,13 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                   if (_period == 'custom')
                     IconButton(
-                      tooltip: 'তারিখ পরিবর্তন',
-                      onPressed: _pickCustomDate,
+                      tooltip:
+                          'তারিখ পরিবর্তন',
+                      onPressed:
+                          _pickCustomDate,
                       icon: const Icon(
-                        Icons.edit_calendar_rounded,
+                        Icons
+                            .edit_calendar_rounded,
                       ),
                     ),
                 ],
@@ -748,16 +809,20 @@ class _ReportScreenState extends State<ReportScreen> {
         const SizedBox(height: 14),
         _buildCategorySection(
           title: 'আয়ের খাত',
-          categories: _incomeCategories,
+          categories:
+              _incomeCategories,
           color: _incomeColor,
-          emptyText: 'এই সময়ে কোনো আয় নেই',
+          emptyText:
+              'এই সময়ে কোনো আয় নেই',
         ),
         const SizedBox(height: 12),
         _buildCategorySection(
           title: 'ব্যয়ের খাত',
-          categories: _expenseCategories,
+          categories:
+              _expenseCategories,
           color: _expenseColor,
-          emptyText: 'এই সময়ে কোনো ব্যয় নেই',
+          emptyText:
+              'এই সময়ে কোনো ব্যয় নেই',
         ),
         const SizedBox(height: 14),
         _buildLoanSection(),
@@ -796,7 +861,8 @@ class _ReportScreenState extends State<ReportScreen> {
             style: const TextStyle(
               color: _gold,
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight:
+                  FontWeight.w700,
             ),
           ),
           const SizedBox(height: 5),
@@ -895,7 +961,8 @@ class _ReportScreenState extends State<ReportScreen> {
               style: TextStyle(
                 color: color,
                 fontSize: 17,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
           ),
@@ -1070,7 +1137,8 @@ class _ReportScreenState extends State<ReportScreen> {
               name.isEmpty
                   ? 'অন্যান্য'
                   : name,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontWeight:
                     FontWeight.w600,
               ),
@@ -1129,7 +1197,8 @@ class _ReportScreenState extends State<ReportScreen> {
         const Row(
           children: [
             Icon(
-              Icons.account_balance_wallet_rounded,
+              Icons
+                  .account_balance_wallet_rounded,
               color: _gold,
               size: 22,
             ),
@@ -1153,7 +1222,8 @@ class _ReportScreenState extends State<ReportScreen> {
             Expanded(
               child: _loanCurrentCard(
                 title: 'আমি পাব',
-                subtitle: 'আমার কাছে পাওনা',
+                subtitle:
+                    'আমার কাছে পাওনা',
                 amount:
                     _totalReceivable,
                 color:
@@ -1165,10 +1235,12 @@ class _ReportScreenState extends State<ReportScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: _loanCurrentCard(
-                title: 'আমার কাছে পাবে',
+                title:
+                    'আমার কাছে পাবে',
                 subtitle: 'আমার দেনা',
                 amount: _totalPayable,
-                color: _loanPaidColor,
+                color:
+                    _loanPaidColor,
                 icon:
                     Icons.call_made_rounded,
               ),
@@ -1178,16 +1250,21 @@ class _ReportScreenState extends State<ReportScreen> {
         const SizedBox(height: 10),
         _buildPeopleOutstanding(
           title: 'আমি পাব',
-          people: receivablePeople,
-          color: _loanReceiveColor,
+          people:
+              receivablePeople,
+          color:
+              _loanReceiveColor,
           emptyText:
               'কারো কাছে আমার পাওনা নেই',
         ),
         const SizedBox(height: 9),
         _buildPeopleOutstanding(
-          title: 'আমার কাছে পাবে',
-          people: payablePeople,
-          color: _loanPaidColor,
+          title:
+              'আমার কাছে পাবে',
+          people:
+              payablePeople,
+          color:
+              _loanPaidColor,
           emptyText:
               'কারো কাছে আমার দেনা নেই',
         ),
@@ -1251,7 +1328,8 @@ class _ReportScreenState extends State<ReportScreen> {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style:
+                const TextStyle(
               fontSize: 11,
               fontWeight:
                   FontWeight.w600,
@@ -1282,7 +1360,8 @@ class _ReportScreenState extends State<ReportScreen> {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(11),
+      padding:
+          const EdgeInsets.all(11),
       decoration: BoxDecoration(
         borderRadius:
             BorderRadius.circular(14),
@@ -1313,7 +1392,8 @@ class _ReportScreenState extends State<ReportScreen> {
           const SizedBox(height: 2),
           Text(
             subtitle,
-            textAlign: TextAlign.center,
+            textAlign:
+                TextAlign.center,
             style:
                 const TextStyle(
               fontSize: 10,
@@ -1428,7 +1508,9 @@ class _ReportScreenState extends State<ReportScreen> {
                         ),
                       ),
                       Text(
-                        _money(entry.value),
+                        _money(
+                          entry.value,
+                        ),
                         style: TextStyle(
                           color: color,
                           fontWeight:
@@ -1448,7 +1530,7 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget _buildSignatureArea() {
     return SizedBox(
       width: double.infinity,
-      height: 72,
+      height: 52,
       child: Row(
         mainAxisAlignment:
             MainAxisAlignment.end,
@@ -1456,7 +1538,7 @@ class _ReportScreenState extends State<ReportScreen> {
             CrossAxisAlignment.end,
         children: [
           SizedBox(
-            width: 210,
+            width: 190,
             child: Column(
               mainAxisAlignment:
                   MainAxisAlignment.end,
@@ -1466,11 +1548,11 @@ class _ReportScreenState extends State<ReportScreen> {
                   color:
                       Colors.grey.shade600,
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 const Text(
                   'স্বাক্ষর',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight:
                         FontWeight.w600,
                   ),
@@ -1497,8 +1579,10 @@ class _ReportScreenState extends State<ReportScreen> {
                         TransactionDetailsScreen(
                       transactions:
                           _transactions,
-                      startDate: _startDate,
-                      endDate: _endDate,
+                      startDate:
+                          _startDate,
+                      endDate:
+                          _endDate,
                       periodTitle:
                           _periodTitle,
                     ),
@@ -1564,19 +1648,34 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<File?> _captureReport() async {
-    await Future.delayed(
-      const Duration(milliseconds: 300),
-    );
+    final ScreenshotController controller =
+        ScreenshotController();
 
-    final Uint8List? bytes =
-        await _screenshotController.capture(
-      delay: const Duration(
-        milliseconds: 200,
+    final Uint8List bytes =
+        await controller.captureFromWidget(
+      Material(
+        color: Theme.of(context)
+            .scaffoldBackgroundColor,
+        child: MediaQuery(
+          data: MediaQuery.of(context),
+          child: Directionality(
+            textDirection:
+                TextDirection.ltr,
+            child: SizedBox(
+              width: _a4Width,
+              height: _a4Height,
+              child:
+                  _buildA4ReportPage(),
+            ),
+          ),
+        ),
       ),
+      delay:
+          const Duration(milliseconds: 300),
       pixelRatio: 2.0,
     );
 
-    if (bytes == null || bytes.isEmpty) {
+    if (bytes.isEmpty) {
       return null;
     }
 
@@ -1596,10 +1695,7 @@ class _ReportScreenState extends State<ReportScreen> {
       return null;
     }
 
-    final int size =
-        await file.length();
-
-    if (size <= 0) {
+    if (await file.length() <= 0) {
       return null;
     }
 
@@ -1625,12 +1721,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
       final Uint8List pngBytes =
           await pngFile.readAsBytes();
-
-      if (pngBytes.isEmpty) {
-        throw Exception(
-          'PNG ফাইল খালি',
-        );
-      }
 
       final img.Image? decoded =
           img.decodeImage(pngBytes);
@@ -1665,21 +1755,6 @@ class _ReportScreenState extends State<ReportScreen> {
         flush: true,
       );
 
-      if (!await file.exists()) {
-        throw Exception(
-          'JPG ফাইল তৈরি হয়নি',
-        );
-      }
-
-      final int fileSize =
-          await file.length();
-
-      if (fileSize <= 0) {
-        throw Exception(
-          'JPG ফাইল খালি',
-        );
-      }
-
       final bool? saved =
           await GallerySaver.saveImage(
         file.path,
@@ -1688,25 +1763,16 @@ class _ReportScreenState extends State<ReportScreen> {
 
       if (!mounted) return;
 
-      if (saved == true) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'রিপোর্ট A4 JPG হিসেবে Gallery-তে সংরক্ষণ হয়েছে',
-            ),
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            saved == true
+                ? 'রিপোর্ট A4 JPG হিসেবে Gallery-তে সংরক্ষণ হয়েছে'
+                : 'JPG তৈরি হয়েছে, কিন্তু Gallery-তে সংরক্ষণ করা যায়নি',
           ),
-        );
-      } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'JPG তৈরি হয়েছে, কিন্তু Gallery-তে সংরক্ষণ করা যায়নি',
-            ),
-          ),
-        );
-      }
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
 
@@ -1836,11 +1902,11 @@ class _ReportScreenState extends State<ReportScreen> {
                       ),
                     ),
                   ),
-                  pw.SizedBox(height: 10),
+                  pw.SizedBox(height: 6),
                   _buildPdfSignatureArea(
                     font,
                   ),
-                  pw.SizedBox(height: 8),
+                  pw.SizedBox(height: 6),
                   _buildPdfFooter(font),
                 ],
               ),
@@ -2053,7 +2119,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
   pw.Widget _pdfCategorySection(
     String title,
-    List<Map<String, dynamic>> categories,
+    List<Map<String, dynamic>>
+        categories,
     pw.Font font,
   ) {
     return pw.Column(
@@ -2085,8 +2152,10 @@ class _ReportScreenState extends State<ReportScreen> {
               color: PdfColors.grey300,
             ),
             columnWidths: {
-              0: const pw.FlexColumnWidth(3),
-              1: const pw.FlexColumnWidth(2),
+              0:
+                  const pw.FlexColumnWidth(3),
+              1:
+                  const pw.FlexColumnWidth(2),
             },
             children: [
               pw.TableRow(
@@ -2322,7 +2391,8 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   pw.Widget _pdfPeopleTable(
-    List<MapEntry<String, double>> people,
+    List<MapEntry<String, double>>
+        people,
     pw.Font font,
     String emptyText,
   ) {
@@ -2342,8 +2412,10 @@ class _ReportScreenState extends State<ReportScreen> {
         color: PdfColors.grey300,
       ),
       columnWidths: {
-        0: const pw.FlexColumnWidth(3),
-        1: const pw.FlexColumnWidth(2),
+        0:
+            const pw.FlexColumnWidth(3),
+        1:
+            const pw.FlexColumnWidth(2),
       },
       children: [
         pw.TableRow(
@@ -2385,7 +2457,7 @@ class _ReportScreenState extends State<ReportScreen> {
   ) {
     return pw.Container(
       width: double.infinity,
-      height: 50,
+      height: 40,
       alignment:
           pw.Alignment.bottomRight,
       child: pw.Container(
@@ -2398,7 +2470,7 @@ class _ReportScreenState extends State<ReportScreen> {
               height: 0.7,
               color: PdfColors.grey700,
             ),
-            pw.SizedBox(height: 4),
+            pw.SizedBox(height: 3),
             pw.Text(
               'স্বাক্ষর',
               style: pw.TextStyle(
@@ -2474,7 +2546,9 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   List<Map<String, dynamic>>
-      _toDynamicMapList(dynamic value) {
+      _toDynamicMapList(
+    dynamic value,
+  ) {
     if (value is! List) {
       return [];
     }
@@ -2482,7 +2556,8 @@ class _ReportScreenState extends State<ReportScreen> {
     return value
         .whereType<Map>()
         .map(
-          (item) => Map<String, dynamic>.from(
+          (item) =>
+              Map<String, dynamic>.from(
             item,
           ),
         )
@@ -2559,8 +2634,11 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 }
 
-class TransactionDetailsScreen extends StatefulWidget {
-  final List<Map<String, dynamic>> transactions;
+class TransactionDetailsScreen
+    extends StatefulWidget {
+  final List<Map<String, dynamic>>
+      transactions;
+
   final DateTime startDate;
   final DateTime endDate;
   final String periodTitle;
@@ -2646,7 +2724,8 @@ class _TransactionDetailsScreenState
             const Text('লেনদেনের বিস্তারিত'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(14),
+        padding:
+            const EdgeInsets.all(14),
         children: [
           for (
             int i = 0;
@@ -2678,65 +2757,77 @@ class _TransactionDetailsScreenState
   }
 
   Widget _buildA4TransactionPage(
-    List<Map<String, dynamic>> transactions,
+    List<Map<String, dynamic>>
+        transactions,
     int pageNumber,
     int totalPages,
   ) {
-    return Container(
+    return SizedBox(
       width: _a4Width,
       height: _a4Height,
-      color:
-          Theme.of(context).scaffoldBackgroundColor,
       child: Container(
-        margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          border: Border.all(
+        color: Theme.of(context)
+            .scaffoldBackgroundColor,
+        padding:
+            const EdgeInsets.all(24),
+        child: Container(
+          padding:
+              const EdgeInsets.all(24),
+          decoration: BoxDecoration(
             color:
-                const Color(0xFFC9A45C)
-                    .withValues(alpha: 0.65),
-            width: 1.2,
+                Theme.of(context).cardColor,
+            border: Border.all(
+              color:
+                  const Color(0xFFC9A45C)
+                      .withValues(
+                alpha: 0.65,
+              ),
+              width: 1.2,
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ClipRect(
-                child: Column(
-                  children: [
-                    if (transactions.isEmpty)
-                      Expanded(
-                        child:
-                            _emptyTransactions(),
-                      )
-                    else
-                      ...transactions
-                          .asMap()
-                          .entries
-                          .map(
-                        (entry) {
-                          return _buildTransactionCard(
-                            entry.value,
-                            _globalTransactionIndex(
-                              pageNumber,
-                              entry.key,
+          child: Column(
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ClipRect(
+                  child: transactions.isEmpty
+                      ? _emptyTransactions()
+                      : FittedBox(
+                          fit:
+                              BoxFit.scaleDown,
+                          alignment:
+                              Alignment.topCenter,
+                          child: SizedBox(
+                            width: 698,
+                            child: Column(
+                              children:
+                                  transactions
+                                      .asMap()
+                                      .entries
+                                      .map(
+                                (entry) {
+                                  return _buildTransactionCard(
+                                    entry.value,
+                                    _globalTransactionIndex(
+                                      pageNumber,
+                                      entry.key,
+                                    ),
+                                  );
+                                },
+                              ).toList(),
                             ),
-                          );
-                        },
-                      ),
-                  ],
+                          ),
+                        ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            _buildFooter(
-              pageNumber,
-              totalPages,
-            ),
-          ],
+              const SizedBox(height: 8),
+              _buildFooter(
+                pageNumber,
+                totalPages,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2774,7 +2865,8 @@ class _TransactionDetailsScreenState
               runSpacing: 8,
               children: [
                 _transactionExportButton(
-                  icon: Icons.image_rounded,
+                  icon:
+                      Icons.image_rounded,
                   label: 'JPG সংরক্ষণ',
                   onPressed:
                       _saving
@@ -2784,14 +2876,16 @@ class _TransactionDetailsScreenState
                 _transactionExportButton(
                   icon:
                       Icons.picture_as_pdf_rounded,
-                  label: 'PDF তৈরি ও শেয়ার',
+                  label:
+                      'PDF তৈরি ও শেয়ার',
                   onPressed:
                       _saving
                           ? null
                           : _savePdf,
                 ),
                 _transactionExportButton(
-                  icon: Icons.share_rounded,
+                  icon:
+                      Icons.share_rounded,
                   label: 'শেয়ার করুন',
                   onPressed:
                       _saving
@@ -2842,7 +2936,8 @@ class _TransactionDetailsScreenState
       label: Text(
         label,
         style: const TextStyle(
-          fontWeight: FontWeight.w600,
+          fontWeight:
+              FontWeight.w600,
         ),
       ),
       style: ElevatedButton.styleFrom(
@@ -2858,7 +2953,8 @@ class _TransactionDetailsScreenState
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding:
+          const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: const Color(0xFF0F5132),
         borderRadius:
@@ -2879,7 +2975,8 @@ class _TransactionDetailsScreenState
           const Text(
             'লেনদেনের বিস্তারিত',
             style: TextStyle(
-              color: Color(0xFFC9A45C),
+              color:
+                  Color(0xFFC9A45C),
               fontSize: 16,
               fontWeight:
                   FontWeight.bold,
@@ -2897,7 +2994,8 @@ class _TransactionDetailsScreenState
             ),
           ),
           Text(
-            _dateText(widget.endDate),
+            '${_dateText(widget.startDate)} - '
+            '${_dateText(widget.endDate)}',
             style: TextStyle(
               color:
                   Colors.white.withValues(
@@ -2914,7 +3012,8 @@ class _TransactionDetailsScreenState
   Widget _emptyTransactions() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(30),
+      padding:
+          const EdgeInsets.all(30),
       decoration: BoxDecoration(
         borderRadius:
             BorderRadius.circular(14),
@@ -2936,7 +3035,8 @@ class _TransactionDetailsScreenState
           SizedBox(height: 10),
           Text(
             'এই সময়ে কোনো লেনদেন নেই',
-            textAlign: TextAlign.center,
+            textAlign:
+                TextAlign.center,
             style: TextStyle(
               fontSize: 15,
               fontWeight:
@@ -2967,7 +3067,8 @@ class _TransactionDetailsScreenState
     final double amount =
         _amount(tx);
 
-    final DateTime date = _parseDate(
+    final DateTime date =
+        _parseDate(
       tx['date'] ??
           tx['created_at'] ??
           tx['transaction_date'],
@@ -3033,17 +3134,24 @@ class _TransactionDetailsScreenState
 
     return Container(
       margin:
-          const EdgeInsets.only(bottom: 9),
-      padding: const EdgeInsets.all(12),
+          const EdgeInsets.only(
+        bottom: 9,
+      ),
+      padding:
+          const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius:
             BorderRadius.circular(14),
         border: Border.all(
           color:
-              color.withValues(alpha: 0.3),
+              color.withValues(
+            alpha: 0.3,
+          ),
         ),
         color:
-            color.withValues(alpha: 0.045),
+            color.withValues(
+          alpha: 0.045,
+        ),
       ),
       child: Row(
         crossAxisAlignment:
@@ -3052,10 +3160,14 @@ class _TransactionDetailsScreenState
           Container(
             width: 39,
             height: 39,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
+            decoration:
+                BoxDecoration(
+              shape:
+                  BoxShape.circle,
               color:
-                  color.withValues(alpha: 0.12),
+                  color.withValues(
+                alpha: 0.12,
+              ),
             ),
             child: Icon(
               icon,
@@ -3067,33 +3179,40 @@ class _TransactionDetailsScreenState
           Expanded(
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         typeText,
-                        style: TextStyle(
+                        style:
+                            TextStyle(
                           color: color,
                           fontWeight:
-                              FontWeight.bold,
+                              FontWeight
+                                  .bold,
                           fontSize: 14,
                         ),
                       ),
                     ),
                     Text(
                       _money(amount),
-                      style: TextStyle(
+                      style:
+                          TextStyle(
                         color: color,
                         fontWeight:
-                            FontWeight.bold,
+                            FontWeight
+                                .bold,
                         fontSize: 15,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(
+                  height: 4,
+                ),
                 Text(
                   'তারিখ: '
                   '${_dateTimeText(date)}',
@@ -3118,8 +3237,10 @@ class _TransactionDetailsScreenState
                     person,
                   ),
                 if (type == 'transfer' &&
-                    (fromAccount.isNotEmpty ||
-                        toAccount.isNotEmpty))
+                    (fromAccount
+                            .isNotEmpty ||
+                        toAccount
+                            .isNotEmpty))
                   _detailLine(
                     'ট্রান্সফার',
                     '${fromAccount.isEmpty ? '-' : fromAccount} → '
@@ -3144,10 +3265,13 @@ class _TransactionDetailsScreenState
   ) {
     return Padding(
       padding:
-          const EdgeInsets.only(top: 2),
+          const EdgeInsets.only(
+        top: 2,
+      ),
       child: RichText(
         text: TextSpan(
-          style: DefaultTextStyle.of(
+          style:
+              DefaultTextStyle.of(
             context,
           ).style.copyWith(
                 fontSize: 11,
@@ -3169,20 +3293,23 @@ class _TransactionDetailsScreenState
       ),
     );
   }
-    Widget _buildFooter(
+
+  Widget _buildFooter(
     int pageNumber,
     int totalPages,
   ) {
     return Column(
       children: [
         const Divider(
-          color: Color(0xFFC9A45C),
+          color:
+              Color(0xFFC9A45C),
         ),
         const SizedBox(height: 4),
         const Text(
           'আমার হিসাব অ্যাপ',
           style: TextStyle(
-            color: Color(0xFFC9A45C),
+            color:
+                Color(0xFFC9A45C),
             fontWeight:
                 FontWeight.bold,
             fontSize: 11,
@@ -3229,18 +3356,25 @@ class _TransactionDetailsScreenState
     switch (type) {
       case 'income':
         return 'আয়';
+
       case 'expense':
         return 'ব্যয়';
+
       case 'transfer':
         return 'ট্রান্সফার';
+
       case 'loan_given':
         return 'ধার দিয়েছি';
+
       case 'loan_taken':
         return 'ধার নিয়েছি';
+
       case 'loan_received':
         return 'ধার ফেরত পেয়েছি';
+
       case 'loan_paid':
         return 'ধার পরিশোধ';
+
       default:
         return type.isEmpty
             ? 'লেনদেন'
@@ -3254,15 +3388,19 @@ class _TransactionDetailsScreenState
     switch (type) {
       case 'income':
         return _incomeColor;
+
       case 'expense':
         return _expenseColor;
+
       case 'transfer':
         return _transferColor;
+
       case 'loan_given':
       case 'loan_taken':
       case 'loan_received':
       case 'loan_paid':
         return _loanColor;
+
       default:
         return Colors.grey;
     }
@@ -3274,30 +3412,40 @@ class _TransactionDetailsScreenState
     switch (type) {
       case 'income':
         return Icons.arrow_downward_rounded;
+
       case 'expense':
         return Icons.arrow_upward_rounded;
+
       case 'transfer':
         return Icons.swap_horiz_rounded;
+
       case 'loan_given':
         return Icons.call_made_rounded;
+
       case 'loan_taken':
         return Icons.call_received_rounded;
+
       case 'loan_received':
         return Icons.payments_rounded;
+
       case 'loan_paid':
         return Icons.payment_rounded;
+
       default:
         return Icons.receipt_long_rounded;
     }
   }
 
-  DateTime _parseDate(dynamic value) {
+  DateTime _parseDate(
+    dynamic value,
+  ) {
     if (value is DateTime) {
       return value;
     }
 
     if (value is int) {
-      return DateTime.fromMillisecondsSinceEpoch(
+      return DateTime
+          .fromMillisecondsSinceEpoch(
         value,
       );
     }
@@ -3343,7 +3491,9 @@ class _TransactionDetailsScreenState
     return '';
   }
 
-  double _toDouble(dynamic value) {
+  double _toDouble(
+    dynamic value,
+  ) {
     if (value == null) return 0;
 
     if (value is num) {
@@ -3359,11 +3509,15 @@ class _TransactionDetailsScreenState
         0;
   }
 
-  String _money(double value) {
+  String _money(
+    double value,
+  ) {
     return '৳${value.toStringAsFixed(2)}';
   }
 
-  String _dateText(DateTime date) {
+  String _dateText(
+    DateTime date,
+  ) {
     final d =
         date.day.toString().padLeft(2, '0');
 
@@ -3373,7 +3527,9 @@ class _TransactionDetailsScreenState
     return '$d/$m/${date.year}';
   }
 
-  String _dateTimeText(DateTime date) {
+  String _dateTimeText(
+    DateTime date,
+  ) {
     final d =
         date.day.toString().padLeft(2, '0');
 
@@ -3386,20 +3542,23 @@ class _TransactionDetailsScreenState
     final min =
         date.minute.toString().padLeft(2, '0');
 
-    return '$d/$m/${date.year} $h:$min';
+    return '$d/$m/${date.year} '
+        '$h:$min';
   }
 
-  Future<File?> _captureTransactionPage({
+  Future<File?>
+      _captureTransactionPage({
     required List<Map<String, dynamic>>
         transactions,
     required int pageNumber,
     required int totalPages,
   }) async {
-    final controller =
+    final ScreenshotController
+        controller =
         ScreenshotController();
 
-    final Uint8List? bytes =
-        await controller.captureFromLongWidget(
+    final Uint8List bytes =
+        await controller.captureFromWidget(
       Material(
         color: Theme.of(context)
             .scaffoldBackgroundColor,
@@ -3422,13 +3581,11 @@ class _TransactionDetailsScreenState
         ),
       ),
       delay:
-          const Duration(milliseconds: 400),
-      context: context,
+          const Duration(milliseconds: 300),
       pixelRatio: 2.0,
     );
 
-    if (bytes == null ||
-        bytes.isEmpty) {
+    if (bytes.isEmpty) {
       return null;
     }
 
@@ -3436,7 +3593,9 @@ class _TransactionDetailsScreenState
         await getTemporaryDirectory();
 
     final file = File(
-      '${directory.path}/amar_hisab_transactions_page_$pageNumber.png',
+      '${directory.path}/'
+      'amar_hisab_transactions_page_'
+      '$pageNumber.png',
     );
 
     await file.writeAsBytes(
@@ -3448,10 +3607,7 @@ class _TransactionDetailsScreenState
       return null;
     }
 
-    final int size =
-        await file.length();
-
-    if (size <= 0) {
+    if (await file.length() <= 0) {
       return null;
     }
 
@@ -3466,7 +3622,8 @@ class _TransactionDetailsScreenState
     });
 
     try {
-      final pages = _transactionPages;
+      final pages =
+          _transactionPages;
 
       int savedCount = 0;
 
@@ -3491,14 +3648,10 @@ class _TransactionDetailsScreenState
         final Uint8List pngBytes =
             await pngFile.readAsBytes();
 
-        if (pngBytes.isEmpty) {
-          throw Exception(
-            'Page ${i + 1} PNG খালি',
-          );
-        }
-
         final img.Image? decoded =
-            img.decodeImage(pngBytes);
+            img.decodeImage(
+          pngBytes,
+        );
 
         if (decoded == null) {
           throw Exception(
@@ -3512,38 +3665,21 @@ class _TransactionDetailsScreenState
           quality: 95,
         );
 
-        if (jpgBytes.isEmpty) {
-          throw Exception(
-            'Page ${i + 1} JPG তৈরি করা যায়নি',
-          );
-        }
-
         final directory =
             await getTemporaryDirectory();
 
         final file = File(
-          '${directory.path}/amar_hisab_transactions_page_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          '${directory.path}/'
+          'amar_hisab_transactions_page_'
+          '${i + 1}_'
+          '${DateTime.now().millisecondsSinceEpoch}'
+          '.jpg',
         );
 
         await file.writeAsBytes(
           jpgBytes,
           flush: true,
         );
-
-        if (!await file.exists()) {
-          throw Exception(
-            'Page ${i + 1} JPG তৈরি হয়নি',
-          );
-        }
-
-        final int fileSize =
-            await file.length();
-
-        if (fileSize <= 0) {
-          throw Exception(
-            'Page ${i + 1} JPG খালি',
-          );
-        }
 
         final bool? saved =
             await GallerySaver.saveImage(
@@ -3594,7 +3730,8 @@ class _TransactionDetailsScreenState
     });
 
     try {
-      final pages = _transactionPages;
+      final pages =
+          _transactionPages;
 
       final List<XFile> files = [];
 
@@ -3627,6 +3764,7 @@ class _TransactionDetailsScreenState
           text:
               'আমার হিসাব - '
               'লেনদেনের বিস্তারিত\n'
+              '${_dateText(widget.startDate)} - '
               '${_dateText(widget.endDate)}\n'
               'মোট পৃষ্ঠা: ${pages.length}',
         ),
@@ -3677,7 +3815,8 @@ class _TransactionDetailsScreenState
 
       final pdf = pw.Document();
 
-      final pages = _transactionPages;
+      final pages =
+          _transactionPages;
 
       for (
         int pageIndex = 0;
@@ -3717,47 +3856,45 @@ class _TransactionDetailsScreenState
                     _buildPdfTransactionHeader(
                       font,
                     ),
-                    pw.SizedBox(height: 10),
+                    pw.SizedBox(
+                      height: 10,
+                    ),
                     pw.Expanded(
-                      child: pw.Column(
-                        children: [
-                          if (pageTransactions
-                              .isEmpty)
-                            pw.Expanded(
-                              child:
-                                  pw.Center(
-                                child:
-                                    pw.Text(
-                                  'এই সময়ে কোনো লেনদেন নেই',
-                                  style:
-                                      pw.TextStyle(
-                                    font:
+                      child:
+                          pageTransactions
+                                  .isEmpty
+                              ? pw.Center(
+                                  child:
+                                      pw.Text(
+                                    'এই সময়ে কোনো লেনদেন নেই',
+                                    style:
+                                        pw.TextStyle(
+                                      font:
+                                          font,
+                                      fontSize:
+                                          11,
+                                    ),
+                                  ),
+                                )
+                              : pw.Column(
+                                  children:
+                                      pageTransactions
+                                          .asMap()
+                                          .entries
+                                          .map(
+                                    (entry) {
+                                      return _pdfTransaction(
+                                        entry.value,
+                                        _globalTransactionIndex(
+                                          pageIndex +
+                                              1,
+                                          entry.key,
+                                        ),
                                         font,
-                                    fontSize:
-                                        11,
-                                  ),
+                                      );
+                                    },
+                                  ).toList(),
                                 ),
-                              ),
-                            )
-                          else
-                            ...pageTransactions
-                                .asMap()
-                                .entries
-                                .map(
-                              (entry) {
-                                return _pdfTransaction(
-                                  entry.value,
-                                  _globalTransactionIndex(
-                                    pageIndex +
-                                        1,
-                                    entry.key,
-                                  ),
-                                  font,
-                                );
-                              },
-                            ),
-                        ],
-                      ),
                     ),
                     pw.SizedBox(height: 8),
                     _buildPdfTransactionFooter(
@@ -3777,7 +3914,8 @@ class _TransactionDetailsScreenState
           await getTemporaryDirectory();
 
       final file = File(
-        '${directory.path}/amar_hisab_transactions.pdf',
+        '${directory.path}/'
+        'amar_hisab_transactions.pdf',
       );
 
       await file.writeAsBytes(
@@ -3936,7 +4074,8 @@ class _TransactionDetailsScreenState
     final String type =
         _transactionType(tx);
 
-    final DateTime date = _parseDate(
+    final DateTime date =
+        _parseDate(
       tx['date'] ??
           tx['created_at'] ??
           tx['transaction_date'],
