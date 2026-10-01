@@ -113,11 +113,8 @@ class _ReportScreenState extends State<ReportScreen> {
       final dynamic loansResult =
           await MoneyDb.instance.getLoans();
 
-      final double loadedIncome =
-          _toDouble(incomeResult);
-
-      final double loadedExpense =
-          _toDouble(expenseResult);
+      final double loadedIncome = _toDouble(incomeResult);
+      final double loadedExpense = _toDouble(expenseResult);
 
       final List<Map<String, dynamic>> loadedTransactions =
           _toDynamicMapList(transactionResult);
@@ -162,7 +159,9 @@ class _ReportScreenState extends State<ReportScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('রিপোর্ট লোড করতে সমস্যা হয়েছে: $e'),
+          content: Text(
+            'রিপোর্ট লোড করতে সমস্যা হয়েছে: $e',
+          ),
         ),
       );
     }
@@ -176,7 +175,12 @@ class _ReportScreenState extends State<ReportScreen> {
     final now = DateTime.now();
 
     if (value == 'monthly') {
-      _startDate = DateTime(now.year, now.month, 1);
+      _startDate = DateTime(
+        now.year,
+        now.month,
+        1,
+      );
+
       _endDate = DateTime(
         now.year,
         now.month + 1,
@@ -187,7 +191,11 @@ class _ReportScreenState extends State<ReportScreen> {
         999,
       );
     } else if (value == 'weekly') {
-      final today = DateTime(now.year, now.month, now.day);
+      final today = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      );
 
       final int daysFromMonday =
           today.weekday - DateTime.monday;
@@ -206,7 +214,11 @@ class _ReportScreenState extends State<ReportScreen> {
         ),
       );
     } else if (value == 'yearly') {
-      _startDate = DateTime(now.year, 1, 1);
+      _startDate = DateTime(
+        now.year,
+        1,
+        1,
+      );
 
       _endDate = DateTime(
         now.year,
@@ -229,7 +241,8 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _pickCustomDate() async {
-    final DateTimeRange? range = await showDateRangePicker(
+    final DateTimeRange? range =
+        await showDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
@@ -246,6 +259,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
     setState(() {
       _period = 'custom';
+
       _startDate = DateTime(
         range.start.year,
         range.start.month,
@@ -329,7 +343,10 @@ class _ReportScreenState extends State<ReportScreen> {
     for (final loan in _loans) {
       final type = _stringValue(
         loan,
-        const ['type', 'loan_type'],
+        const [
+          'type',
+          'loan_type',
+        ],
       );
 
       if (type == 'receivable') {
@@ -346,7 +363,10 @@ class _ReportScreenState extends State<ReportScreen> {
     for (final loan in _loans) {
       final type = _stringValue(
         loan,
-        const ['type', 'loan_type'],
+        const [
+          'type',
+          'loan_type',
+        ],
       );
 
       if (type == 'payable') {
@@ -367,7 +387,10 @@ class _ReportScreenState extends State<ReportScreen> {
     for (final loan in _loans) {
       final type = _stringValue(
         loan,
-        const ['type', 'loan_type'],
+        const [
+          'type',
+          'loan_type',
+        ],
       );
 
       if (type != 'receivable') continue;
@@ -380,7 +403,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
       if (remaining <= 0) continue;
 
-      result[person] = (result[person] ?? 0) + remaining;
+      result[person] =
+          (result[person] ?? 0) + remaining;
     }
 
     return result;
@@ -392,7 +416,10 @@ class _ReportScreenState extends State<ReportScreen> {
     for (final loan in _loans) {
       final type = _stringValue(
         loan,
-        const ['type', 'loan_type'],
+        const [
+          'type',
+          'loan_type',
+        ],
       );
 
       if (type != 'payable') continue;
@@ -405,13 +432,16 @@ class _ReportScreenState extends State<ReportScreen> {
 
       if (remaining <= 0) continue;
 
-      result[person] = (result[person] ?? 0) + remaining;
+      result[person] =
+          (result[person] ?? 0) + remaining;
     }
 
     return result;
   }
 
-  double _loanRemaining(Map<String, dynamic> loan) {
+  double _loanRemaining(
+    Map<String, dynamic> loan,
+  ) {
     return _toDouble(
       loan['remaining'] ??
           loan['remaining_amount'] ??
@@ -420,7 +450,9 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  String _loanPerson(Map<String, dynamic> loan) {
+  String _loanPerson(
+    Map<String, dynamic> loan,
+  ) {
     return _stringValue(
       loan,
       const [
@@ -445,44 +477,13 @@ class _ReportScreenState extends State<ReportScreen> {
         actions: [
           IconButton(
             tooltip: 'রিফ্রেশ',
-            onPressed: _loading ? null : _loadReport,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'jpg') {
-                await _saveJpg();
-              } else if (value == 'pdf') {
-                await _savePdf();
-              } else if (value == 'share') {
-                await _shareImage();
-              }
-            },
-            itemBuilder: (context) {
-              return const [
-                PopupMenuItem(
-                  value: 'jpg',
-                  child: ListTile(
-                    leading: Icon(Icons.image_rounded),
-                    title: Text('JPG হিসেবে সংরক্ষণ'),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'pdf',
-                  child: ListTile(
-                    leading: Icon(Icons.picture_as_pdf_rounded),
-                    title: Text('PDF তৈরি ও শেয়ার'),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'share',
-                  child: ListTile(
-                    leading: Icon(Icons.share_rounded),
-                    title: Text('রিপোর্ট শেয়ার'),
-                  ),
-                ),
-              ];
-            },
+            onPressed:
+                _loading || _saving
+                    ? null
+                    : _loadReport,
+            icon: const Icon(
+              Icons.refresh_rounded,
+            ),
           ),
         ],
       ),
@@ -493,7 +494,8 @@ class _ReportScreenState extends State<ReportScreen> {
           : RefreshIndicator(
               onRefresh: _loadReport,
               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics:
+                    const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(14),
                 children: [
                   _buildPeriodSelector(),
@@ -501,9 +503,15 @@ class _ReportScreenState extends State<ReportScreen> {
                   const SizedBox(height: 12),
 
                   Screenshot(
-                    controller: _screenshotController,
+                    controller:
+                        _screenshotController,
                     child: _buildVoucher(),
                   ),
+
+                  const SizedBox(height: 14),
+
+                  // সরাসরি Export Buttons
+                  _buildExportButtons(),
 
                   const SizedBox(height: 14),
 
@@ -517,6 +525,113 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ============================================================
+  // MAIN EXPORT BUTTONS
+  // ============================================================
+
+  Widget _buildExportButtons() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'রিপোর্ট সংরক্ষণ ও শেয়ার',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _exportButton(
+                  icon: Icons.image_rounded,
+                  label: 'JPG সংরক্ষণ',
+                  onPressed:
+                      _saving
+                          ? null
+                          : _saveJpg,
+                ),
+                _exportButton(
+                  icon:
+                      Icons.picture_as_pdf_rounded,
+                  label: 'PDF তৈরি ও শেয়ার',
+                  onPressed:
+                      _saving
+                          ? null
+                          : _savePdf,
+                ),
+                _exportButton(
+                  icon: Icons.share_rounded,
+                  label: 'শেয়ার করুন',
+                  onPressed:
+                      _saving
+                          ? null
+                          : _shareImage,
+                ),
+              ],
+            ),
+
+            if (_saving) ...[
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child:
+                        CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'প্রস্তুত হচ্ছে...',
+                    style: TextStyle(
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _exportButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(
+        icon,
+        size: 19,
+      ),
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 13,
+          vertical: 12,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // PERIOD SELECTOR
   // ============================================================
 
@@ -525,7 +640,8 @@ class _ReportScreenState extends State<ReportScreen> {
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             const Text(
               'রিপোর্টের সময়',
@@ -539,7 +655,9 @@ class _ReportScreenState extends State<ReportScreen> {
               initialValue: _period,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.date_range_rounded),
+                prefixIcon: Icon(
+                  Icons.date_range_rounded,
+                ),
               ),
               items: const [
                 DropdownMenuItem(
@@ -556,7 +674,9 @@ class _ReportScreenState extends State<ReportScreen> {
                 ),
                 DropdownMenuItem(
                   value: 'custom',
-                  child: Text('নিজে সময় নির্বাচন করুন'),
+                  child: Text(
+                    'নিজে সময় নির্বাচন করুন',
+                  ),
                 ),
               ],
               onChanged: (value) {
@@ -572,12 +692,14 @@ class _ReportScreenState extends State<ReportScreen> {
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
+              padding:
+                  const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 10,
               ),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius:
+                    BorderRadius.circular(10),
                 color: Theme.of(context)
                     .colorScheme
                     .primary
@@ -594,16 +716,19 @@ class _ReportScreenState extends State<ReportScreen> {
                     child: Text(
                       _dateRangeText,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w600,
+                        fontWeight:
+                            FontWeight.w600,
                       ),
                     ),
                   ),
                   if (_period == 'custom')
                     IconButton(
                       tooltip: 'তারিখ পরিবর্তন',
-                      onPressed: _pickCustomDate,
+                      onPressed:
+                          _pickCustomDate,
                       icon: const Icon(
-                        Icons.edit_calendar_rounded,
+                        Icons
+                            .edit_calendar_rounded,
                       ),
                     ),
                 ],
@@ -623,18 +748,22 @@ class _ReportScreenState extends State<ReportScreen> {
     bool exportMode = false,
   }) {
     return Container(
-      width: exportMode ? 850 : double.infinity,
+      width:
+          exportMode ? 850 : double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(18),
         border: Border.all(
-          color: _gold.withValues(alpha: 0.65),
+          color:
+              _gold.withValues(alpha: 0.65),
           width: 1,
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           _buildReportHeader(),
 
@@ -648,7 +777,8 @@ class _ReportScreenState extends State<ReportScreen> {
             title: 'আয়ের খাত',
             categories: _incomeCategories,
             color: _incomeColor,
-            emptyText: 'এই সময়ে কোনো আয় নেই',
+            emptyText:
+                'এই সময়ে কোনো আয় নেই',
           ),
 
           const SizedBox(height: 14),
@@ -657,7 +787,8 @@ class _ReportScreenState extends State<ReportScreen> {
             title: 'ব্যয়ের খাত',
             categories: _expenseCategories,
             color: _expenseColor,
-            emptyText: 'এই সময়ে কোনো ব্যয় নেই',
+            emptyText:
+                'এই সময়ে কোনো ব্যয় নেই',
           ),
 
           const SizedBox(height: 16),
@@ -679,13 +810,15 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget _buildReportHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 14,
         vertical: 16,
       ),
       decoration: BoxDecoration(
         color: const Color(0xFF0F5132),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius:
+            BorderRadius.circular(15),
       ),
       child: Column(
         children: [
@@ -723,7 +856,10 @@ class _ReportScreenState extends State<ReportScreen> {
             _dateRangeText,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
+              color:
+                  Colors.white.withValues(
+                alpha: 0.85,
+              ),
               fontSize: 13,
             ),
           ),
@@ -738,7 +874,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Widget _buildSummarySection() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         const Text(
           'সারসংক্ষেপ',
@@ -754,7 +891,8 @@ class _ReportScreenState extends State<ReportScreen> {
               child: _summaryCard(
                 title: 'মোট আয়',
                 amount: _income,
-                icon: Icons.arrow_downward_rounded,
+                icon:
+                    Icons.arrow_downward_rounded,
                 color: _incomeColor,
               ),
             ),
@@ -763,7 +901,8 @@ class _ReportScreenState extends State<ReportScreen> {
               child: _summaryCard(
                 title: 'মোট ব্যয়',
                 amount: _expense,
-                icon: Icons.arrow_upward_rounded,
+                icon:
+                    Icons.arrow_upward_rounded,
                 color: _expenseColor,
               ),
             ),
@@ -784,9 +923,11 @@ class _ReportScreenState extends State<ReportScreen> {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
         border: Border.all(
-          color: color.withValues(alpha: 0.35),
+          color:
+              color.withValues(alpha: 0.35),
         ),
       ),
       child: Column(
@@ -821,16 +962,21 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Widget _differenceCard() {
     final Color color =
-        _isSurplus ? _incomeColor : _expenseColor;
+        _isSurplus
+            ? _incomeColor
+            : _expenseColor;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: color.withValues(alpha: 0.08),
+        borderRadius:
+            BorderRadius.circular(14),
+        color:
+            color.withValues(alpha: 0.08),
         border: Border.all(
-          color: color.withValues(alpha: 0.35),
+          color:
+              color.withValues(alpha: 0.35),
         ),
       ),
       child: Row(
@@ -845,22 +991,29 @@ class _ReportScreenState extends State<ReportScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
-                  _isSurplus ? 'উদ্বৃত্ত' : 'ঘাটি',
+                  _isSurplus
+                      ? 'উদ্বৃত্ত'
+                      : 'ঘাটি',
                   style: TextStyle(
                     color: color,
-                    fontWeight: FontWeight.bold,
+                    fontWeight:
+                        FontWeight.bold,
                     fontSize: 15,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _money(_difference.abs()),
+                  _money(
+                    _difference.abs(),
+                  ),
                   style: TextStyle(
                     color: color,
-                    fontWeight: FontWeight.bold,
+                    fontWeight:
+                        FontWeight.bold,
                     fontSize: 20,
                   ),
                 ),
@@ -878,12 +1031,14 @@ class _ReportScreenState extends State<ReportScreen> {
 
   Widget _buildCategorySection({
     required String title,
-    required List<Map<String, dynamic>> categories,
+    required List<Map<String, dynamic>>
+        categories,
     required Color color,
     required String emptyText,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Row(
           children: [
@@ -898,7 +1053,8 @@ class _ReportScreenState extends State<ReportScreen> {
               style: TextStyle(
                 color: color,
                 fontSize: 17,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
           ],
@@ -909,18 +1065,27 @@ class _ReportScreenState extends State<ReportScreen> {
         else
           Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius:
+                  BorderRadius.circular(12),
               border: Border.all(
-                color: color.withValues(alpha: 0.22),
+                color:
+                    color.withValues(
+                  alpha: 0.22,
+                ),
               ),
             ),
             child: Column(
               children: [
-                for (int i = 0; i < categories.length; i++)
+                for (
+                  int i = 0;
+                  i < categories.length;
+                  i++
+                )
                   _categoryRow(
                     categories[i],
                     color,
-                    i == categories.length - 1,
+                    i ==
+                        categories.length - 1,
                   ),
               ],
             ),
@@ -934,11 +1099,15 @@ class _ReportScreenState extends State<ReportScreen> {
     Color color,
     bool last,
   ) {
-    final String name = _categoryName(item);
-    final double amount = _categoryAmount(item);
+    final String name =
+        _categoryName(item);
+
+    final double amount =
+        _categoryAmount(item);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 12,
         vertical: 10,
       ),
@@ -947,7 +1116,10 @@ class _ReportScreenState extends State<ReportScreen> {
             ? null
             : Border(
                 bottom: BorderSide(
-                  color: color.withValues(alpha: 0.12),
+                  color:
+                      color.withValues(
+                    alpha: 0.12,
+                  ),
                 ),
               ),
       ),
@@ -955,9 +1127,12 @@ class _ReportScreenState extends State<ReportScreen> {
         children: [
           Expanded(
             child: Text(
-              name.isEmpty ? 'অন্যান্য' : name,
+              name.isEmpty
+                  ? 'অন্যান্য'
+                  : name,
               style: const TextStyle(
-                fontWeight: FontWeight.w600,
+                fontWeight:
+                    FontWeight.w600,
               ),
             ),
           ),
@@ -965,7 +1140,8 @@ class _ReportScreenState extends State<ReportScreen> {
             _money(amount),
             style: TextStyle(
               color: color,
-              fontWeight: FontWeight.bold,
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
         ],
@@ -978,8 +1154,12 @@ class _ReportScreenState extends State<ReportScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.grey.withValues(alpha: 0.06),
+        borderRadius:
+            BorderRadius.circular(12),
+        color:
+            Colors.grey.withValues(
+          alpha: 0.06,
+        ),
       ),
       child: Text(
         text,
@@ -1000,11 +1180,15 @@ class _ReportScreenState extends State<ReportScreen> {
   // ============================================================
 
   Widget _buildLoanSection() {
-    final receivablePeople = _receivablePeople;
-    final payablePeople = _payablePeople;
+    final receivablePeople =
+        _receivablePeople;
+
+    final payablePeople =
+        _payablePeople;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         const Row(
           children: [
@@ -1019,7 +1203,8 @@ class _ReportScreenState extends State<ReportScreen> {
               style: TextStyle(
                 color: _gold,
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
           ],
@@ -1036,10 +1221,14 @@ class _ReportScreenState extends State<ReportScreen> {
             Expanded(
               child: _loanCurrentCard(
                 title: 'আমি পাব',
-                subtitle: 'আমার কাছে পাওনা',
-                amount: _totalReceivable,
-                color: _loanReceiveColor,
-                icon: Icons.call_received_rounded,
+                subtitle:
+                    'আমার কাছে পাওনা',
+                amount:
+                    _totalReceivable,
+                color:
+                    _loanReceiveColor,
+                icon:
+                    Icons.call_received_rounded,
               ),
             ),
             const SizedBox(width: 10),
@@ -1049,7 +1238,8 @@ class _ReportScreenState extends State<ReportScreen> {
                 subtitle: 'আমার দেনা',
                 amount: _totalPayable,
                 color: _loanPaidColor,
-                icon: Icons.call_made_rounded,
+                icon:
+                    Icons.call_made_rounded,
               ),
             ),
           ],
@@ -1061,7 +1251,8 @@ class _ReportScreenState extends State<ReportScreen> {
           title: 'আমি পাব',
           people: receivablePeople,
           color: _loanReceiveColor,
-          emptyText: 'কারো কাছে আমার পাওনা নেই',
+          emptyText:
+              'কারো কাছে আমার পাওনা নেই',
         ),
 
         const SizedBox(height: 10),
@@ -1070,7 +1261,8 @@ class _ReportScreenState extends State<ReportScreen> {
           title: 'আমার কাছে পাবে',
           people: payablePeople,
           color: _loanPaidColor,
-          emptyText: 'কারো কাছে আমার দেনা নেই',
+          emptyText:
+              'কারো কাছে আমার দেনা নেই',
         ),
       ],
     );
@@ -1082,7 +1274,8 @@ class _ReportScreenState extends State<ReportScreen> {
       crossAxisSpacing: 8,
       mainAxisSpacing: 8,
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics:
+          const NeverScrollableScrollPhysics(),
       childAspectRatio: 2.15,
       children: [
         _loanSmallCard(
@@ -1117,20 +1310,24 @@ class _ReportScreenState extends State<ReportScreen> {
     return Container(
       padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(12),
         border: Border.all(
-          color: color.withValues(alpha: 0.25),
+          color:
+              color.withValues(alpha: 0.25),
         ),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment:
+            MainAxisAlignment.center,
         children: [
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontWeight:
+                  FontWeight.w600,
             ),
           ),
           const SizedBox(height: 3),
@@ -1140,7 +1337,8 @@ class _ReportScreenState extends State<ReportScreen> {
               style: TextStyle(
                 color: color,
                 fontSize: 15,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
           ),
@@ -1159,10 +1357,13 @@ class _ReportScreenState extends State<ReportScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: color.withValues(alpha: 0.07),
+        borderRadius:
+            BorderRadius.circular(14),
+        color:
+            color.withValues(alpha: 0.07),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
+          color:
+              color.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -1177,7 +1378,8 @@ class _ReportScreenState extends State<ReportScreen> {
             title,
             style: TextStyle(
               color: color,
-              fontWeight: FontWeight.bold,
+              fontWeight:
+                  FontWeight.bold,
               fontSize: 15,
             ),
           ),
@@ -1185,7 +1387,8 @@ class _ReportScreenState extends State<ReportScreen> {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style:
+                const TextStyle(
               fontSize: 10,
             ),
           ),
@@ -1196,7 +1399,8 @@ class _ReportScreenState extends State<ReportScreen> {
               style: TextStyle(
                 color: color,
                 fontSize: 17,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
           ),
@@ -1211,28 +1415,39 @@ class _ReportScreenState extends State<ReportScreen> {
     required Color color,
     required String emptyText,
   }) {
-    final entries = people.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final entries =
+        people.entries.toList()
+          ..sort(
+            (a, b) =>
+                b.value.compareTo(a.value),
+          );
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(12),
         border: Border.all(
-          color: color.withValues(alpha: 0.25),
+          color:
+              color.withValues(alpha: 0.25),
         ),
       ),
       child: Column(
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 9,
             ),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.07),
-              borderRadius: const BorderRadius.vertical(
+              color:
+                  color.withValues(
+                alpha: 0.07,
+              ),
+              borderRadius:
+                  const BorderRadius.vertical(
                 top: Radius.circular(12),
               ),
             ),
@@ -1240,14 +1455,16 @@ class _ReportScreenState extends State<ReportScreen> {
               title,
               style: TextStyle(
                 color: color,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
                 fontSize: 14,
               ),
             ),
           ),
           if (entries.isEmpty)
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding:
+                  const EdgeInsets.all(12),
               child: Text(
                 emptyText,
                 style: TextStyle(
@@ -1256,7 +1473,9 @@ class _ReportScreenState extends State<ReportScreen> {
                       .textTheme
                       .bodyMedium
                       ?.color
-                      ?.withValues(alpha: 0.65),
+                      ?.withValues(
+                        alpha: 0.65,
+                      ),
                 ),
               ),
             )
@@ -1264,7 +1483,8 @@ class _ReportScreenState extends State<ReportScreen> {
             ...entries.map(
               (entry) {
                 return Padding(
-                  padding: const EdgeInsets.symmetric(
+                  padding:
+                      const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
                   ),
@@ -1273,8 +1493,10 @@ class _ReportScreenState extends State<ReportScreen> {
                       Expanded(
                         child: Text(
                           entry.key,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
+                          style:
+                              const TextStyle(
+                            fontWeight:
+                                FontWeight.w600,
                           ),
                         ),
                       ),
@@ -1282,7 +1504,8 @@ class _ReportScreenState extends State<ReportScreen> {
                         _money(entry.value),
                         style: TextStyle(
                           color: color,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight.bold,
                         ),
                       ),
                     ],
@@ -1303,29 +1526,40 @@ class _ReportScreenState extends State<ReportScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TransactionDetailsScreen(
-                transactions: _transactions,
-                startDate: _startDate,
-                endDate: _endDate,
-                periodTitle: _periodTitle,
-              ),
-            ),
-          );
-        },
+        onPressed: _saving
+            ? null
+            : () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        TransactionDetailsScreen(
+                      transactions:
+                          _transactions,
+                      startDate:
+                          _startDate,
+                      endDate:
+                          _endDate,
+                      periodTitle:
+                          _periodTitle,
+                    ),
+                  ),
+                );
+              },
         icon: const Icon(
           Icons.receipt_long_rounded,
         ),
         label: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 13),
+          padding:
+              EdgeInsets.symmetric(
+            vertical: 13,
+          ),
           child: Text(
             'লেনদেনের বিস্তারিত',
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
         ),
@@ -1341,7 +1575,8 @@ class _ReportScreenState extends State<ReportScreen> {
     return Column(
       children: [
         Divider(
-          color: _gold.withValues(alpha: 0.35),
+          color:
+              _gold.withValues(alpha: 0.35),
         ),
         const SizedBox(height: 7),
         const Text(
@@ -1349,7 +1584,8 @@ class _ReportScreenState extends State<ReportScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: _gold,
-            fontWeight: FontWeight.bold,
+            fontWeight:
+                FontWeight.bold,
             fontSize: 13,
           ),
         ),
@@ -1373,29 +1609,55 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ============================================================
-  // JPG
+  // MAIN REPORT CAPTURE
   // ============================================================
 
   Future<File?> _captureReport() async {
-    final Uint8List? bytes =
-        await _screenshotController.captureFromLongWidget(
-      _buildVoucher(exportMode: true),
-      delay: const Duration(milliseconds: 150),
-      context: context,
+    await Future.delayed(
+      const Duration(milliseconds: 300),
     );
 
-    if (bytes == null) return null;
+    final Uint8List? bytes =
+        await _screenshotController.capture(
+      delay: const Duration(
+        milliseconds: 200,
+      ),
+      pixelRatio: 2.0,
+    );
 
-    final directory = await getTemporaryDirectory();
+    if (bytes == null || bytes.isEmpty) {
+      return null;
+    }
 
-    final pngFile = File(
+    final directory =
+        await getTemporaryDirectory();
+
+    final file = File(
       '${directory.path}/amar_hisab_report.png',
     );
 
-    await pngFile.writeAsBytes(bytes);
+    await file.writeAsBytes(
+      bytes,
+      flush: true,
+    );
 
-    return pngFile;
+    if (!await file.exists()) {
+      return null;
+    }
+
+    final int size =
+        await file.length();
+
+    if (size <= 0) {
+      return null;
+    }
+
+    return file;
   }
+
+  // ============================================================
+  // SAVE MAIN JPG
+  // ============================================================
 
   Future<void> _saveJpg() async {
     if (_saving) return;
@@ -1405,56 +1667,108 @@ class _ReportScreenState extends State<ReportScreen> {
     });
 
     try {
-      final File? pngFile = await _captureReport();
+      final File? pngFile =
+          await _captureReport();
 
       if (pngFile == null) {
-        throw Exception('রিপোর্ট ছবি তৈরি করা যায়নি');
+        throw Exception(
+          'রিপোর্টের ছবি তৈরি করা যায়নি',
+        );
       }
 
       final Uint8List pngBytes =
           await pngFile.readAsBytes();
 
+      if (pngBytes.isEmpty) {
+        throw Exception(
+          'PNG ফাইল খালি',
+        );
+      }
+
       final img.Image? decoded =
           img.decodeImage(pngBytes);
 
       if (decoded == null) {
-        throw Exception('ছবি পড়া যায়নি');
+        throw Exception(
+          'ছবি decode করা যায়নি',
+        );
       }
 
       final List<int> jpgBytes =
-          img.encodeJpg(decoded, quality: 95);
+          img.encodeJpg(
+        decoded,
+        quality: 95,
+      );
+
+      if (jpgBytes.isEmpty) {
+        throw Exception(
+          'JPG তৈরি করা যায়নি',
+        );
+      }
 
       final directory =
           await getTemporaryDirectory();
 
       final file = File(
-        '${directory.path}/amar_hisab_report.jpg',
+        '${directory.path}/amar_hisab_report_${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
 
-      await file.writeAsBytes(jpgBytes);
+      await file.writeAsBytes(
+        jpgBytes,
+        flush: true,
+      );
 
-      final bool? saved = await GallerySaver.saveImage(
+      if (!await file.exists()) {
+        throw Exception(
+          'JPG ফাইল তৈরি হয়নি',
+        );
+      }
+
+      final int fileSize =
+          await file.length();
+
+      if (fileSize <= 0) {
+        throw Exception(
+          'JPG ফাইল খালি',
+        );
+      }
+
+      final bool? saved =
+          await GallerySaver.saveImage(
         file.path,
         albumName: 'আমার হিসাব',
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            saved == true
-                ? 'রিপোর্ট JPG হিসেবে Gallery-তে সংরক্ষণ হয়েছে'
-                : 'JPG তৈরি হয়েছে',
+      if (saved == true) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'রিপোর্ট JPG হিসেবে Gallery-তে সংরক্ষণ হয়েছে',
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'JPG তৈরি হয়েছে, কিন্তু Gallery-তে সংরক্ষণ করা যায়নি',
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text('JPG তৈরি করতে সমস্যা হয়েছে: $e'),
+          content: Text(
+            'JPG তৈরি করতে সমস্যা হয়েছে: $e',
+          ),
         ),
       );
     } finally {
@@ -1467,7 +1781,7 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ============================================================
-  // SHARE IMAGE
+  // SHARE MAIN IMAGE
   // ============================================================
 
   Future<void> _shareImage() async {
@@ -1478,10 +1792,13 @@ class _ReportScreenState extends State<ReportScreen> {
     });
 
     try {
-      final File? pngFile = await _captureReport();
+      final File? pngFile =
+          await _captureReport();
 
       if (pngFile == null) {
-        throw Exception('রিপোর্ট ছবি তৈরি করা যায়নি');
+        throw Exception(
+          'রিপোর্ট ছবি তৈরি করা যায়নি',
+        );
       }
 
       await SharePlus.instance.share(
@@ -1490,15 +1807,19 @@ class _ReportScreenState extends State<ReportScreen> {
             XFile(pngFile.path),
           ],
           text:
-              'আমার হিসাব - $_periodTitle\n$_dateRangeText',
+              'আমার হিসাব - $_periodTitle\n'
+              '$_dateRangeText',
         ),
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text('শেয়ার করতে সমস্যা হয়েছে: $e'),
+          content: Text(
+            'শেয়ার করতে সমস্যা হয়েছে: $e',
+          ),
         ),
       );
     } finally {
@@ -1511,12 +1832,13 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ============================================================
-  // PDF
+  // PDF FONT
   // ============================================================
 
   Future<pw.Font> _loadPdfFont() async {
     try {
-      final data = await rootBundle.load(
+      final data =
+          await rootBundle.load(
         'assets/fonts/NotoSansBengali-Regular.ttf',
       );
 
@@ -1526,6 +1848,10 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  // ============================================================
+  // MAIN PDF
+  // ============================================================
+
   Future<void> _savePdf() async {
     if (_saving) return;
 
@@ -1534,20 +1860,27 @@ class _ReportScreenState extends State<ReportScreen> {
     });
 
     try {
-      final pw.Font font = await _loadPdfFont();
+      final pw.Font font =
+          await _loadPdfFont();
 
       final pdf = pw.Document();
 
       pdf.addPage(
         pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(28),
-          theme: pw.ThemeData.withFont(
+          pageFormat:
+              PdfPageFormat.a4,
+          margin:
+              const pw.EdgeInsets.all(28),
+          theme:
+              pw.ThemeData.withFont(
             base: font,
             bold: font,
           ),
           footer: (context) {
-            return _pdfFooter(context, font);
+            return _pdfFooter(
+              context,
+              font,
+            );
           },
           build: (context) {
             return [
@@ -1566,6 +1899,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
       await file.writeAsBytes(
         await pdf.save(),
+        flush: true,
       );
 
       await SharePlus.instance.share(
@@ -1574,15 +1908,19 @@ class _ReportScreenState extends State<ReportScreen> {
             XFile(file.path),
           ],
           text:
-              'আমার হিসাব - $_periodTitle\n$_dateRangeText',
+              'আমার হিসাব - $_periodTitle\n'
+              '$_dateRangeText',
         ),
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text('PDF তৈরি করতে সমস্যা হয়েছে: $e'),
+          content: Text(
+            'PDF তৈরি করতে সমস্যা হয়েছে: $e',
+          ),
         ),
       );
     } finally {
@@ -1598,9 +1936,12 @@ class _ReportScreenState extends State<ReportScreen> {
   // PDF OVERVIEW
   // ============================================================
 
-  pw.Widget _buildPdfOverview(pw.Font font) {
+  pw.Widget _buildPdfOverview(
+    pw.Font font,
+  ) {
     return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      crossAxisAlignment:
+          pw.CrossAxisAlignment.start,
       children: [
         pw.Center(
           child: pw.Text(
@@ -1618,7 +1959,8 @@ class _ReportScreenState extends State<ReportScreen> {
             style: pw.TextStyle(
               font: font,
               fontSize: 24,
-              fontWeight: pw.FontWeight.bold,
+              fontWeight:
+                  pw.FontWeight.bold,
             ),
           ),
         ),
@@ -1644,7 +1986,8 @@ class _ReportScreenState extends State<ReportScreen> {
         pw.SizedBox(height: 18),
 
         pw.Table(
-          border: pw.TableBorder.all(
+          border:
+              pw.TableBorder.all(
             color: PdfColors.grey400,
           ),
           children: [
@@ -1661,7 +2004,9 @@ class _ReportScreenState extends State<ReportScreen> {
                   bold: true,
                 ),
                 _pdfCell(
-                  _isSurplus ? 'উদ্বৃত্ত' : 'ঘাটি',
+                  _isSurplus
+                      ? 'উদ্বৃত্ত'
+                      : 'ঘাটি',
                   font,
                   bold: true,
                 ),
@@ -1678,7 +2023,9 @@ class _ReportScreenState extends State<ReportScreen> {
                   font,
                 ),
                 _pdfCell(
-                  _money(_difference.abs()),
+                  _money(
+                    _difference.abs(),
+                  ),
                   font,
                 ),
               ],
@@ -1715,14 +2062,16 @@ class _ReportScreenState extends State<ReportScreen> {
     bool bold = false,
   }) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.all(7),
+      padding:
+          const pw.EdgeInsets.all(7),
       child: pw.Text(
         text,
         style: pw.TextStyle(
           font: font,
           fontSize: 10,
-          fontWeight:
-              bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          fontWeight: bold
+              ? pw.FontWeight.bold
+              : pw.FontWeight.normal,
         ),
       ),
     );
@@ -1730,18 +2079,21 @@ class _ReportScreenState extends State<ReportScreen> {
 
   pw.Widget _pdfCategorySection(
     String title,
-    List<Map<String, dynamic>> categories,
+    List<Map<String, dynamic>>
+        categories,
     pw.Font font,
   ) {
     return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      crossAxisAlignment:
+          pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
           title,
           style: pw.TextStyle(
             font: font,
             fontSize: 14,
-            fontWeight: pw.FontWeight.bold,
+            fontWeight:
+                pw.FontWeight.bold,
           ),
         ),
         pw.SizedBox(height: 6),
@@ -1755,7 +2107,8 @@ class _ReportScreenState extends State<ReportScreen> {
           )
         else
           pw.Table(
-            border: pw.TableBorder.all(
+            border:
+                pw.TableBorder.all(
               color: PdfColors.grey300,
             ),
             columnWidths: {
@@ -1779,16 +2132,23 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
               ...categories.map(
                 (item) {
+                  final name =
+                      _categoryName(item);
+
                   return pw.TableRow(
                     children: [
                       _pdfCell(
-                        _categoryName(item).isEmpty
+                        name.isEmpty
                             ? 'অন্যান্য'
-                            : _categoryName(item),
+                            : name,
                         font,
                       ),
                       _pdfCell(
-                        _money(_categoryAmount(item)),
+                        _money(
+                          _categoryAmount(
+                            item,
+                          ),
+                        ),
                         font,
                       ),
                     ],
@@ -1805,29 +2165,48 @@ class _ReportScreenState extends State<ReportScreen> {
   // PDF LOAN
   // ============================================================
 
-  pw.Widget _pdfLoanReport(pw.Font font) {
-    final receivable = _receivablePeople.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+  pw.Widget _pdfLoanReport(
+    pw.Font font,
+  ) {
+    final receivable =
+        _receivablePeople.entries
+            .toList()
+          ..sort(
+            (a, b) =>
+                b.value.compareTo(
+              a.value,
+            ),
+          );
 
-    final payable = _payablePeople.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final payable =
+        _payablePeople.entries
+            .toList()
+          ..sort(
+            (a, b) =>
+                b.value.compareTo(
+              a.value,
+            ),
+          );
 
     return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      crossAxisAlignment:
+          pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
           'ব্যক্তিগত Loan',
           style: pw.TextStyle(
             font: font,
             fontSize: 15,
-            fontWeight: pw.FontWeight.bold,
+            fontWeight:
+                pw.FontWeight.bold,
           ),
         ),
 
         pw.SizedBox(height: 8),
 
         pw.Table(
-          border: pw.TableBorder.all(
+          border:
+              pw.TableBorder.all(
             color: PdfColors.grey300,
           ),
           children: [
@@ -1848,11 +2227,15 @@ class _ReportScreenState extends State<ReportScreen> {
             pw.TableRow(
               children: [
                 _pdfCell(
-                  _money(_loanGivenPeriod),
+                  _money(
+                    _loanGivenPeriod,
+                  ),
                   font,
                 ),
                 _pdfCell(
-                  _money(_loanTakenPeriod),
+                  _money(
+                    _loanTakenPeriod,
+                  ),
                   font,
                 ),
               ],
@@ -1874,11 +2257,15 @@ class _ReportScreenState extends State<ReportScreen> {
             pw.TableRow(
               children: [
                 _pdfCell(
-                  _money(_loanReceivedPeriod),
+                  _money(
+                    _loanReceivedPeriod,
+                  ),
                   font,
                 ),
                 _pdfCell(
-                  _money(_loanPaidPeriod),
+                  _money(
+                    _loanPaidPeriod,
+                  ),
                   font,
                 ),
               ],
@@ -1900,11 +2287,15 @@ class _ReportScreenState extends State<ReportScreen> {
             pw.TableRow(
               children: [
                 _pdfCell(
-                  _money(_totalReceivable),
+                  _money(
+                    _totalReceivable,
+                  ),
                   font,
                 ),
                 _pdfCell(
-                  _money(_totalPayable),
+                  _money(
+                    _totalPayable,
+                  ),
                   font,
                 ),
               ],
@@ -1919,7 +2310,8 @@ class _ReportScreenState extends State<ReportScreen> {
           style: pw.TextStyle(
             font: font,
             fontSize: 12,
-            fontWeight: pw.FontWeight.bold,
+            fontWeight:
+                pw.FontWeight.bold,
           ),
         ),
 
@@ -1938,7 +2330,8 @@ class _ReportScreenState extends State<ReportScreen> {
           style: pw.TextStyle(
             font: font,
             fontSize: 12,
-            fontWeight: pw.FontWeight.bold,
+            fontWeight:
+                pw.FontWeight.bold,
           ),
         ),
 
@@ -1954,7 +2347,8 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   pw.Widget _pdfPeopleTable(
-    List<MapEntry<String, double>> people,
+    List<MapEntry<String, double>>
+        people,
     pw.Font font,
     String emptyText,
   ) {
@@ -1969,7 +2363,8 @@ class _ReportScreenState extends State<ReportScreen> {
     }
 
     return pw.Table(
-      border: pw.TableBorder.all(
+      border:
+          pw.TableBorder.all(
         color: PdfColors.grey300,
       ),
       columnWidths: {
@@ -2017,9 +2412,13 @@ class _ReportScreenState extends State<ReportScreen> {
   ) {
     return pw.Container(
       alignment: pw.Alignment.center,
-      padding: const pw.EdgeInsets.only(top: 8),
+      padding:
+          const pw.EdgeInsets.only(
+        top: 8,
+      ),
       child: pw.Text(
-        'আমার হিসাব অ্যাপ • Developed by Sayeed Mahadi • '
+        'আমার হিসাব অ্যাপ • '
+        'Developed by Sayeed Mahadi • '
         'mahadisayeed@gmail.com • '
         'পৃষ্ঠা ${context.pageNumber}/${context.pagesCount}',
         textAlign: pw.TextAlign.center,
@@ -2035,7 +2434,9 @@ class _ReportScreenState extends State<ReportScreen> {
   // DATA HELPERS
   // ============================================================
 
-  static double _toDouble(dynamic value) {
+  static double _toDouble(
+    dynamic value,
+  ) {
     if (value == null) return 0;
 
     if (value is num) {
@@ -2043,31 +2444,47 @@ class _ReportScreenState extends State<ReportScreen> {
     }
 
     return double.tryParse(
-          value.toString().replaceAll(',', '').trim(),
+          value
+              .toString()
+              .replaceAll(',', '')
+              .trim(),
         ) ??
         0;
   }
 
-  static List<Map<String, dynamic>> _toDynamicMapList(
+  static List<Map<String, dynamic>>
+      _toDynamicMapList(
     dynamic value,
   ) {
     if (value is! Iterable) return [];
 
-    return value.map<Map<String, dynamic>>((item) {
-      if (item is Map) {
-        return Map<String, dynamic>.from(item);
-      }
+    return value
+        .map<Map<String, dynamic>>(
+          (item) {
+            if (item is Map) {
+              return Map<String, dynamic>.from(
+                item,
+              );
+            }
 
-      try {
-        final dynamic map = item.toMap();
+            try {
+              final dynamic map =
+                  item.toMap();
 
-        if (map is Map) {
-          return Map<String, dynamic>.from(map);
-        }
-      } catch (_) {}
+              if (map is Map) {
+                return Map<String, dynamic>.from(
+                  map,
+                );
+              }
+            } catch (_) {}
 
-      return <String, dynamic>{};
-    }).where((item) => item.isNotEmpty).toList();
+            return <String, dynamic>{};
+          },
+        )
+        .where(
+          (item) => item.isNotEmpty,
+        )
+        .toList();
   }
 
   static String _stringValue(
@@ -2086,7 +2503,9 @@ class _ReportScreenState extends State<ReportScreen> {
     return '';
   }
 
-  static double _amount(Map<String, dynamic> map) {
+  static double _amount(
+    Map<String, dynamic> map,
+  ) {
     return _toDouble(
       map['amount'] ??
           map['total'] ??
@@ -2131,13 +2550,26 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  static String _money(double value) {
+  static String _money(
+    double value,
+  ) {
     return '৳${value.toStringAsFixed(2)}';
   }
 
-  static String _dateText(DateTime date) {
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
+  static String _dateText(
+    DateTime date,
+  ) {
+    final d =
+        date.day.toString().padLeft(
+              2,
+              '0',
+            );
+
+    final m =
+        date.month.toString().padLeft(
+              2,
+              '0',
+            );
 
     return '$d/$m/${date.year}';
   }
@@ -2147,8 +2579,11 @@ class _ReportScreenState extends State<ReportScreen> {
 // TRANSACTION DETAILS SCREEN
 // ==================================================================
 
-class TransactionDetailsScreen extends StatefulWidget {
-  final List<Map<String, dynamic>> transactions;
+class TransactionDetailsScreen
+    extends StatefulWidget {
+  final List<Map<String, dynamic>>
+      transactions;
+
   final DateTime startDate;
   final DateTime endDate;
   final String periodTitle;
@@ -2162,19 +2597,28 @@ class TransactionDetailsScreen extends StatefulWidget {
   });
 
   @override
-  State<TransactionDetailsScreen> createState() =>
-      _TransactionDetailsScreenState();
+  State<TransactionDetailsScreen>
+      createState() =>
+          _TransactionDetailsScreenState();
 }
 
 class _TransactionDetailsScreenState
     extends State<TransactionDetailsScreen> {
-  final ScreenshotController _screenshotController =
+  final ScreenshotController
+      _screenshotController =
       ScreenshotController();
 
-  static const Color _incomeColor = Color(0xFF2E7D32);
-  static const Color _expenseColor = Color(0xFFC62828);
-  static const Color _transferColor = Color(0xFF1565C0);
-  static const Color _loanColor = Color(0xFF8E24AA);
+  static const Color _incomeColor =
+      Color(0xFF2E7D32);
+
+  static const Color _expenseColor =
+      Color(0xFFC62828);
+
+  static const Color _transferColor =
+      Color(0xFF1565C0);
+
+  static const Color _loanColor =
+      Color(0xFF8E24AA);
 
   bool _saving = false;
 
@@ -2186,54 +2630,134 @@ class _TransactionDetailsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('লেনদেনের বিস্তারিত'),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'jpg') {
-                await _saveJpg();
-              } else if (value == 'pdf') {
-                await _savePdf();
-              } else if (value == 'share') {
-                await _shareImage();
-              }
-            },
-            itemBuilder: (context) {
-              return const [
-                PopupMenuItem(
-                  value: 'jpg',
-                  child: ListTile(
-                    leading: Icon(Icons.image_rounded),
-                    title: Text('JPG হিসেবে সংরক্ষণ'),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'pdf',
-                  child: ListTile(
-                    leading: Icon(Icons.picture_as_pdf_rounded),
-                    title: Text('PDF তৈরি ও শেয়ার'),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'share',
-                  child: ListTile(
-                    leading: Icon(Icons.share_rounded),
-                    title: Text('শেয়ার'),
-                  ),
-                ),
-              ];
-            },
-          ),
-        ],
+        title:
+            const Text('লেনদেনের বিস্তারিত'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(14),
+        padding:
+            const EdgeInsets.all(14),
         children: [
           Screenshot(
-            controller: _screenshotController,
-            child: _buildTransactionExportWidget(),
+            controller:
+                _screenshotController,
+            child:
+                _buildTransactionExportWidget(),
           ),
+
+          const SizedBox(height: 14),
+
+          _buildTransactionExportButtons(),
+
+          const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // TRANSACTION EXPORT BUTTONS
+  // ============================================================
+
+  Widget _buildTransactionExportButtons() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'লেনদেন সংরক্ষণ ও শেয়ার',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _transactionExportButton(
+                  icon: Icons.image_rounded,
+                  label: 'JPG সংরক্ষণ',
+                  onPressed:
+                      _saving
+                          ? null
+                          : _saveJpg,
+                ),
+                _transactionExportButton(
+                  icon:
+                      Icons.picture_as_pdf_rounded,
+                  label: 'PDF তৈরি ও শেয়ার',
+                  onPressed:
+                      _saving
+                          ? null
+                          : _savePdf,
+                ),
+                _transactionExportButton(
+                  icon: Icons.share_rounded,
+                  label: 'শেয়ার করুন',
+                  onPressed:
+                      _saving
+                          ? null
+                          : _shareImage,
+                ),
+              ],
+            ),
+
+            if (_saving) ...[
+              const SizedBox(height: 12),
+              const Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child:
+                        CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'প্রস্তুত হচ্ছে...',
+                    style: TextStyle(
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _transactionExportButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(
+        icon,
+        size: 19,
+      ),
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 13,
+          vertical: 12,
+        ),
       ),
     );
   }
@@ -2244,11 +2768,13 @@ class _TransactionDetailsScreenState
 
   Widget _buildTransactionExportWidget() {
     return Container(
-      width: double.infinity,
-      color: Theme.of(context).scaffoldBackgroundColor,
+      width: 850,
+      color: Theme.of(context)
+          .scaffoldBackgroundColor,
       padding: const EdgeInsets.all(4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           _buildHeader(),
 
@@ -2257,7 +2783,10 @@ class _TransactionDetailsScreenState
           if (widget.transactions.isEmpty)
             _emptyTransactions()
           else
-            ...widget.transactions.asMap().entries.map(
+            ...widget.transactions
+                .asMap()
+                .entries
+                .map(
               (entry) {
                 return _buildTransactionCard(
                   entry.value,
@@ -2280,7 +2809,8 @@ class _TransactionDetailsScreenState
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: const Color(0xFF0F5132),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius:
+            BorderRadius.circular(15),
       ),
       child: Column(
         children: [
@@ -2289,7 +2819,8 @@ class _TransactionDetailsScreenState
             style: TextStyle(
               color: Colors.white,
               fontSize: 23,
-              fontWeight: FontWeight.bold,
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
           const SizedBox(height: 5),
@@ -2298,14 +2829,18 @@ class _TransactionDetailsScreenState
             style: TextStyle(
               color: Color(0xFFC9A45C),
               fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             widget.periodTitle,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
+              color:
+                  Colors.white.withValues(
+                alpha: 0.9,
+              ),
               fontSize: 13,
             ),
           ),
@@ -2313,7 +2848,10 @@ class _TransactionDetailsScreenState
             '${_dateText(widget.startDate)} - '
             '${_dateText(widget.endDate)}',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
+              color:
+                  Colors.white.withValues(
+                alpha: 0.8,
+              ),
               fontSize: 11,
             ),
           ),
@@ -2325,11 +2863,16 @@ class _TransactionDetailsScreenState
   Widget _emptyTransactions() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(30),
+      padding:
+          const EdgeInsets.all(30),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
         border: Border.all(
-          color: Colors.grey.withValues(alpha: 0.25),
+          color:
+              Colors.grey.withValues(
+            alpha: 0.25,
+          ),
         ),
       ),
       child: const Column(
@@ -2344,7 +2887,8 @@ class _TransactionDetailsScreenState
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w600,
+              fontWeight:
+                  FontWeight.w600,
             ),
           ),
         ],
@@ -2360,20 +2904,30 @@ class _TransactionDetailsScreenState
     Map<String, dynamic> tx,
     int index,
   ) {
-    final String type = _transactionType(tx);
-    final Color color = _transactionColor(type);
-    final IconData icon = _transactionIcon(type);
-    final String typeText = _transactionTypeText(type);
+    final String type =
+        _transactionType(tx);
 
-    final double amount = _amount(tx);
+    final Color color =
+        _transactionColor(type);
 
-    final DateTime date = _parseDate(
+    final IconData icon =
+        _transactionIcon(type);
+
+    final String typeText =
+        _transactionTypeText(type);
+
+    final double amount =
+        _amount(tx);
+
+    final DateTime date =
+        _parseDate(
       tx['date'] ??
           tx['created_at'] ??
           tx['transaction_date'],
     );
 
-    final String category = _stringValue(
+    final String category =
+        _stringValue(
       tx,
       const [
         'category',
@@ -2381,7 +2935,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String account = _stringValue(
+    final String account =
+        _stringValue(
       tx,
       const [
         'account',
@@ -2389,7 +2944,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String note = _stringValue(
+    final String note =
+        _stringValue(
       tx,
       const [
         'note',
@@ -2398,7 +2954,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String person = _stringValue(
+    final String person =
+        _stringValue(
       tx,
       const [
         'person',
@@ -2408,7 +2965,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String fromAccount = _stringValue(
+    final String fromAccount =
+        _stringValue(
       tx,
       const [
         'from_account',
@@ -2417,7 +2975,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String toAccount = _stringValue(
+    final String toAccount =
+        _stringValue(
       tx,
       const [
         'to_account',
@@ -2426,24 +2985,39 @@ class _TransactionDetailsScreenState
     );
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 9),
-      padding: const EdgeInsets.all(12),
+      margin:
+          const EdgeInsets.only(
+        bottom: 9,
+      ),
+      padding:
+          const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
+          color:
+              color.withValues(
+            alpha: 0.3,
+          ),
         ),
-        color: color.withValues(alpha: 0.045),
+        color:
+            color.withValues(
+          alpha: 0.045,
+        ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Container(
             width: 39,
             height: 39,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: color.withValues(alpha: 0.12),
+              color:
+                  color.withValues(
+                alpha: 0.12,
+              ),
             ),
             child: Icon(
               icon,
@@ -2464,7 +3038,8 @@ class _TransactionDetailsScreenState
                         '$index. $typeText',
                         style: TextStyle(
                           color: color,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight.bold,
                           fontSize: 14,
                         ),
                       ),
@@ -2473,7 +3048,8 @@ class _TransactionDetailsScreenState
                       _money(amount),
                       style: TextStyle(
                         color: color,
-                        fontWeight: FontWeight.bold,
+                        fontWeight:
+                            FontWeight.bold,
                         fontSize: 15,
                       ),
                     ),
@@ -2483,8 +3059,10 @@ class _TransactionDetailsScreenState
                 const SizedBox(height: 4),
 
                 Text(
-                  'তারিখ: ${_dateTimeText(date)}',
-                  style: const TextStyle(
+                  'তারিখ: '
+                  '${_dateTimeText(date)}',
+                  style:
+                      const TextStyle(
                     fontSize: 11,
                   ),
                 ),
@@ -2535,19 +3113,24 @@ class _TransactionDetailsScreenState
     String value,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(top: 2),
+      padding:
+          const EdgeInsets.only(
+        top: 2,
+      ),
       child: RichText(
         text: TextSpan(
-          style: DefaultTextStyle.of(context)
-              .style
-              .copyWith(
+          style: DefaultTextStyle.of(
+            context,
+          ).style.copyWith(
                 fontSize: 11,
               ),
           children: [
             TextSpan(
               text: '$title: ',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
+              style:
+                  const TextStyle(
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
             TextSpan(
@@ -2570,7 +3153,8 @@ class _TransactionDetailsScreenState
           'আমার হিসাব অ্যাপ',
           style: TextStyle(
             color: Color(0xFFC9A45C),
-            fontWeight: FontWeight.bold,
+            fontWeight:
+                FontWeight.bold,
             fontSize: 12,
           ),
         ),
@@ -2606,7 +3190,9 @@ class _TransactionDetailsScreenState
     ).toLowerCase();
   }
 
-  String _transactionTypeText(String type) {
+  String _transactionTypeText(
+    String type,
+  ) {
     switch (type) {
       case 'income':
         return 'আয়';
@@ -2630,11 +3216,15 @@ class _TransactionDetailsScreenState
         return 'ধার পরিশোধ';
 
       default:
-        return type.isEmpty ? 'লেনদেন' : type;
+        return type.isEmpty
+            ? 'লেনদেন'
+            : type;
     }
   }
 
-  Color _transactionColor(String type) {
+  Color _transactionColor(
+    String type,
+  ) {
     switch (type) {
       case 'income':
         return _incomeColor;
@@ -2656,7 +3246,9 @@ class _TransactionDetailsScreenState
     }
   }
 
-  IconData _transactionIcon(String type) {
+  IconData _transactionIcon(
+    String type,
+  ) {
     switch (type) {
       case 'income':
         return Icons.arrow_downward_rounded;
@@ -2684,17 +3276,22 @@ class _TransactionDetailsScreenState
     }
   }
 
-  DateTime _parseDate(dynamic value) {
+  DateTime _parseDate(
+    dynamic value,
+  ) {
     if (value is DateTime) {
       return value;
     }
 
     if (value is int) {
-      return DateTime.fromMillisecondsSinceEpoch(value);
+      return DateTime.fromMillisecondsSinceEpoch(
+        value,
+      );
     }
 
     if (value != null) {
-      final parsed = DateTime.tryParse(
+      final parsed =
+          DateTime.tryParse(
         value.toString(),
       );
 
@@ -2706,7 +3303,9 @@ class _TransactionDetailsScreenState
     return DateTime.now();
   }
 
-  double _amount(Map<String, dynamic> map) {
+  double _amount(
+    Map<String, dynamic> map,
+  ) {
     return _toDouble(
       map['amount'] ??
           map['total'] ??
@@ -2731,7 +3330,9 @@ class _TransactionDetailsScreenState
     return '';
   }
 
-  double _toDouble(dynamic value) {
+  double _toDouble(
+    dynamic value,
+  ) {
     if (value == null) return 0;
 
     if (value is num) {
@@ -2739,30 +3340,67 @@ class _TransactionDetailsScreenState
     }
 
     return double.tryParse(
-          value.toString().replaceAll(',', '').trim(),
+          value
+              .toString()
+              .replaceAll(',', '')
+              .trim(),
         ) ??
         0;
   }
 
-  String _money(double value) {
+  String _money(
+    double value,
+  ) {
     return '৳${value.toStringAsFixed(2)}';
   }
 
-  String _dateText(DateTime date) {
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
+  String _dateText(
+    DateTime date,
+  ) {
+    final d =
+        date.day.toString().padLeft(
+              2,
+              '0',
+            );
+
+    final m =
+        date.month.toString().padLeft(
+              2,
+              '0',
+            );
 
     return '$d/$m/${date.year}';
   }
 
-  String _dateTimeText(DateTime date) {
-    final d = date.day.toString().padLeft(2, '0');
-    final m = date.month.toString().padLeft(2, '0');
+  String _dateTimeText(
+    DateTime date,
+  ) {
+    final d =
+        date.day.toString().padLeft(
+              2,
+              '0',
+            );
 
-    final h = date.hour.toString().padLeft(2, '0');
-    final min = date.minute.toString().padLeft(2, '0');
+    final m =
+        date.month.toString().padLeft(
+              2,
+              '0',
+            );
 
-    return '$d/$m/${date.year} $h:$min';
+    final h =
+        date.hour.toString().padLeft(
+              2,
+              '0',
+            );
+
+    final min =
+        date.minute.toString().padLeft(
+              2,
+              '0',
+            );
+
+    return '$d/$m/${date.year} '
+        '$h:$min';
   }
 
   // ============================================================
@@ -2770,14 +3408,45 @@ class _TransactionDetailsScreenState
   // ============================================================
 
   Future<File?> _captureTransactions() async {
+    final double screenWidth =
+        MediaQuery.of(context).size.width;
+
+    final double exportWidth =
+        screenWidth > 850
+            ? 850
+            : screenWidth - 28;
+
     final Uint8List? bytes =
-        await _screenshotController.captureFromLongWidget(
-      _buildTransactionExportWidget(),
-      delay: const Duration(milliseconds: 150),
+        await _screenshotController
+            .captureFromLongWidget(
+      Material(
+        color: Theme.of(context)
+            .scaffoldBackgroundColor,
+        child: MediaQuery(
+          data: MediaQuery.of(context),
+          child: Directionality(
+            textDirection:
+                TextDirection.ltr,
+            child: SizedBox(
+              width: exportWidth,
+              child:
+                  _buildTransactionExportWidget(),
+            ),
+          ),
+        ),
+      ),
+      delay:
+          const Duration(
+        milliseconds: 500,
+      ),
       context: context,
+      pixelRatio: 2.0,
     );
 
-    if (bytes == null) return null;
+    if (bytes == null ||
+        bytes.isEmpty) {
+      return null;
+    }
 
     final directory =
         await getTemporaryDirectory();
@@ -2786,7 +3455,21 @@ class _TransactionDetailsScreenState
       '${directory.path}/amar_hisab_transactions.png',
     );
 
-    await file.writeAsBytes(bytes);
+    await file.writeAsBytes(
+      bytes,
+      flush: true,
+    );
+
+    if (!await file.exists()) {
+      return null;
+    }
+
+    final int size =
+        await file.length();
+
+    if (size <= 0) {
+      return null;
+    }
 
     return file;
   }
@@ -2807,53 +3490,104 @@ class _TransactionDetailsScreenState
           await _captureTransactions();
 
       if (pngFile == null) {
-        throw Exception('ছবি তৈরি করা যায়নি');
+        throw Exception(
+          'লেনদেনের ছবি তৈরি করা যায়নি',
+        );
       }
 
       final Uint8List pngBytes =
           await pngFile.readAsBytes();
 
+      if (pngBytes.isEmpty) {
+        throw Exception(
+          'PNG ফাইল খালি',
+        );
+      }
+
       final img.Image? decoded =
           img.decodeImage(pngBytes);
 
       if (decoded == null) {
-        throw Exception('ছবি পড়া যায়নি');
+        throw Exception(
+          'ছবি decode করা যায়নি',
+        );
       }
 
       final List<int> jpgBytes =
-          img.encodeJpg(decoded, quality: 95);
+          img.encodeJpg(
+        decoded,
+        quality: 95,
+      );
+
+      if (jpgBytes.isEmpty) {
+        throw Exception(
+          'JPG তৈরি করা যায়নি',
+        );
+      }
 
       final directory =
           await getTemporaryDirectory();
 
       final file = File(
-        '${directory.path}/amar_hisab_transactions.jpg',
+        '${directory.path}/amar_hisab_transactions_${DateTime.now().millisecondsSinceEpoch}.jpg',
       );
 
-      await file.writeAsBytes(jpgBytes);
+      await file.writeAsBytes(
+        jpgBytes,
+        flush: true,
+      );
 
-      final bool? saved = await GallerySaver.saveImage(
+      if (!await file.exists()) {
+        throw Exception(
+          'JPG ফাইল তৈরি হয়নি',
+        );
+      }
+
+      final int fileSize =
+          await file.length();
+
+      if (fileSize <= 0) {
+        throw Exception(
+          'JPG ফাইল খালি',
+        );
+      }
+
+      final bool? saved =
+          await GallerySaver.saveImage(
         file.path,
         albumName: 'আমার হিসাব',
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            saved == true
-                ? 'লেনদেনের বিস্তারিত JPG হিসেবে Gallery-তে সংরক্ষণ হয়েছে'
-                : 'JPG তৈরি হয়েছে',
+      if (saved == true) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'লেনদেনের বিস্তারিত JPG হিসেবে Gallery-তে সংরক্ষণ হয়েছে',
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'JPG তৈরি হয়েছে, কিন্তু Gallery-তে সংরক্ষণ করা যায়নি',
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text('JPG তৈরি করতে সমস্যা হয়েছে: $e'),
+          content: Text(
+            'JPG তৈরি করতে সমস্যা হয়েছে: $e',
+          ),
         ),
       );
     } finally {
@@ -2881,7 +3615,9 @@ class _TransactionDetailsScreenState
           await _captureTransactions();
 
       if (file == null) {
-        throw Exception('ছবি তৈরি করা যায়নি');
+        throw Exception(
+          'ছবি তৈরি করা যায়নি',
+        );
       }
 
       await SharePlus.instance.share(
@@ -2890,7 +3626,8 @@ class _TransactionDetailsScreenState
             XFile(file.path),
           ],
           text:
-              'আমার হিসাব - লেনদেনের বিস্তারিত\n'
+              'আমার হিসাব - '
+              'লেনদেনের বিস্তারিত\n'
               '${_dateText(widget.startDate)} - '
               '${_dateText(widget.endDate)}',
         ),
@@ -2898,9 +3635,12 @@ class _TransactionDetailsScreenState
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text('শেয়ার করতে সমস্যা হয়েছে: $e'),
+          content: Text(
+            'শেয়ার করতে সমস্যা হয়েছে: $e',
+          ),
         ),
       );
     } finally {
@@ -2918,7 +3658,8 @@ class _TransactionDetailsScreenState
 
   Future<pw.Font> _loadPdfFont() async {
     try {
-      final data = await rootBundle.load(
+      final data =
+          await rootBundle.load(
         'assets/fonts/NotoSansBengali-Regular.ttf',
       );
 
@@ -2943,22 +3684,30 @@ class _TransactionDetailsScreenState
 
       pdf.addPage(
         pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(25),
-          theme: pw.ThemeData.withFont(
+          pageFormat:
+              PdfPageFormat.a4,
+          margin:
+              const pw.EdgeInsets.all(25),
+          theme:
+              pw.ThemeData.withFont(
             base: font,
             bold: font,
           ),
           footer: (context) {
             return pw.Container(
-              alignment: pw.Alignment.center,
+              alignment:
+                  pw.Alignment.center,
               padding:
-                  const pw.EdgeInsets.only(top: 8),
+                  const pw.EdgeInsets.only(
+                top: 8,
+              ),
               child: pw.Text(
-                'আমার হিসাব অ্যাপ • Developed by Sayeed Mahadi • '
+                'আমার হিসাব অ্যাপ • '
+                'Developed by Sayeed Mahadi • '
                 'mahadisayeed@gmail.com • '
                 'পৃষ্ঠা ${context.pageNumber}/${context.pagesCount}',
-                textAlign: pw.TextAlign.center,
+                textAlign:
+                    pw.TextAlign.center,
                 style: pw.TextStyle(
                   font: font,
                   fontSize: 7,
@@ -3028,7 +3777,10 @@ class _TransactionDetailsScreenState
                   ),
                 )
               else
-                ...widget.transactions.asMap().entries.map(
+                ...widget.transactions
+                    .asMap()
+                    .entries
+                    .map(
                   (entry) {
                     return _pdfTransaction(
                       entry.value,
@@ -3051,6 +3803,7 @@ class _TransactionDetailsScreenState
 
       await file.writeAsBytes(
         await pdf.save(),
+        flush: true,
       );
 
       await SharePlus.instance.share(
@@ -3059,15 +3812,19 @@ class _TransactionDetailsScreenState
             XFile(file.path),
           ],
           text:
-              'আমার হিসাব - লেনদেনের বিস্তারিত',
+              'আমার হিসাব - '
+              'লেনদেনের বিস্তারিত',
         ),
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: Text('PDF তৈরি করতে সমস্যা হয়েছে: $e'),
+          content: Text(
+            'PDF তৈরি করতে সমস্যা হয়েছে: $e',
+          ),
         ),
       );
     } finally {
@@ -3087,7 +3844,8 @@ class _TransactionDetailsScreenState
     final String type =
         _transactionType(tx);
 
-    final DateTime date = _parseDate(
+    final DateTime date =
+        _parseDate(
       tx['date'] ??
           tx['created_at'] ??
           tx['transaction_date'],
@@ -3096,9 +3854,11 @@ class _TransactionDetailsScreenState
     final String typeText =
         _transactionTypeText(type);
 
-    final double amount = _amount(tx);
+    final double amount =
+        _amount(tx);
 
-    final String category = _stringValue(
+    final String category =
+        _stringValue(
       tx,
       const [
         'category',
@@ -3106,7 +3866,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String account = _stringValue(
+    final String account =
+        _stringValue(
       tx,
       const [
         'account',
@@ -3114,7 +3875,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String person = _stringValue(
+    final String person =
+        _stringValue(
       tx,
       const [
         'person',
@@ -3124,7 +3886,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String note = _stringValue(
+    final String note =
+        _stringValue(
       tx,
       const [
         'note',
@@ -3133,7 +3896,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String fromAccount = _stringValue(
+    final String fromAccount =
+        _stringValue(
       tx,
       const [
         'from_account',
@@ -3142,7 +3906,8 @@ class _TransactionDetailsScreenState
       ],
     );
 
-    final String toAccount = _stringValue(
+    final String toAccount =
+        _stringValue(
       tx,
       const [
         'to_account',
@@ -3153,19 +3918,26 @@ class _TransactionDetailsScreenState
     final List<String> details = [];
 
     details.add(
-      'তারিখ: ${_dateTimeText(date)}',
+      'তারিখ: '
+      '${_dateTimeText(date)}',
     );
 
     if (category.isNotEmpty) {
-      details.add('খাত: $category');
+      details.add(
+        'খাত: $category',
+      );
     }
 
     if (account.isNotEmpty) {
-      details.add('অ্যাকাউন্ট: $account');
+      details.add(
+        'অ্যাকাউন্ট: $account',
+      );
     }
 
     if (person.isNotEmpty) {
-      details.add('ব্যক্তি: $person');
+      details.add(
+        'ব্যক্তি: $person',
+      );
     }
 
     if (type == 'transfer' &&
@@ -3180,14 +3952,18 @@ class _TransactionDetailsScreenState
     }
 
     if (note.isNotEmpty) {
-      details.add('বিবরণ: $note');
+      details.add(
+        'বিবরণ: $note',
+      );
     }
 
     return pw.Container(
-      margin: const pw.EdgeInsets.only(
+      margin:
+          const pw.EdgeInsets.only(
         bottom: 8,
       ),
-      padding: const pw.EdgeInsets.all(9),
+      padding:
+          const pw.EdgeInsets.all(9),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(
           color: PdfColors.grey300,
