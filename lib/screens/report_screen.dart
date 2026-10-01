@@ -342,8 +342,7 @@ class _ReportScreenState extends State<ReportScreen> {
   double _loanPeriodAmount(String type) {
     double total = 0;
 
-    for (final tx
-        in _loanPeriodTransactions) {
+    for (final tx in _loanPeriodTransactions) {
       if (_transactionType(tx) == type) {
         total += _amount(tx);
       }
@@ -571,15 +570,9 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                 ),
               ),
-
-              // Signature আর Expanded নয়।
-              // তাই report content-এর পরেই থাকবে।
               const SizedBox(height: 8),
-
               _buildSignatureArea(),
-
               const SizedBox(height: 6),
-
               _buildVoucherFooter(),
             ],
           ),
@@ -2661,7 +2654,8 @@ class _TransactionDetailsScreenState
   static const double _a4Width = 794;
   static const double _a4Height = 1123;
 
-  static const int _transactionsPerPage = 5;
+  // প্রতি A4 পেজে ১০টি transaction
+  static const int _transactionsPerPage = 10;
 
   final ScreenshotController
       _screenshotController =
@@ -3135,13 +3129,13 @@ class _TransactionDetailsScreenState
     return Container(
       margin:
           const EdgeInsets.only(
-        bottom: 9,
+        bottom: 5,
       ),
       padding:
-          const EdgeInsets.all(12),
+          const EdgeInsets.all(8),
       decoration: BoxDecoration(
         borderRadius:
-            BorderRadius.circular(14),
+            BorderRadius.circular(12),
         border: Border.all(
           color:
               color.withValues(
@@ -3158,8 +3152,8 @@ class _TransactionDetailsScreenState
             CrossAxisAlignment.start,
         children: [
           Container(
-            width: 39,
-            height: 39,
+            width: 34,
+            height: 34,
             decoration:
                 BoxDecoration(
               shape:
@@ -3172,10 +3166,10 @@ class _TransactionDetailsScreenState
             child: Icon(
               icon,
               color: color,
-              size: 21,
+              size: 18,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -3193,7 +3187,7 @@ class _TransactionDetailsScreenState
                           fontWeight:
                               FontWeight
                                   .bold,
-                          fontSize: 14,
+                          fontSize: 12,
                         ),
                       ),
                     ),
@@ -3205,20 +3199,20 @@ class _TransactionDetailsScreenState
                         fontWeight:
                             FontWeight
                                 .bold,
-                        fontSize: 15,
+                        fontSize: 13,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(
-                  height: 4,
+                  height: 2,
                 ),
                 Text(
                   'তারিখ: '
                   '${_dateTimeText(date)}',
                   style:
                       const TextStyle(
-                    fontSize: 11,
+                    fontSize: 9,
                   ),
                 ),
                 if (category.isNotEmpty)
@@ -3266,7 +3260,7 @@ class _TransactionDetailsScreenState
     return Padding(
       padding:
           const EdgeInsets.only(
-        top: 2,
+        top: 1,
       ),
       child: RichText(
         text: TextSpan(
@@ -3274,7 +3268,7 @@ class _TransactionDetailsScreenState
               DefaultTextStyle.of(
             context,
           ).style.copyWith(
-                fontSize: 11,
+                fontSize: 9,
               ),
           children: [
             TextSpan(
@@ -3859,6 +3853,9 @@ class _TransactionDetailsScreenState
                     pw.SizedBox(
                       height: 10,
                     ),
+
+                    // ১০টি transaction-কে A4-এর
+                    // ভিতরে fit করার জন্য FittedBox
                     pw.Expanded(
                       child:
                           pageTransactions
@@ -3876,27 +3873,40 @@ class _TransactionDetailsScreenState
                                     ),
                                   ),
                                 )
-                              : pw.Column(
-                                  children:
-                                      pageTransactions
-                                          .asMap()
-                                          .entries
-                                          .map(
-                                    (entry) {
-                                      return _pdfTransaction(
-                                        entry.value,
-                                        _globalTransactionIndex(
-                                          pageIndex +
-                                              1,
-                                          entry.key,
-                                        ),
-                                        font,
-                                      );
-                                    },
-                                  ).toList(),
+                              : pw.FittedBox(
+                                  fit: pw
+                                      .BoxFit
+                                      .scaleDown,
+                                  alignment: pw
+                                      .Alignment
+                                      .topCenter,
+                                  child: pw.SizedBox(
+                                    width: 540,
+                                    child: pw.Column(
+                                      children:
+                                          pageTransactions
+                                              .asMap()
+                                              .entries
+                                              .map(
+                                        (entry) {
+                                          return _pdfTransaction(
+                                            entry.value,
+                                            _globalTransactionIndex(
+                                              pageIndex +
+                                                  1,
+                                              entry.key,
+                                            ),
+                                            font,
+                                          );
+                                        },
+                                      ).toList(),
+                                    ),
+                                  ),
                                 ),
                     ),
+
                     pw.SizedBox(height: 8),
+
                     _buildPdfTransactionFooter(
                       font,
                       pageIndex + 1,
@@ -4188,16 +4198,16 @@ class _TransactionDetailsScreenState
     return pw.Container(
       margin:
           const pw.EdgeInsets.only(
-        bottom: 7,
+        bottom: 4,
       ),
       padding:
-          const pw.EdgeInsets.all(8),
+          const pw.EdgeInsets.all(6),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(
           color: PdfColors.grey300,
         ),
         borderRadius:
-            pw.BorderRadius.circular(6),
+            pw.BorderRadius.circular(5),
       ),
       child: pw.Column(
         crossAxisAlignment:
@@ -4210,7 +4220,7 @@ class _TransactionDetailsScreenState
                   '$index. $typeText',
                   style: pw.TextStyle(
                     font: font,
-                    fontSize: 9,
+                    fontSize: 8,
                     fontWeight:
                         pw.FontWeight.bold,
                   ),
@@ -4220,20 +4230,20 @@ class _TransactionDetailsScreenState
                 _money(amount),
                 style: pw.TextStyle(
                   font: font,
-                  fontSize: 9,
+                  fontSize: 8,
                   fontWeight:
                       pw.FontWeight.bold,
                 ),
               ),
             ],
           ),
-          pw.SizedBox(height: 3),
+          pw.SizedBox(height: 2),
           ...details.map(
             (detail) => pw.Text(
               detail,
               style: pw.TextStyle(
                 font: font,
-                fontSize: 7,
+                fontSize: 6.5,
               ),
             ),
           ),
