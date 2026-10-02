@@ -1323,7 +1323,7 @@ class _LoanScreenState extends State<LoanScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _t('দেনা-পাওনা', 'Dena-Pawna'),
+          _t('দেনা-পাওনা', 'Debts & Dues'),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
           ),
