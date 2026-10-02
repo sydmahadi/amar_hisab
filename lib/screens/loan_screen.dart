@@ -1,4 +1,3 @@
-```dart
 import 'package:flutter/material.dart';
 
 import '../services/app_settings.dart';
@@ -18,8 +17,6 @@ class _LoanScreenState extends State<LoanScreen> {
   final TextEditingController _searchController =
       TextEditingController();
 
-  AppSettings get settings => AppSettings.instance;
-
   List<Map<String, dynamic>> _loans = [];
 
   bool _loading = true;
@@ -29,6 +26,12 @@ class _LoanScreenState extends State<LoanScreen> {
 
   DateTime? _selectedDate;
   DateTime? _selectedMonth;
+
+  bool get _bn => AppSettings.instance.isBangla;
+
+  String _t(String bn, String en) {
+    return _bn ? bn : en;
+  }
 
   @override
   void initState() {
@@ -45,6 +48,7 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 
   void _onSearchChanged() {
+    setState(() {});
     _loadLoans();
   }
 
@@ -167,26 +171,22 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 
   String _monthName(int month) {
-    if (settings.isBangla) {
-      const months = [
-        'জানুয়ারি',
-        'ফেব্রুয়ারি',
-        'মার্চ',
-        'এপ্রিল',
-        'মে',
-        'জুন',
-        'জুলাই',
-        'আগস্ট',
-        'সেপ্টেম্বর',
-        'অক্টোবর',
-        'নভেম্বর',
-        'ডিসেম্বর',
-      ];
+    const bnMonths = [
+      'জানুয়ারি',
+      'ফেব্রুয়ারি',
+      'মার্চ',
+      'এপ্রিল',
+      'মে',
+      'জুন',
+      'জুলাই',
+      'আগস্ট',
+      'সেপ্টেম্বর',
+      'অক্টোবর',
+      'নভেম্বর',
+      'ডিসেম্বর',
+    ];
 
-      return months[month - 1];
-    }
-
-    const months = [
+    const enMonths = [
       'January',
       'February',
       'March',
@@ -201,43 +201,43 @@ class _LoanScreenState extends State<LoanScreen> {
       'December',
     ];
 
-    return months[month - 1];
+    return (_bn ? bnMonths : enMonths)[month - 1];
   }
 
   String _filterLabel() {
-    final isBangla = settings.isBangla;
-
     if (_selectedDate != null) {
-      return isBangla
-          ? 'তারিখ: ${_formatDate(_selectedDate)}'
-          : 'Date: ${_formatDate(_selectedDate)}';
+      return _t(
+        'তারিখ: ${_formatDate(_selectedDate)}',
+        'Date: ${_formatDate(_selectedDate)}',
+      );
     }
 
     if (_selectedMonth != null) {
-      return isBangla
-          ? 'মাস: ${_monthName(_selectedMonth!.month)} '
-              '${_selectedMonth!.year}'
-          : 'Month: ${_monthName(_selectedMonth!.month)} '
-              '${_selectedMonth!.year}';
+      return _t(
+        'মাস: ${_monthName(_selectedMonth!.month)} '
+        '${_selectedMonth!.year}',
+        'Month: ${_monthName(_selectedMonth!.month)} '
+        '${_selectedMonth!.year}',
+      );
     }
 
     if (_statusFilter == 'active') {
-      return isBangla ? 'চলমান' : 'Active';
+      return _t('চলমান', 'Active');
     }
 
     if (_statusFilter == 'completed') {
-      return isBangla ? 'সম্পন্ন' : 'Completed';
+      return _t('সম্পন্ন', 'Completed');
     }
 
     if (_typeFilter == 'receivable') {
-      return isBangla ? 'পাওনা' : 'Receivable';
+      return _t('পাওনা', 'Receivable');
     }
 
     if (_typeFilter == 'payable') {
-      return isBangla ? 'দেনা' : 'Payable';
+      return _t('দেনা', 'Payable');
     }
 
-    return isBangla ? 'সব লোন' : 'All loans';
+    return _t('সব লোন', 'All loans');
   }
 
   bool get _hasFilter {
@@ -248,16 +248,15 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 
   Future<void> _pickDate() async {
-    final isBangla = settings.isBangla;
-
     final date = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      helpText: isBangla
-          ? 'তারিখ নির্বাচন করুন'
-          : 'Select date',
+      helpText: _t(
+        'তারিখ নির্বাচন করুন',
+        'Select date',
+      ),
     );
 
     if (date == null) {
@@ -273,7 +272,6 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 
   Future<void> _pickMonth() async {
-    final isBangla = settings.isBangla;
     final now = DateTime.now();
 
     final selected = await showDialog<DateTime>(
@@ -286,9 +284,10 @@ class _LoanScreenState extends State<LoanScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(
-                isBangla
-                    ? 'মাস নির্বাচন করুন'
-                    : 'Select month',
+                _t(
+                  'মাস নির্বাচন করুন',
+                  'Select month',
+                ),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -296,7 +295,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   DropdownButtonFormField<int>(
                     initialValue: year,
                     decoration: InputDecoration(
-                      labelText: isBangla ? 'বছর' : 'Year',
+                      labelText: _t('বছর', 'Year'),
                     ),
                     items: List.generate(
                       21,
@@ -323,7 +322,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   DropdownButtonFormField<int>(
                     initialValue: month,
                     decoration: InputDecoration(
-                      labelText: isBangla ? 'মাস' : 'Month',
+                      labelText: _t('মাস', 'Month'),
                     ),
                     items: List.generate(
                       12,
@@ -352,7 +351,7 @@ class _LoanScreenState extends State<LoanScreen> {
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text(
-                    isBangla ? 'বাতিল' : 'Cancel',
+                    _t('বাতিল', 'Cancel'),
                   ),
                 ),
                 FilledButton(
@@ -363,7 +362,7 @@ class _LoanScreenState extends State<LoanScreen> {
                     );
                   },
                   child: Text(
-                    isBangla ? 'নির্বাচন' : 'Select',
+                    _t('নির্বাচন', 'Select'),
                   ),
                 ),
               ],
@@ -397,8 +396,6 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 
   Future<void> _showFilterMenu() async {
-    final isBangla = settings.isBangla;
-
     await showModalBottomSheet(
       context: context,
       showDragHandle: true,
@@ -413,13 +410,10 @@ class _LoanScreenState extends State<LoanScreen> {
                 24,
               ),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isBangla
-                        ? 'লোন ফিল্টার'
-                        : 'Loan filters',
+                    _t('লোন ফিল্টার', 'Loan filters'),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -427,16 +421,14 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    isBangla ? 'ধরন' : 'Type',
+                    _t('ধরন', 'Type'),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 8),
                   _filterTile(
-                    title: isBangla
-                        ? 'সব লোন'
-                        : 'All loans',
+                    title: _t('সব লোন', 'All loans'),
                     selected: _typeFilter == 'all',
                     onTap: () {
                       setState(() {
@@ -448,11 +440,8 @@ class _LoanScreenState extends State<LoanScreen> {
                     },
                   ),
                   _filterTile(
-                    title: isBangla
-                        ? 'আমার পাওনা'
-                        : 'Money owed to me',
-                    selected:
-                        _typeFilter == 'receivable',
+                    title: _t('আমার পাওনা', 'My receivables'),
+                    selected: _typeFilter == 'receivable',
                     onTap: () {
                       setState(() {
                         _typeFilter = 'receivable';
@@ -463,11 +452,8 @@ class _LoanScreenState extends State<LoanScreen> {
                     },
                   ),
                   _filterTile(
-                    title: isBangla
-                        ? 'আমার দেনা'
-                        : 'Money I owe',
-                    selected:
-                        _typeFilter == 'payable',
+                    title: _t('আমার দেনা', 'My payables'),
+                    selected: _typeFilter == 'payable',
                     onTap: () {
                       setState(() {
                         _typeFilter = 'payable';
@@ -479,14 +465,14 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                   const Divider(height: 24),
                   Text(
-                    isBangla ? 'অবস্থা' : 'Status',
+                    _t('অবস্থা', 'Status'),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 8),
                   _filterTile(
-                    title: isBangla ? 'সব' : 'All',
+                    title: _t('সব', 'All'),
                     selected: _statusFilter == 'all',
                     onTap: () {
                       setState(() {
@@ -498,11 +484,8 @@ class _LoanScreenState extends State<LoanScreen> {
                     },
                   ),
                   _filterTile(
-                    title: isBangla
-                        ? 'চলমান'
-                        : 'Active',
-                    selected:
-                        _statusFilter == 'active',
+                    title: _t('চলমান', 'Active'),
+                    selected: _statusFilter == 'active',
                     onTap: () {
                       setState(() {
                         _statusFilter = 'active';
@@ -513,11 +496,8 @@ class _LoanScreenState extends State<LoanScreen> {
                     },
                   ),
                   _filterTile(
-                    title: isBangla
-                        ? 'সম্পন্ন'
-                        : 'Completed',
-                    selected:
-                        _statusFilter == 'completed',
+                    title: _t('সম্পন্ন', 'Completed'),
+                    selected: _statusFilter == 'completed',
                     onTap: () {
                       setState(() {
                         _statusFilter = 'completed';
@@ -529,7 +509,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                   const Divider(height: 24),
                   Text(
-                    isBangla ? 'তারিখ' : 'Date',
+                    _t('তারিখ', 'Date'),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
@@ -540,9 +520,10 @@ class _LoanScreenState extends State<LoanScreen> {
                       Icons.calendar_today_outlined,
                     ),
                     title: Text(
-                      isBangla
-                          ? 'নির্দিষ্ট তারিখ'
-                          : 'Specific date',
+                      _t(
+                        'নির্দিষ্ট তারিখ',
+                        'Specific date',
+                      ),
                     ),
                     subtitle: _selectedDate == null
                         ? null
@@ -559,9 +540,10 @@ class _LoanScreenState extends State<LoanScreen> {
                       Icons.calendar_month_outlined,
                     ),
                     title: Text(
-                      isBangla
-                          ? 'নির্দিষ্ট মাস'
-                          : 'Specific month',
+                      _t(
+                        'নির্দিষ্ট মাস',
+                        'Specific month',
+                      ),
                     ),
                     subtitle: _selectedMonth == null
                         ? null
@@ -584,9 +566,10 @@ class _LoanScreenState extends State<LoanScreen> {
                         },
                         icon: const Icon(Icons.clear),
                         label: Text(
-                          isBangla
-                              ? 'সব ফিল্টার মুছে দিন'
-                              : 'Clear all filters',
+                          _t(
+                            'সব ফিল্টার মুছে দিন',
+                            'Clear all filters',
+                          ),
                         ),
                       ),
                     ),
@@ -709,8 +692,6 @@ class _LoanScreenState extends State<LoanScreen> {
   Future<void> _deleteLoanTransaction(
     int transactionId,
   ) async {
-    final isBangla = settings.isBangla;
-
     try {
       await _db.deleteTransaction(transactionId);
 
@@ -721,9 +702,10 @@ class _LoanScreenState extends State<LoanScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isBangla
-                ? 'লেনদেন মুছে ফেলা হয়েছে'
-                : 'Transaction deleted',
+            _t(
+              'লেনদেন মুছে ফেলা হয়েছে',
+              'Transaction deleted',
+            ),
           ),
         ),
       );
@@ -750,7 +732,6 @@ class _LoanScreenState extends State<LoanScreen> {
   Future<void> _deleteLoan(
     Map<String, dynamic> loan,
   ) async {
-    final isBangla = settings.isBangla;
     final loanId = loan['id'] as int?;
 
     if (loanId == null) {
@@ -778,11 +759,12 @@ class _LoanScreenState extends State<LoanScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isBangla
-                ? 'এই লোনের ফেরত/শোধের লেনদেন আছে। '
-                    'আগে সেগুলো মুছে ফেলুন।'
-                : 'This loan has repayment transactions. '
-                    'Delete those transactions first.',
+            _t(
+              'এই লোনের ফেরত/শোধের লেনদেন আছে। '
+              'আগে সেগুলো মুছে ফেলুন।',
+              'This loan has repayment transactions. '
+              'Delete those transactions first.',
+            ),
           ),
         ),
       );
@@ -795,33 +777,33 @@ class _LoanScreenState extends State<LoanScreen> {
       builder: (context) {
         return AlertDialog(
           title: Text(
-            isBangla
-                ? 'লোন মুছে ফেলবেন?'
-                : 'Delete this loan?',
+            _t(
+              'লোন মুছে ফেলবেন?',
+              'Delete loan?',
+            ),
           ),
           content: Text(
-            isBangla
-                ? '${loan['person_name'] ?? 'এই লেনদেন'}-এর '
-                    'লোনটি মুছে যাবে।'
-                : 'The loan for '
-                    '${loan['person_name'] ?? 'this transaction'} '
-                    'will be deleted.',
+            _t(
+              '${loan['person_name'] ?? 'এই লেনদেন'}-এর '
+              'লোনটি মুছে যাবে।',
+              'The loan for '
+              '${loan['person_name'] ?? 'this transaction'} '
+              'will be deleted.',
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () =>
                   Navigator.pop(context, false),
               child: Text(
-                isBangla ? 'বাতিল' : 'Cancel',
+                _t('বাতিল', 'Cancel'),
               ),
             ),
             FilledButton(
               onPressed: () =>
                   Navigator.pop(context, true),
               child: Text(
-                isBangla
-                    ? 'মুছে ফেলুন'
-                    : 'Delete',
+                _t('মুছে ফেলুন', 'Delete'),
               ),
             ),
           ],
@@ -867,9 +849,10 @@ class _LoanScreenState extends State<LoanScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isBangla
-                ? 'লোন মুছে ফেলা হয়েছে'
-                : 'Loan deleted',
+            _t(
+              'লোন মুছে ফেলা হয়েছে',
+              'Loan deleted',
+            ),
           ),
         ),
       );
@@ -1001,14 +984,11 @@ class _LoanScreenState extends State<LoanScreen> {
   Widget _buildLoanCard(
     Map<String, dynamic> loan,
   ) {
-    final isBangla = settings.isBangla;
-
     final type =
         (loan['type'] ?? '').toString();
 
     final person =
-        (loan['person_name'] ??
-                (isBangla ? 'নাম নেই' : 'No name'))
+        (loan['person_name'] ?? _t('নাম নেই', 'No name'))
             .toString();
 
     final principal =
@@ -1025,13 +1005,13 @@ class _LoanScreenState extends State<LoanScreen> {
 
     final title =
         isReceivable
-            ? (isBangla ? 'আমার পাওনা' : 'Money owed to me')
-            : (isBangla ? 'আমার দেনা' : 'Money I owe');
+            ? _t('আমার পাওনা', 'My receivable')
+            : _t('আমার দেনা', 'My payable');
 
     final status =
         remaining <= 0
-            ? (isBangla ? 'সম্পন্ন' : 'Completed')
-            : (isBangla ? 'চলমান' : 'Active');
+            ? _t('সম্পন্ন', 'Completed')
+            : _t('চলমান', 'Active');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1109,9 +1089,7 @@ class _LoanScreenState extends State<LoanScreen> {
                               ),
                               const SizedBox(width: 10),
                               Text(
-                                isBangla
-                                    ? 'এডিট'
-                                    : 'Edit',
+                                _t('এডিট', 'Edit'),
                               ),
                             ],
                           ),
@@ -1125,9 +1103,10 @@ class _LoanScreenState extends State<LoanScreen> {
                               ),
                               const SizedBox(width: 10),
                               Text(
-                                isBangla
-                                    ? 'মুছে ফেলুন'
-                                    : 'Delete',
+                                _t(
+                                  'মুছে ফেলুন',
+                                  'Delete',
+                                ),
                               ),
                             ],
                           ),
@@ -1142,13 +1121,13 @@ class _LoanScreenState extends State<LoanScreen> {
                 children: [
                   Expanded(
                     child: _amountColumn(
-                      isBangla ? 'মোট' : 'Total',
+                      _t('মোট', 'Total'),
                       principal,
                     ),
                   ),
                   Expanded(
                     child: _amountColumn(
-                      isBangla ? 'বাকি' : 'Remaining',
+                      _t('বাকি', 'Remaining'),
                       remaining,
                       color: color,
                     ),
@@ -1199,9 +1178,10 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                   const Spacer(),
                   Text(
-                    isBangla
-                        ? 'বিস্তারিত দেখুন'
-                        : 'View details',
+                    _t(
+                      'বিস্তারিত দেখুন',
+                      'View details',
+                    ),
                     style: TextStyle(
                       fontSize: 12,
                       color: color,
@@ -1315,7 +1295,6 @@ class _LoanScreenState extends State<LoanScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isBangla = settings.isBangla;
 
     final totalReceivable = _loans
         .where(
@@ -1344,18 +1323,14 @@ class _LoanScreenState extends State<LoanScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isBangla
-              ? 'দেনা-পাওনা'
-              : 'Loans',
+          _t('দেনা-পাওনা', 'Dena-Pawna'),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
           IconButton(
-            tooltip: isBangla
-                ? 'রিফ্রেশ'
-                : 'Refresh',
+            tooltip: _t('রিফ্রেশ', 'Refresh'),
             onPressed: _loadLoans,
             icon: const Icon(Icons.refresh),
           ),
@@ -1366,9 +1341,7 @@ class _LoanScreenState extends State<LoanScreen> {
         onPressed: _openAddTransaction,
         icon: const Icon(Icons.add),
         label: Text(
-          isBangla
-              ? 'নতুন লেনদেন'
-              : 'New transaction',
+          _t('নতুন লেনদেন', 'New transaction'),
         ),
       ),
       body: RefreshIndicator(
@@ -1388,9 +1361,10 @@ class _LoanScreenState extends State<LoanScreen> {
                 child: Row(
                   children: [
                     _buildSummaryCard(
-                      title: isBangla
-                          ? 'আমার পাওনা'
-                          : 'Money owed to me',
+                      title: _t(
+                        'আমার পাওনা',
+                        'My receivable',
+                      ),
                       amount: totalReceivable,
                       icon:
                           Icons.arrow_downward_rounded,
@@ -1398,9 +1372,10 @@ class _LoanScreenState extends State<LoanScreen> {
                     ),
                     const SizedBox(width: 10),
                     _buildSummaryCard(
-                      title: isBangla
-                          ? 'আমার দেনা'
-                          : 'Money I owe',
+                      title: _t(
+                        'আমার দেনা',
+                        'My payable',
+                      ),
                       amount: totalPayable,
                       icon:
                           Icons.arrow_upward_rounded,
@@ -1421,9 +1396,10 @@ class _LoanScreenState extends State<LoanScreen> {
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: isBangla
-                        ? 'নাম বা নোট দিয়ে খুঁজুন'
-                        : 'Search by name or note',
+                    hintText: _t(
+                      'নাম বা নোট দিয়ে খুঁজুন',
+                      'Search by name or note',
+                    ),
                     prefixIcon:
                         const Icon(Icons.search),
                     suffixIcon:
@@ -1497,9 +1473,7 @@ class _LoanScreenState extends State<LoanScreen> {
                           size: 18,
                         ),
                         label: Text(
-                          isBangla
-                              ? 'ফিল্টার'
-                              : 'Filter',
+                          _t('ফিল্টার', 'Filter'),
                         ),
                         style:
                             OutlinedButton.styleFrom(
@@ -1559,8 +1533,6 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 
   Widget _buildEmptyState() {
-    final isBangla = settings.isBangla;
-
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30),
@@ -1585,9 +1557,10 @@ class _LoanScreenState extends State<LoanScreen> {
             ),
             const SizedBox(height: 18),
             Text(
-              isBangla
-                  ? 'কোনো দেনা-পাওনা পাওয়া যায়নি'
-                  : 'No loan records found',
+              _t(
+                'কোনো দেনা-পাওনা পাওয়া যায়নি',
+                'No loans found',
+              ),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 18,
@@ -1597,12 +1570,14 @@ class _LoanScreenState extends State<LoanScreen> {
             const SizedBox(height: 8),
             Text(
               _hasFilter
-                  ? (isBangla
-                      ? 'বর্তমান ফিল্টার পরিবর্তন করে দেখুন।'
-                      : 'Try changing the current filters.')
-                  : (isBangla
-                      ? 'নতুন লেনদেন থেকে ধার দেওয়া বা নেওয়ার হিসাব যোগ করুন।'
-                      : 'Add lending or borrowing records from a new transaction.'),
+                  ? _t(
+                      'বর্তমান ফিল্টার পরিবর্তন করে দেখুন।',
+                      'Try changing the current filters.',
+                    )
+                  : _t(
+                      'নতুন লেনদেন থেকে ধার দেওয়া বা নেওয়ার হিসাব যোগ করুন।',
+                      'Add a loan given or taken from a new transaction.',
+                    ),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.grey.shade600,
@@ -1614,9 +1589,10 @@ class _LoanScreenState extends State<LoanScreen> {
               OutlinedButton(
                 onPressed: _clearFilters,
                 child: Text(
-                  isBangla
-                      ? 'ফিল্টার মুছে দিন'
-                      : 'Clear filters',
+                  _t(
+                    'ফিল্টার মুছে দিন',
+                    'Clear filters',
+                  ),
                 ),
               ),
             ],
@@ -1636,8 +1612,6 @@ class _LoanDetailsSheet extends StatelessWidget {
       onDelete;
   final Future<void> Function() onRepayment;
 
-  AppSettings get settings => AppSettings.instance;
-
   const _LoanDetailsSheet({
     required this.loan,
     required this.transactions,
@@ -1645,6 +1619,12 @@ class _LoanDetailsSheet extends StatelessWidget {
     required this.onDelete,
     required this.onRepayment,
   });
+
+  bool get _bn => AppSettings.instance.isBangla;
+
+  String _t(String bn, String en) {
+    return _bn ? bn : en;
+  }
 
   double _toDouble(dynamic value) {
     if (value is num) {
@@ -1683,29 +1663,32 @@ class _LoanDetailsSheet extends StatelessWidget {
   }
 
   String _transactionTitle(String type) {
-    final isBangla = settings.isBangla;
-
     switch (type) {
       case 'loan_given':
-        return isBangla
-            ? 'ধার দিয়েছি'
-            : 'Money lent';
+        return _t(
+          'ধার দিয়েছি',
+          'Loan given',
+        );
       case 'loan_taken':
-        return isBangla
-            ? 'ধার নিয়েছি'
-            : 'Money borrowed';
+        return _t(
+          'ধার নিয়েছি',
+          'Loan taken',
+        );
       case 'loan_received':
-        return isBangla
-            ? 'ধার ফেরত পেয়েছি'
-            : 'Repayment received';
+        return _t(
+          'ধার ফেরত পেয়েছি',
+          'Repayment received',
+        );
       case 'loan_paid':
-        return isBangla
-            ? 'ধার শোধ করেছি'
-            : 'Loan repaid';
+        return _t(
+          'ধার শোধ করেছি',
+          'Loan repayment',
+        );
       default:
-        return isBangla
-            ? 'লোন লেনদেন'
-            : 'Loan transaction';
+        return _t(
+          'লোন লেনদেন',
+          'Loan transaction',
+        );
     }
   }
 
@@ -1731,14 +1714,11 @@ class _LoanDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isBangla = settings.isBangla;
-
     final type =
         (loan['type'] ?? '').toString();
 
     final person =
-        (loan['person_name'] ??
-                (isBangla ? 'নাম নেই' : 'No name'))
+        (loan['person_name'] ?? _t('নাম নেই', 'No name'))
             .toString();
 
     final principal =
@@ -1800,12 +1780,14 @@ class _LoanDetailsSheet extends StatelessWidget {
                           const SizedBox(height: 3),
                           Text(
                             receivable
-                                ? (isBangla
-                                    ? 'আমার পাওনা'
-                                    : 'Money owed to me')
-                                : (isBangla
-                                    ? 'আমার দেনা'
-                                    : 'Money I owe'),
+                                ? _t(
+                                    'আমার পাওনা',
+                                    'My receivable',
+                                  )
+                                : _t(
+                                    'আমার দেনা',
+                                    'My payable',
+                                  ),
                             style: TextStyle(
                               color: color,
                               fontWeight:
@@ -1822,15 +1804,13 @@ class _LoanDetailsSheet extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _summary(
-                        isBangla ? 'মোট' : 'Total',
+                        _t('মোট', 'Total'),
                         principal,
                       ),
                     ),
                     Expanded(
                       child: _summary(
-                        isBangla
-                            ? 'বাকি'
-                            : 'Remaining',
+                        _t('বাকি', 'Remaining'),
                         remaining,
                         color: color,
                       ),
@@ -1850,12 +1830,14 @@ class _LoanDetailsSheet extends StatelessWidget {
                       ),
                       label: Text(
                         receivable
-                            ? (isBangla
-                                ? 'ফেরত পেয়েছি'
-                                : 'Repayment received')
-                            : (isBangla
-                                ? 'ধার শোধ করেছি'
-                                : 'Repay loan'),
+                            ? _t(
+                                'ফেরত পেয়েছি',
+                                'Received repayment',
+                              )
+                            : _t(
+                                'ধার শোধ করেছি',
+                                'Paid repayment',
+                              ),
                       ),
                     ),
                   ),
@@ -1867,9 +1849,10 @@ class _LoanDetailsSheet extends StatelessWidget {
             child: transactions.isEmpty
                 ? Center(
                     child: Text(
-                      isBangla
-                          ? 'কোনো লেনদেন নেই'
-                          : 'No transactions',
+                      _t(
+                        'কোনো লেনদেন নেই',
+                        'No transactions',
+                      ),
                     ),
                   )
                 : ListView.separated(
@@ -2037,24 +2020,20 @@ class _LoanDetailsSheet extends StatelessWidget {
                     }
                   },
                   itemBuilder: (_) {
-                    final isBangla =
-                        settings.isBangla;
-
                     return [
                       PopupMenuItem(
                         value: 'edit',
                         child: Text(
-                          isBangla
-                              ? 'এডিট'
-                              : 'Edit',
+                          _t('এডিট', 'Edit'),
                         ),
                       ),
                       PopupMenuItem(
                         value: 'delete',
                         child: Text(
-                          isBangla
-                              ? 'মুছে ফেলুন'
-                              : 'Delete',
+                          _t(
+                            'মুছে ফেলুন',
+                            'Delete',
+                          ),
                         ),
                       ),
                     ];
@@ -2071,37 +2050,35 @@ class _LoanDetailsSheet extends StatelessWidget {
     BuildContext context,
     int id,
   ) async {
-    final isBangla = settings.isBangla;
-
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text(
-            isBangla
-                ? 'লেনদেন মুছে ফেলবেন?'
-                : 'Delete transaction?',
+            _t(
+              'লেনদেন মুছে ফেলবেন?',
+              'Delete transaction?',
+            ),
           ),
           content: Text(
-            isBangla
-                ? 'এই লোন লেনদেনটি স্থায়ীভাবে মুছে যাবে।'
-                : 'This loan transaction will be permanently deleted.',
+            _t(
+              'এই লোন লেনদেনটি স্থায়ীভাবে মুছে যাবে।',
+              'This loan transaction will be permanently deleted.',
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () =>
                   Navigator.pop(context, false),
               child: Text(
-                isBangla ? 'বাতিল' : 'Cancel',
+                _t('বাতিল', 'Cancel'),
               ),
             ),
             FilledButton(
               onPressed: () =>
                   Navigator.pop(context, true),
               child: Text(
-                isBangla
-                    ? 'মুছে ফেলুন'
-                    : 'Delete',
+                _t('মুছে ফেলুন', 'Delete'),
               ),
             ),
           ],
@@ -2139,8 +2116,6 @@ class _RepaymentSheetState
   final TextEditingController _noteController =
       TextEditingController();
 
-  AppSettings get settings => AppSettings.instance;
-
   List<Map<String, dynamic>> _accounts = [];
 
   int? _selectedAccountId;
@@ -2148,6 +2123,12 @@ class _RepaymentSheetState
   DateTime _date = DateTime.now();
 
   bool _saving = false;
+
+  bool get _bn => AppSettings.instance.isBangla;
+
+  String _t(String bn, String en) {
+    return _bn ? bn : en;
+  }
 
   double _toDouble(dynamic value) {
     if (value is num) {
@@ -2203,9 +2184,10 @@ class _RepaymentSheetState
       initialDate: _date,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      helpText: settings.isBangla
-          ? 'তারিখ নির্বাচন করুন'
-          : 'Select date',
+      helpText: _t(
+        'তারিখ নির্বাচন করুন',
+        'Select date',
+      ),
     );
 
     if (picked == null) {
@@ -2218,8 +2200,6 @@ class _RepaymentSheetState
   }
 
   Future<void> _save() async {
-    final isBangla = settings.isBangla;
-
     if (_saving) {
       return;
     }
@@ -2234,9 +2214,10 @@ class _RepaymentSheetState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isBangla
-                ? 'সঠিক পরিমাণ লিখুন'
-                : 'Enter a valid amount',
+            _t(
+              'সঠিক পরিমাণ লিখুন',
+              'Enter a valid amount',
+            ),
           ),
         ),
       );
@@ -2247,9 +2228,10 @@ class _RepaymentSheetState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isBangla
-                ? 'বাকি টাকার চেয়ে বেশি পরিমাণ দেওয়া যাবে না'
-                : 'The amount cannot be greater than the remaining balance',
+            _t(
+              'বাকি টাকার চেয়ে বেশি পরিমাণ দেওয়া যাবে না',
+              'Amount cannot be greater than the remaining balance',
+            ),
           ),
         ),
       );
@@ -2260,9 +2242,10 @@ class _RepaymentSheetState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isBangla
-                ? 'একটি অ্যাকাউন্ট নির্বাচন করুন'
-                : 'Select an account',
+            _t(
+              'একটি অ্যাকাউন্ট নির্বাচন করুন',
+              'Select an account',
+            ),
           ),
         ),
       );
@@ -2320,11 +2303,9 @@ class _RepaymentSheetState
 
   @override
   Widget build(BuildContext context) {
-    final isBangla = settings.isBangla;
-
     final person =
         (widget.loan['person_name'] ??
-                (isBangla ? 'নাম নেই' : 'No name'))
+                _t('নাম নেই', 'No name'))
             .toString();
 
     return SafeArea(
@@ -2345,12 +2326,14 @@ class _RepaymentSheetState
             children: [
               Text(
                 _receivable
-                    ? (isBangla
-                        ? 'ধার ফেরত পেয়েছি'
-                        : 'Repayment received')
-                    : (isBangla
-                        ? 'ধার শোধ করেছি'
-                        : 'Repay loan'),
+                    ? _t(
+                        'ধার ফেরত পেয়েছি',
+                        'Received repayment',
+                      )
+                    : _t(
+                        'ধার শোধ করেছি',
+                        'Paid repayment',
+                      ),
                 style: const TextStyle(
                   fontSize: 21,
                   fontWeight: FontWeight.bold,
@@ -2384,11 +2367,12 @@ class _RepaymentSheetState
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        isBangla
-                            ? 'বর্তমান বাকি: '
-                                '৳ ${_remaining.toStringAsFixed(2)}'
-                            : 'Current remaining: '
-                                '৳ ${_remaining.toStringAsFixed(2)}',
+                        _t(
+                          'বর্তমান বাকি: '
+                          '৳ ${_remaining.toStringAsFixed(2)}',
+                          'Current remaining: '
+                          '৳ ${_remaining.toStringAsFixed(2)}',
+                        ),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
@@ -2406,9 +2390,10 @@ class _RepaymentSheetState
                 ),
                 decoration:
                     InputDecoration(
-                  labelText: isBangla
-                      ? 'পরিমাণ'
-                      : 'Amount',
+                  labelText: _t(
+                    'পরিমাণ',
+                    'Amount',
+                  ),
                   prefixText: '৳ ',
                   border: const OutlineInputBorder(),
                 ),
@@ -2418,9 +2403,10 @@ class _RepaymentSheetState
                 initialValue: _selectedAccountId,
                 decoration:
                     InputDecoration(
-                  labelText: isBangla
-                      ? 'অ্যাকাউন্ট'
-                      : 'Account',
+                  labelText: _t(
+                    'অ্যাকাউন্ট',
+                    'Account',
+                  ),
                   border: const OutlineInputBorder(),
                 ),
                 items: _accounts.map((account) {
@@ -2448,9 +2434,10 @@ class _RepaymentSheetState
                 maxLines: 2,
                 decoration:
                     InputDecoration(
-                  labelText: isBangla
-                      ? 'নোট'
-                      : 'Note',
+                  labelText: _t(
+                    'নোট',
+                    'Note',
+                  ),
                   border: const OutlineInputBorder(),
                 ),
               ),
@@ -2461,7 +2448,7 @@ class _RepaymentSheetState
                   Icons.calendar_today_outlined,
                 ),
                 title: Text(
-                  isBangla ? 'তারিখ' : 'Date',
+                  _t('তারিখ', 'Date'),
                 ),
                 subtitle: Text(
                   '${_date.day.toString().padLeft(2, '0')}/'
@@ -2494,12 +2481,14 @@ class _RepaymentSheetState
                         ),
                   label: Text(
                     _saving
-                        ? (isBangla
-                            ? 'সেভ হচ্ছে...'
-                            : 'Saving...')
-                        : (isBangla
-                            ? 'সেভ করুন'
-                            : 'Save'),
+                        ? _t(
+                            'সেভ হচ্ছে...',
+                            'Saving...',
+                          )
+                        : _t(
+                            'সেভ করুন',
+                            'Save',
+                          ),
                   ),
                 ),
               ),
@@ -2510,4 +2499,3 @@ class _RepaymentSheetState
     );
   }
 }
-```
